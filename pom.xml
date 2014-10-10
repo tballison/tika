@@ -55,6 +55,8 @@
     <module>tika-server</module>
     <module>tika-translate</module>
     <module>tika-example</module>
+    <module>tika-batch</module>
+    <module>tika-eval</module>
   </modules>
 
   <profiles>
@@ -82,9 +84,9 @@
               </execution>
               <execution>
                 <id>source-release-assembly</id>
-                <configuration>
-                  <skipAssembly>true</skipAssembly>
-                </configuration>
+                  <!--<configuration>
+                    <skipAssembly>true</skipAssembly> error in IntelliJ/
+                </configuration>-->
               </execution>
             </executions>
           </plugin>
@@ -132,7 +134,7 @@ The release candidate is a zip archive of the sources in:
 
     http://svn.apache.org/repos/asf/tika/tags/${project.version}/
 
-The SHA1 checksum of the archive is ${checksum}.
+The SHA1 checksum of the archive is <!--${checksum}. -->
 
 Please vote on releasing this package as Apache Tika ${project.version}.
 The vote is open for the next 72 hours and passes if a majority of at

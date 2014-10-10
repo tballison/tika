@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<tika-batch-config
+        maxAliveTimeSeconds="-1"
+        pauseOnEarlyTerminationMillis = "500"
+        staleThresholdMillis="300000"
+        staleCheckPulseMillis="1000"
+        maxStaleConsumers="2"
+        maxQueueSize="10000"
+        numConsumers="5">
+
+    <!--
+        Can also add startDir: this tells the crawler to start indexing a
+        child directory of the srcDir directory.
+    -->
+	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
+		crawlOrder="sorted"
+        maxConsecWaitMillis="5000"
+		maxFilesToAdd="-1" 
+		maxFilesToConsider="-1" 
+		includeFilePat=""
+		excludeFilePat=""
+		maxFileSizeBytes="-1"
+        srcDir="tika-batch/src/test/resources/test-input"
+        />
+
+
+	<consumers builderClass="org.apache.tika.eval.batch.BasicFileComparerBuilder"
+               thisDir="thisDir"
+               thatDir="thatDir"
+               outputFile="results.csv">
+	</consumers>
+	
+	<!-- reporter and interrupter are optional -->
+	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000" staleThresholdMillis="500000"/>
+	<interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>
+</tika-batch-config>
