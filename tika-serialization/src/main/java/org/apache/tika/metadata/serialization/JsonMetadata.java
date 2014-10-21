@@ -21,25 +21,17 @@ package org.apache.tika.metadata.serialization;
 import java.io.Reader;
 import java.io.Writer;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonIOException;
-
-public class JsonMetadata {
-    
+public class JsonMetadata extends JsonMetadataBase{
     private static Gson GSON;
-    
-    static {
-        GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeHierarchyAdapter(Metadata.class, new JsonMetadataSerializer());
-        builder.registerTypeHierarchyAdapter(Metadata.class, new JsonMetadataDeserializer());
-        GSON = builder.create();
-    }
 
-    
+    static {
+        GSON = defaultInit();
+    }
     /**
      * Serializes a Metadata object to Json.  This does not flush or close the writer.
      * 
@@ -72,15 +64,24 @@ public class JsonMetadata {
         }
         return m;
     }
-    
+
     /**
      * Enables setting custom configurations on Gson.  Remember to register
      * a serializer and a deserializer for Metadata.  This does a literal set
      * and does not add the default serializer and deserializers.
-     * 
+     *
      * @param gson
      */
     public static void setGson(Gson gson) {
         GSON = gson;
     }
+
+    public static void setPrettyPrinting(boolean prettyPrint) {
+        if (prettyPrint) {
+            GSON = prettyInit();
+        } else {
+            GSON = defaultInit();
+        }
+    }
+
 }

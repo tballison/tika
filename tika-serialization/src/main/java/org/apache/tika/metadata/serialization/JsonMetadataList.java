@@ -24,30 +24,19 @@ import java.lang.reflect.Type;
 import java.util.List;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonIOException;
 import com.google.gson.reflect.TypeToken;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 
-public class JsonMetadataList {
+public class JsonMetadataList extends JsonMetadataBase {
     
-    private static Gson GSON;
     private final static Type listType = new TypeToken<List<Metadata>>(){}.getType();
-    
+    private static Gson GSON;
     static {
-        GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeHierarchyAdapter(Metadata.class, new JsonMetadataSerializer());
-        builder.registerTypeHierarchyAdapter(Metadata.class, new JsonMetadataDeserializer());
-        GSON = builder.create();
+        GSON = defaultInit();
     }
 
-    /**
-     * Serialize Metadata to writer
-     * @param metadata
-     * @param writer
-     */
-    
     /**
      * Serializes a Metadata object to Json.  This does not flush or close the writer.
      * 
@@ -72,6 +61,9 @@ public class JsonMetadataList {
      */
     public static List<Metadata> fromJson(Reader reader) throws TikaException {
         List<Metadata> ms = null;
+        if (reader == null) {
+            return ms;
+        }
         try {
             ms = GSON.fromJson(reader, listType);
         } catch (com.google.gson.JsonParseException e){
@@ -80,15 +72,25 @@ public class JsonMetadataList {
         }
         return ms;
     }
-    
+
     /**
      * Enables setting custom configurations on Gson.  Remember to register
      * a serializer and a deserializer for Metadata.  This does a literal set
      * and does not add the default serializer and deserializers.
-     * 
-     * @param gson gson to use
+     *
+     * @param gson
      */
     public static void setGson(Gson gson) {
         GSON = gson;
     }
+
+    public static void setPrettyPrinting(boolean prettyPrint) {
+        if (prettyPrint) {
+            GSON = prettyInit();
+        } else {
+            GSON = defaultInit();
+        }
+    }
+
+
 }

@@ -16,27 +16,6 @@
  */
 package org.apache.tika.gui;
 
-import org.apache.tika.config.TikaConfig;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.extractor.DocumentSelector;
-import org.apache.tika.io.IOUtils;
-import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
-import org.apache.tika.parser.AbstractParser;
-import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.Parser;
-import org.apache.tika.parser.html.BoilerpipeContentHandler;
-import org.apache.tika.sax.BodyContentHandler;
-import org.apache.tika.sax.ContentHandlerDecorator;
-import org.apache.tika.sax.TeeContentHandler;
-import org.apache.tika.sax.XHTMLContentHandler;
-import org.xml.sax.Attributes;
-import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
-import org.xml.sax.helpers.AttributesImpl;
-
 import javax.swing.Box;
 import javax.swing.JDialog;
 import javax.swing.JEditorPane;
@@ -81,6 +60,30 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.extractor.DocumentSelector;
+import org.apache.tika.io.IOUtils;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.serialization.JsonMetadataList;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.parser.AbstractParser;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.RecursiveParserWrapper;
+import org.apache.tika.parser.html.BoilerpipeContentHandler;
+import org.apache.tika.sax.BasicContentHandlerFactory;
+import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.sax.ContentHandlerDecorator;
+import org.apache.tika.sax.TeeContentHandler;
+import org.apache.tika.sax.XHTMLContentHandler;
+import org.xml.sax.Attributes;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * Simple Swing GUI for Apache Tika. You can drag and drop files on top
@@ -163,6 +166,11 @@ public class TikaGUI extends JFrame
     private final JEditorPane xml;
 
     /**
+     * Raw JSON source.
+     */
+    private final JEditorPane json;
+
+    /**
      * Document metadata.
      */
     private final JEditorPane metadata;
@@ -185,6 +193,7 @@ public class TikaGUI extends JFrame
         text = addCard(cards, "text/plain", "text");
         textMain = addCard(cards, "text/plain", "main");
         xml = addCard(cards, "text/plain", "xhtml");
+        json = addCard(cards, "text/plain", "json");
         add(cards);
         layout.show(cards, "welcome");
 
@@ -217,6 +226,7 @@ public class TikaGUI extends JFrame
         addMenuItem(view, "Plain text", "text", KeyEvent.VK_P);
         addMenuItem(view, "Main content", "main", KeyEvent.VK_C);
         addMenuItem(view, "Structured text", "xhtml", KeyEvent.VK_S);
+        addMenuItem(view, "Recursive JSON", "json", KeyEvent.VK_J);
         bar.add(view);
 
         bar.add(Box.createHorizontalGlue());
@@ -266,6 +276,8 @@ public class TikaGUI extends JFrame
         } else if ("xhtml".equals(command)) {
             layout.show(cards, command);
         } else if ("metadata".equals(command)) {
+            layout.show(cards, command);
+        } else if ("json".equals(command)) {
             layout.show(cards, command);
         } else if ("about".equals(command)) {
             textDialog(
@@ -320,7 +332,7 @@ public class TikaGUI extends JFrame
                 getXmlContentHandler(xmlBuffer));
 
         context.set(DocumentSelector.class, new ImageDocumentSelector());
-
+        input.mark(1000000000);
         input = new ProgressMonitorInputStream(
                 this, "Parsing stream", input);
         parser.parse(input, handler, md, context);
@@ -346,6 +358,23 @@ public class TikaGUI extends JFrame
         setText(text, textBuffer.toString());
         setText(textMain, textMainBuffer.toString());
         setText(html, htmlBuffer.toString());
+
+        boolean isReset = false;
+        try {
+            input.reset();
+            isReset = true;
+        } catch (IOException e) {
+            setText(json, "Error during reset");
+        }
+        if (isReset) {
+            RecursiveParserWrapper wrapper = new RecursiveParserWrapper(parser,
+                    new BasicContentHandlerFactory(BasicContentHandlerFactory.HANDLER_TYPE.BODY, -1));
+            wrapper.parse(input, null, new Metadata(), new ParseContext());
+            StringWriter jsonBuffer = new StringWriter();
+            JsonMetadataList.setPrettyPrinting(true);
+            JsonMetadataList.toJson(wrapper.getMetadata(), jsonBuffer);
+            setText(json, jsonBuffer.toString());
+        }
         layout.show(cards, "metadata");
     }
 
