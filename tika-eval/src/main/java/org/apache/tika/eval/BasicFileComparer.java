@@ -32,6 +32,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.cybozu.labs.langdetect.Detector;
+import com.cybozu.labs.langdetect.DetectorFactory;
+import com.cybozu.labs.langdetect.LangDetectException;
+import com.cybozu.labs.langdetect.Language;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
@@ -42,9 +46,13 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.icu.ICUFoldingFilter;
 import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Version;
+import org.apache.lucene.util.mutable.MutableValueInt;
+import org.apache.tika.batch.BatchNoRestartException;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
@@ -59,6 +67,8 @@ public class BasicFileComparer extends FileResourceConsumer {
     public final String[] headers;
 
     private final static int MAX_STRING_LENGTH = 2000000;
+    private final static int MAX_LEN_FOR_LANG_ID = 20000;
+    private final static int TOP_N_WORDS = 10;
 
     private final JsonMetadataList serializer = new JsonMetadataList();
     private ThreadSafeCSVWrapper writer;
@@ -89,14 +99,31 @@ public class BasicFileComparer extends FileResourceConsumer {
             "NUM_META_VALUES_"+thatSuffix,
             "MILLIS_"+thisSuffix,
             "MILLIS_"+thatSuffix,
-            "NUM_TOKENS_"+thisSuffix,
-            "NUM_TOKENS_"+thatSuffix,
-            "TOKEN_OVERLAP"
+            "NUM_UNIQUE_WORDS_"+thisSuffix,
+            "NUM_UNIQUE_WORDS_"+thatSuffix,
+            "TOP_N_WORDS_"+thisSuffix,
+            "TOP_N_WORDS_"+thatSuffix,
+            "NUM_EN_STOPS_TOP_N_"+thisSuffix,
+            "NUM_EN_STOPS_TOP_N_"+thatSuffix,
+            "LANG_ID_"+thisSuffix,
+            "LANG_ID_PROB"+thisSuffix,
+            "LANG_ID_"+thatSuffix,
+            "LANG_ID_PROB"+thatSuffix,
+            "DICE_COEFFICIENT"
         };
     }
     public void setWriter(ThreadSafeCSVWrapper writer) {
         this.writer = writer;
     }
+
+    public static void setLangModelDir(File langModelDir) {
+        try {
+            DetectorFactory.loadProfile(langModelDir);
+        } catch (LangDetectException e) {
+            throw new BatchNoRestartException(e);
+        }
+    }
+
     @Override
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
@@ -265,9 +292,11 @@ public class BasicFileComparer extends FileResourceConsumer {
                                        Map<String, String> data) throws IOException {
 
         String content = getContent(thisMetadata);
-        Map<String, Integer> theseTokens = getTokens(content);
+        langid(content, thisSuffix, data);
+        Map<String, MutableValueInt> theseTokens = getTokens(content);
         content = getContent(thatMetadata);
-        Map<String, Integer> thoseTokens = getTokens(content);
+        langid(content, thatSuffix, data);
+        Map<String, MutableValueInt> thoseTokens = getTokens(content);
 
         int denom = theseTokens.size() + thoseTokens.size();
         int overlap = 0;
@@ -278,31 +307,97 @@ public class BasicFileComparer extends FileResourceConsumer {
         }
 
         float div = (float) overlap / (float) denom;
-        data.put("NUM_TOKENS_"+thisSuffix,
+        data.put("NUM_UNIQUE_WORDS_"+thisSuffix,
                 Integer.toString(theseTokens.size()));
-        data.put("NUM_TOKENS_"+thatSuffix,
+        data.put("NUM_UNIQUE_WORDS_"+thatSuffix,
                 Integer.toString(thoseTokens.size()));
-        data.put("TOKEN_OVERLAP",
+        data.put("DICE_COEFFICIENT",
                 Float.toString(div));
+        handleWordCounts(data, theseTokens, thisSuffix);
+        handleWordCounts(data, thoseTokens, thatSuffix);
     }
 
-    private Map<String, Integer> getTokens(String s) throws IOException {
+    private void langid(String content, String suffix, Map<String, String> data) {
+        if (content.length() < 200) {
+            return;
+        }
+        String s = content;
+        if (content.length() > MAX_LEN_FOR_LANG_ID) {
+            s = content.substring(0, MAX_LEN_FOR_LANG_ID);
+        }
+        Detector detector = null;
+        try {
+            detector = DetectorFactory.create();
+        } catch (LangDetectException e) {
+            throw new BatchNoRestartException(e);
+        }
+
+        detector.append(s);
+        String lang = null;
+        double prob = -1.0;
+        try {
+            List<Language> probabilities = detector.getProbabilities();
+            if (probabilities.size() > 0) {
+                lang = probabilities.get(0).lang;
+                prob = probabilities.get(0).prob;
+            }
+        } catch (LangDetectException e) {
+            //log
+        }
+        data.put("LANG_ID_"+suffix, lang);
+        data.put("LANG_ID_PROB_"+suffix, Double.toString(prob));
+    }
+
+    private void handleWordCounts(Map<String, String> data,
+                                  Map<String, MutableValueInt> tokens, String suffix) {
+        MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
+        for (Map.Entry<String, MutableValueInt> e : tokens.entrySet()) {
+            if (queue.top() == null || queue.size() < TOP_N_WORDS ||
+                    e.getValue().value >= queue.top().value){
+                queue.insertWithOverflow(new TermIntPair(e.getKey(), e.getValue().value));
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        TermIntPair term = queue.pop();
+        int i = 0;
+        CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
+        int stops = 0;
+        while (term != null){
+            if (i++ > 0) {
+                sb.append(" | ");
+            }
+            sb.append(term.term+": "+term.value);
+            if (en_stops.contains(term)){
+                stops++;
+            }
+            term = queue.pop();
+        }
+
+        data.put("TOP_N_WORDS_"+suffix, sb.toString());
+        data.put("NUM_EN_STOPS_TOP_N_"+suffix, Integer.toString(stops));
+
+    }
+
+    private Map<String, MutableValueInt> getTokens(String s) throws IOException {
         if (s == null || s.equals("")) {
-            return new HashMap<String, Integer>();
+            return new HashMap<String, MutableValueInt>();
         }
 
         Analyzer analyzer = new ICUAnalyzer(Version.LUCENE_4_9, CharArraySet.EMPTY_SET);
-        Map<String, Integer> m = new HashMap<String, Integer>();
+        Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();
         TokenStream stream = analyzer.tokenStream("", s);
         stream.reset();
         CharTermAttribute attr = stream.getAttribute(CharTermAttribute.class);
         while (stream.incrementToken()) {
             String t = attr.toString();
-            Integer i = m.get(t);
+            MutableValueInt i = m.get(t);
             if (i == null) {
-                i = 0;
+                i = new MutableValueInt();
+                i.value = 0;
             }
-            m.put(t, ++i);
+            i.value++;
+            m.put(t, i);
         }
         stream.end();
         stream.close();
@@ -354,6 +449,32 @@ public class BasicFileComparer extends FileResourceConsumer {
             }
             return new TokenStreamComponents(stream, icu);
 
+        }
+    }
+
+    public class MutableValueIntPriorityQueue extends PriorityQueue<TermIntPair> {
+
+        public MutableValueIntPriorityQueue(int maxSize) {
+            super(maxSize);
+
+        }
+
+        @Override
+        protected boolean lessThan(TermIntPair arg0, TermIntPair arg1) {
+            if (arg0.value < arg1.value){
+                return true;
+            }
+            return false;
+        }
+    }
+
+    private class TermIntPair {
+        private final String term;
+        private final int value;
+
+        private TermIntPair(String term, int value) {
+            this.term = term;
+            this.value = value;
         }
     }
 

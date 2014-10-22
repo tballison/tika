@@ -42,6 +42,9 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         File thisRootDir = getFile(localAttrs, "thisDir");
         File thatRootDir = getFile(localAttrs, "thatDir");
         File outputFile = getFile(localAttrs, "outputFile");
+        File langModelDir = getFile(localAttrs, "langModelDir");
+        BasicFileComparer.setLangModelDir(langModelDir);
+
         for (int i = 0; i < numConsumers; i++) {
             FileResourceConsumer consumer = new BasicFileComparer(queue, thisRootDir, thatRootDir);
             consumers.add(consumer);
