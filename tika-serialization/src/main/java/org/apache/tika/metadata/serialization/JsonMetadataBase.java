@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package org.apache.tika.metadata.serialization;
 
 /*

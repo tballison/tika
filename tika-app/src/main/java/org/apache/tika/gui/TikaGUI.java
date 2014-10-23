@@ -120,6 +120,8 @@ public class TikaGUI extends JFrame
         });
     }
 
+    //maximum length to allow for mark for reparse to get JSON
+    private final int MAX_MARK = 20971520;//20MB
     /**
      * Parsing context.
      */
@@ -332,7 +334,9 @@ public class TikaGUI extends JFrame
                 getXmlContentHandler(xmlBuffer));
 
         context.set(DocumentSelector.class, new ImageDocumentSelector());
-        input.mark(1000000000);
+        if (input.markSupported()) {
+            input.mark(MAX_MARK);
+        }
         input = new ProgressMonitorInputStream(
                 this, "Parsing stream", input);
         parser.parse(input, handler, md, context);
@@ -358,13 +362,20 @@ public class TikaGUI extends JFrame
         setText(text, textBuffer.toString());
         setText(textMain, textMainBuffer.toString());
         setText(html, htmlBuffer.toString());
-
+        if (!input.markSupported()) {
+            setText(json, "InputStream does not support mark/reset for Recursive Parsing");
+            layout.show(cards, "metadata");
+            return;
+        }
         boolean isReset = false;
         try {
             input.reset();
             isReset = true;
         } catch (IOException e) {
-            setText(json, "Error during reset");
+            setText(json, "Error during stream reset.\n"+
+                    "There's a limit of "+MAX_MARK + " bytes for this type of processing in the GUI.\n"+
+                    "Try the app with command line argument of -J."
+            );
         }
         if (isReset) {
             RecursiveParserWrapper wrapper = new RecursiveParserWrapper(parser,

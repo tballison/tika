@@ -503,13 +503,16 @@ public class TikaCLI {
         out.println("    -m  or --metadata      Output only metadata");
         out.println("    -j  or --json          Output metadata in JSON");
         out.println("    -y  or --xmp           Output metadata in XMP");
+        out.println("    -J  or --jsonRecursive Output metadata and content from all");
+        out.println("                           embedded files (choose content type");
+        out.println("                           with -x, -h, -t or -m; default is -x)");
         out.println("    -l  or --language      Output only language");
         out.println("    -d  or --detect        Detect document type");
         out.println("    -eX or --encoding=X    Use output encoding X");
         out.println("    -pX or --password=X    Use document password X");
         out.println("    -z  or --extract       Extract all attachements into current directory");
         out.println("    --extract-dir=<dir>    Specify target directory for -z");
-        out.println("    -r  or --pretty-print  For XML and XHTML outputs, adds newlines and");
+        out.println("    -r  or --pretty-print  For JSON, XML and XHTML outputs, adds newlines and");
         out.println("                           whitespace, for better readability");
         out.println();
         out.println("    --create-profile=X");
@@ -995,6 +998,7 @@ public class TikaCLI {
         @Override
         public void endDocument() throws SAXException {
             try {
+                JsonMetadata.setPrettyPrinting(prettyPrint);
                 JsonMetadata.toJson(metadata, writer);
                 writer.flush();
             } catch (TikaException e) {

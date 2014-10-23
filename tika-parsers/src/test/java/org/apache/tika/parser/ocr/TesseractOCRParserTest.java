@@ -31,7 +31,13 @@ import java.io.InputStream;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
-public class TesseractOCRTest  extends TikaTest {
+public class TesseractOCRParserTest extends TikaTest {
+
+    public static boolean canRun() {
+        TesseractOCRConfig config = new TesseractOCRConfig();
+        TesseractOCRParserTest tesseractOCRTest = new TesseractOCRParserTest();
+        return tesseractOCRTest.canRun(config);
+    }
 
     private boolean canRun(TesseractOCRConfig config) {
         String[] checkCmd = {config.getTesseractPath() + "tesseract"};
@@ -56,7 +62,7 @@ public class TesseractOCRTest  extends TikaTest {
         parseContext.set(Parser.class, new TesseractOCRParser());
         parseContext.set(PDFParserConfig.class, pdfConfig);
 
-        InputStream stream = TesseractOCRTest.class.getResourceAsStream(
+        InputStream stream = TesseractOCRParserTest.class.getResourceAsStream(
                 "/test-documents/testOCR.pdf");
 
         try {
@@ -80,7 +86,7 @@ public class TesseractOCRTest  extends TikaTest {
         parseContext.set(TesseractOCRConfig.class, config);
         parseContext.set(Parser.class, new TesseractOCRParser());
 
-        InputStream stream = TesseractOCRTest.class.getResourceAsStream(
+        InputStream stream = TesseractOCRParserTest.class.getResourceAsStream(
                 "/test-documents/testOCR.docx");
 
         try {
@@ -107,7 +113,7 @@ public class TesseractOCRTest  extends TikaTest {
         parseContext.set(TesseractOCRConfig.class, config);
         parseContext.set(Parser.class, new TesseractOCRParser());
 
-        InputStream stream = TesseractOCRTest.class.getResourceAsStream(
+        InputStream stream = TesseractOCRParserTest.class.getResourceAsStream(
                 "/test-documents/testOCR.pptx");
 
         try {

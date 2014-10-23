@@ -160,6 +160,29 @@ public class TikaCLITest {
     }
 
     /**
+     * Test for -json with prettyprint option
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testJsonMetadataPrettyPrintOutput() throws Exception {
+        String[] params = {"--json", "-r", resourcePrefix + "testJsonMultipleInts.html"};
+        TikaCLI.main(params);
+        String json = outContent.toString("UTF-8");
+
+        assertTrue(json.contains("  \"X-Parsed-By\": [\n" +
+                "    \"org.apache.tika.parser.DefaultParser\",\n" +
+                "    \"org.apache.tika.parser.html.HtmlParser\"\n" +
+                "  ],\n"));
+        //test legacy alphabetic sort of keys
+        int enc = json.indexOf("\"Content-Encoding\"");
+        int fb = json.indexOf("fb:admins");
+        int title = json.indexOf("\"title\"");
+        assertTrue(enc > -1 && fb > -1 && enc < fb);
+        assertTrue (fb > -1 && title > -1 && fb < title);
+    }
+
+    /**
      * Tests -l option of the cli
      * 
      * @throws Exception
