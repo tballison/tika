@@ -15,11 +15,11 @@ package org.apache.tika.sax;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.xml.sax.ContentHandler;
-import org.xml.sax.helpers.DefaultHandler;
-
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+
+import org.xml.sax.ContentHandler;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Basic factory for creating common types of ContentHandlers

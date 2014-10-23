@@ -25,10 +25,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -56,27 +58,42 @@ import org.apache.tika.batch.BatchNoRestartException;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class BasicFileComparer extends FileResourceConsumer {
 
     public final String[] headers;
 
+    //these remove runtime info from the stacktraces so
+    //that actual causes can be counted.
+    private final static Pattern CAUSED_BY_SNIPPER =
+            Pattern.compile("(Caused by: [^:]+):[^\\r\\n]+");
+    private final static Pattern OBJECT_ID_SNIPPER =
+            Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
+
     private final static int MAX_STRING_LENGTH = 2000000;
     private final static int MAX_LEN_FOR_LANG_ID = 20000;
     private final static int TOP_N_WORDS = 10;
 
+    private static AtomicInteger threadNum = new AtomicInteger(0);
+
+    //good enough? or do we need to parameterize?
+    private final TikaConfig config = TikaConfig.getDefaultConfig();
     private final JsonMetadataList serializer = new JsonMetadataList();
     private ThreadSafeCSVWrapper writer;
 
     private final File thisRootDir;
     private final File thatRootDir;
-    private final String thisSuffix;
-    private final String thatSuffix;
+    private final String thisExtension;
+    private final String thatExtension;
     private final int thisDirLen;
 
     public BasicFileComparer(ArrayBlockingQueue<FileResource> queue, File thisRootDir, File thatRootDir) {
@@ -84,36 +101,52 @@ public class BasicFileComparer extends FileResourceConsumer {
         this.thisRootDir = thisRootDir;
         this.thatRootDir = thatRootDir;
         thisDirLen = thisRootDir.getAbsolutePath().length()+1;
-        thisSuffix = thisRootDir.getName();
-        thatSuffix = thatRootDir.getName();
+        thisExtension = thisRootDir.getName();
+        thatExtension = thatRootDir.getName();
         headers = new String[]{
             "FILE_PATH",
-            "JSON_EX_"+thisSuffix,
-            "JSON_EX_"+thatSuffix,
-            "STACK_TRACE_"+thisSuffix,
-            "STACK_TRACE_"+thatSuffix,
-            "FILE_SUFFIX",
-            "NUM_ATTACHMENTS_"+thisSuffix,
-            "NUM_ATTACHMENTS_"+thatSuffix,
-            "NUM_META_VALUES_"+thisSuffix,
-            "NUM_META_VALUES_"+thatSuffix,
-            "MILLIS_"+thisSuffix,
-            "MILLIS_"+thatSuffix,
-            "NUM_UNIQUE_WORDS_"+thisSuffix,
-            "NUM_UNIQUE_WORDS_"+thatSuffix,
-            "TOP_N_WORDS_"+thisSuffix,
-            "TOP_N_WORDS_"+thatSuffix,
-            "NUM_EN_STOPS_TOP_N_"+thisSuffix,
-            "NUM_EN_STOPS_TOP_N_"+thatSuffix,
-            "LANG_ID_"+thisSuffix,
-            "LANG_ID_PROB"+thisSuffix,
-            "LANG_ID_"+thatSuffix,
-            "LANG_ID_PROB"+thatSuffix,
-            "DICE_COEFFICIENT"
+            "JSON_EX_"+thisExtension,
+            "JSON_EX_"+thatExtension,
+            "ORIG_STACK_TRACE_"+thisExtension,
+            "ORIG_STACK_TRACE_"+thatExtension,
+            "SORT_STACK_TRACE_"+thisExtension,
+            "SORT_STACK_TRACE_"+thatExtension,
+            "FILE_EXTENSION",
+            "DETECTED_CONTENT_TYPE_"+thisExtension,
+            "DETECTED_CONTENT_TYPE_"+thatExtension,
+            "DETECTED_FILE_EXTENSION_"+thisExtension,
+            "DETECTED_FILE_EXTENSION_"+thatExtension,
+            "NUM_ATTACHMENTS_"+thisExtension,
+            "NUM_ATTACHMENTS_"+thatExtension,
+            "NUM_META_VALUES_"+thisExtension,
+            "NUM_META_VALUES_"+thatExtension,
+            "MILLIS_"+thisExtension,
+            "MILLIS_"+thatExtension,
+            "NUM_UNIQUE_TOKENS_"+thisExtension,
+            "NUM_UNIQUE_TOKENS_"+thatExtension,
+            "DICE_COEFFICIENT",
+            "TOKEN_COUNT_"+thisExtension,
+            "TOKEN_COUNT_"+thatExtension,
+            "OVERLAP",
+            "TOP_N_WORDS_"+thisExtension,
+            "TOP_N_WORDS_"+thatExtension,
+            "NUM_EN_STOPS_TOP_N_"+thisExtension,
+            "NUM_EN_STOPS_TOP_N_"+thatExtension,
+            "LANG_ID_"+thisExtension,
+            "LANG_ID_PROB_"+thisExtension,
+            "LANG_ID_"+thatExtension,
+            "LANG_ID_PROB_"+thatExtension,
         };
+
     }
     public void setWriter(ThreadSafeCSVWrapper writer) {
         this.writer = writer;
+        //stinky
+        if (threadNum.getAndIncrement() == 0) {
+            List<String> headerList = Arrays.asList(headers);
+            writer.printRecord(headerList);
+        }
+
     }
 
     public static void setLangModelDir(File langModelDir) {
@@ -148,42 +181,67 @@ public class BasicFileComparer extends FileResourceConsumer {
                 "FILE_PATH",
                 thisFile.getAbsolutePath().substring(thisDirLen));
         if (thisMetadata == null) {
-            output.put("JSON_EX_"+thisSuffix,
+            output.put("JSON_EX_"+thisExtension,
                     "Error with json parsing");
         }
         if (thatMetadata == null) {
-            output.put("JSON_EX_"+thatSuffix,
+            output.put("JSON_EX_"+thatExtension,
                     "Error with json parsing");
         }
 
-        output.put("STACK_TRACE_"+thisSuffix,
-                getExceptionString(thisMetadata));
-        output.put("STACK_TRACE_"+thatSuffix,
-                getExceptionString(thatMetadata));
+        getExceptionStrings(thisMetadata, thisExtension, output);
+        getExceptionStrings(thatMetadata, thatExtension, output);
 
-        output.put("FILE_SUFFIX",
-                getOriginalFileSuffix(thisFile.getName()));
+        output.put("FILE_EXTENSION",
+                getOriginalFileExtension(thisFile.getName()));
+
+        getFileTypes(thisMetadata, thisExtension, output);
+        getFileTypes(thatMetadata, thatExtension, output);
 
         if (thisMetadata != null) {
-            output.put("NUM_ATTACHMENTS_"+thisSuffix,
+            output.put("NUM_ATTACHMENTS_"+thisExtension,
                 Integer.toString(thisMetadata.size()-1));
         }
         if (thatMetadata != null) {
-            output.put("NUM_ATTACHMENTS_"+thatSuffix,
+            output.put("NUM_ATTACHMENTS_"+thatExtension,
                 Integer.toString(thatMetadata.size()-1));
         }
-        output.put("NUM_META_VALUES_"+thisSuffix,
+        output.put("NUM_META_VALUES_"+thisExtension,
                 countMetadataValues(thisMetadata));
 
-        output.put("NUM_META_VALUES_"+thatSuffix,
+        output.put("NUM_META_VALUES_"+thatExtension,
                 countMetadataValues(thatMetadata));
-        output.put("MILLIS_"+thisSuffix,
+        output.put("MILLIS_"+thisExtension,
                 getTime(thisMetadata));
-        output.put("MILLIS_"+thatSuffix,
+        output.put("MILLIS_"+thatExtension,
                 getTime(thatMetadata));
 
         compareUnigramOverlap(thisMetadata, thatMetadata, output);
         printRecord(output);
+    }
+
+    private void getFileTypes(List<Metadata> metadata, String extension, Map<String, String> output) {
+        if (metadata == null || metadata.size() == 0) {
+            return;
+        }
+        String type = metadata.get(0).get(Metadata.CONTENT_TYPE);
+        if (type == null) {
+            return;
+        }
+        output.put("DETECTED_CONTENT_TYPE_"+extension, type);
+
+        try{
+            MimeTypes types = config.getMimeRepository();
+            MimeType mime = types.forName(type);
+            String ext = mime.getExtension();
+            if (ext.startsWith(".")){
+                ext = ext.substring(1);
+            }
+            output.put("DETECTED_FILE_EXTENSION_"+extension, ext);
+        } catch (MimeTypeException e) {
+            //swallow
+        }
+
     }
 
     public void printRecord(Map<String, String> data) {
@@ -199,28 +257,29 @@ public class BasicFileComparer extends FileResourceConsumer {
     }
 
 
-    private String getExceptionString(List<Metadata> metadataList) {
+    private void getExceptionStrings(List<Metadata> metadataList, String extension, Map<String, String> data) {
+
         if (metadataList == null) {
-            return "";
+            return;
         }
         for (Metadata m : metadataList) {
             String exc = m.get(RecursiveParserWrapper.PARSE_EXCEPTION);
             if (exc != null) {
+                data.put("ORIG_STACK_TRACE_"+extension, exc);
                 //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
                 //org.apache.tika.exception.TikaException: TIKA-198: Illegal
                 // IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
                 //For reporting purposes, let's snip off the object id so that we can more
                 //easily count exceptions.
-                Matcher objectIdSnipper =
-                        Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)").matcher(exc);
-                if (objectIdSnipper.matches()) {
-                    exc = objectIdSnipper.group(1) + objectIdSnipper.group(2);
+                Matcher matcher = OBJECT_ID_SNIPPER.matcher(exc);
+                if (matcher.matches()) {
+                    exc = matcher.group(1) + matcher.group(2);
                 }
-                return exc;
+                matcher = CAUSED_BY_SNIPPER.matcher(exc);
+                exc = matcher.replaceAll("$1");
+                data.put("SORT_STACK_TRACE_"+extension, exc);
             }
         }
-        return "";
-
     }
 
     private List<Metadata> getMetadata(File thisFile, JsonMetadataList serializer) {
@@ -246,7 +305,7 @@ public class BasicFileComparer extends FileResourceConsumer {
         }
         return metadataList;
     }
-    private String getOriginalFileSuffix(String fName) {
+    private String getOriginalFileExtension(String fName) {
         Matcher m = Pattern.compile("\\.([^\\.]+)\\.json(?:\\.(?:bz2|gz(?:ip)?|zip))?$").matcher(fName);
         if (m.find()) {
             return m.group(1);
@@ -292,32 +351,49 @@ public class BasicFileComparer extends FileResourceConsumer {
                                        Map<String, String> data) throws IOException {
 
         String content = getContent(thisMetadata);
-        langid(content, thisSuffix, data);
+        langid(content, thisExtension, data);
         Map<String, MutableValueInt> theseTokens = getTokens(content);
         content = getContent(thatMetadata);
-        langid(content, thatSuffix, data);
+        langid(content, thatExtension, data);
         Map<String, MutableValueInt> thoseTokens = getTokens(content);
 
-        int denom = theseTokens.size() + thoseTokens.size();
-        int overlap = 0;
-        for (String k : theseTokens.keySet()) {
-            if (thoseTokens.containsKey(k)) {
-                overlap += 2;
+
+        int tokenCountThis = 0;
+        int tokenCountThat = 0;
+        int diceDenom = theseTokens.size() + thoseTokens.size();
+        int diceNum = 0;
+
+        int overlapNum = 0;
+        for (Map.Entry<String, MutableValueInt> e : theseTokens.entrySet()) {
+            MutableValueInt thatCount = thoseTokens.get(e.getKey());
+            if (thatCount != null) {
+                diceNum += 2;
+                overlapNum += 2*Math.min(e.getValue().value, thatCount.value);
             }
+            tokenCountThis += e.getValue().value;
         }
 
-        float div = (float) overlap / (float) denom;
-        data.put("NUM_UNIQUE_WORDS_"+thisSuffix,
+        for (MutableValueInt thatCount : thoseTokens.values()) {
+            tokenCountThat += thatCount.value;
+        }
+        float dice = (float) diceNum / (float) diceDenom;
+        float overlap = (float) overlapNum / (float)(tokenCountThis+tokenCountThat);
+        data.put("NUM_UNIQUE_TOKENS_"+thisExtension,
                 Integer.toString(theseTokens.size()));
-        data.put("NUM_UNIQUE_WORDS_"+thatSuffix,
+        data.put("NUM_UNIQUE_TOKENS_"+thatExtension,
                 Integer.toString(thoseTokens.size()));
         data.put("DICE_COEFFICIENT",
-                Float.toString(div));
-        handleWordCounts(data, theseTokens, thisSuffix);
-        handleWordCounts(data, thoseTokens, thatSuffix);
+                Float.toString(dice));
+        data.put("OVERLAP", Float.toString(overlap));
+
+        data.put("TOKEN_COUNT_"+thisExtension, Integer.toString(tokenCountThis));
+        data.put("TOKEN_COUNT_"+thatExtension, Integer.toString(tokenCountThat));
+
+        handleWordCounts(data, theseTokens, thisExtension);
+        handleWordCounts(data, thoseTokens, thatExtension);
     }
 
-    private void langid(String content, String suffix, Map<String, String> data) {
+    private void langid(String content, String extension, Map<String, String> data) {
         if (content.length() < 200) {
             return;
         }
@@ -344,12 +420,12 @@ public class BasicFileComparer extends FileResourceConsumer {
         } catch (LangDetectException e) {
             //log
         }
-        data.put("LANG_ID_"+suffix, lang);
-        data.put("LANG_ID_PROB_"+suffix, Double.toString(prob));
+        data.put("LANG_ID_"+extension, lang);
+        data.put("LANG_ID_PROB_"+extension, Double.toString(prob));
     }
 
     private void handleWordCounts(Map<String, String> data,
-                                  Map<String, MutableValueInt> tokens, String suffix) {
+                                  Map<String, MutableValueInt> tokens, String extension) {
         MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
         for (Map.Entry<String, MutableValueInt> e : tokens.entrySet()) {
             if (queue.top() == null || queue.size() < TOP_N_WORDS ||
@@ -360,23 +436,27 @@ public class BasicFileComparer extends FileResourceConsumer {
 
         StringBuilder sb = new StringBuilder();
         TermIntPair term = queue.pop();
-        int i = 0;
+        List<TermIntPair> terms = new ArrayList<TermIntPair>();
+        while (term != null) {
+            terms.add(0, term);
+            term = queue.pop();
+        }
         CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
         int stops = 0;
-        while (term != null){
+        int i = 0;
+        for (TermIntPair t : terms) {
             if (i++ > 0) {
                 sb.append(" | ");
             }
-            sb.append(term.term+": "+term.value);
-            if (en_stops.contains(term)){
+            sb.append(t.term + ": " + t.value);
+            if (en_stops.contains(t.term)){
                 stops++;
             }
             term = queue.pop();
         }
 
-        data.put("TOP_N_WORDS_"+suffix, sb.toString());
-        data.put("NUM_EN_STOPS_TOP_N_"+suffix, Integer.toString(stops));
-
+        data.put("TOP_N_WORDS_"+extension, sb.toString());
+        data.put("NUM_EN_STOPS_TOP_N_"+extension, Integer.toString(stops));
     }
 
     private Map<String, MutableValueInt> getTokens(String s) throws IOException {

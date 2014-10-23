@@ -23,7 +23,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.csv.CSVFormat;
@@ -56,16 +55,7 @@ public class BasicFileComparerManager extends ConsumersManager {
             this.printer = new ThreadSafeCSVWrapper(p, 1000);
             printerThread = new Thread(printer);
             printerThread.start();
-            String[] headers = new String[]{
-                    "ThisFile", "JsonExceptionThis", "JsonExceptionThat",
-                    "ExceptionMsgThis", "ExceptionMsgThat", "FileSuffix",
-                    "AttachCountThis", "AttachCountThat",
-                    "MetadataKeysThis", "MetadataKeysThat",
-                    "ElapsedMillisThis", "ElapsedMillisThat",
-                    "TokenCountThis", "TokenCountThat", "TokenOverlap"
-            };
-            List<String> headerList = Arrays.asList(headers);
-            this.printer.printRecord(headerList);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
