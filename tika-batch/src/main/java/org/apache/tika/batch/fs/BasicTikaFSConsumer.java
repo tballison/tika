@@ -17,9 +17,15 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.util.concurrent.ArrayBlockingQueue;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.tika.batch.BatchNoRestartException;
+import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.OutputStreamFactory;
@@ -29,12 +35,6 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.ContentHandlerFactory;
 import org.xml.sax.ContentHandler;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  * Basic FileResourceConsumer that reads files from an input
@@ -79,9 +79,9 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         try {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
-            log.fatal(e.getMessage());
+            logFatal(fileResource.getResourceId(), e);
             flushAndClose(os);
-            throw new BatchNoRestartException("IOException trying to open output stream for "+
+            throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
         //os can be null if fsOSFactory is set to skip processing a file if the target
@@ -95,7 +95,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             is = fileResource.openInputStream();
         } catch (IOException e) {
             incrementHandledExceptions();
-            log.error(e.getMessage());
+            logError(fileResource.getResourceId(), e);
             flushAndClose(os);
             return false;
         }
@@ -106,6 +106,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         } catch (UnsupportedEncodingException e) {
             close(is);
             flushAndClose(os);
+            logFatal(fileResource.getResourceId(), e);
             throw new RuntimeException(e.getMessage());
         }
 
@@ -115,7 +116,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             parser.parse(is, handler,
                     fileResource.getMetadata(), context);
         } catch (Throwable t) {
-            log.error(t.getMessage());
+            logError(fileResource.getResourceId(), t);
             thrown = t;
         } finally {
             close(is);

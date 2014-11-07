@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.tika.batch.BatchNoRestartException;
+import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
@@ -92,7 +92,7 @@ public class EvilParser extends AbstractParser {
         } else if (content.contains(TIKA_EXCEPTION_STRING)) {
             throw new TikaException(TIKA_EXCEPTION_STRING);
         } else if (content.contains(BATCH_NO_RESTART_STRING)) {
-            throw new BatchNoRestartException("Shouldn't restart");
+            throw new BatchNoRestartError("Shouldn't restart");
         }
         handle(content, handler, 0);
 

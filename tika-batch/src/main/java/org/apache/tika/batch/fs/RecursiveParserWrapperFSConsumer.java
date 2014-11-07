@@ -30,7 +30,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.tika.batch.BatchNoRestartException;
+import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.OutputStreamFactory;
@@ -89,7 +89,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
             log.fatal(e.getMessage());
-            throw new BatchNoRestartException("IOException trying to open output stream for "+
+            throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
         //os can be null if fsOSFactory is set to skip processing a file and the target

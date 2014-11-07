@@ -305,4 +305,12 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
             }
         }
     }
+
+    protected void logError(String fileResourceId, Throwable t) {
+        logger.error(fileResourceId + " : " + t.getMessage());
+    }
+
+    protected void logFatal(String fileResourceId, Throwable t) {
+        logger.fatal(fileResourceId + " : " + t.getMessage());
+    }
 }

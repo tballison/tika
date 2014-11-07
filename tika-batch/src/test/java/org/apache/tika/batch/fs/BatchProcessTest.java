@@ -32,12 +32,12 @@ public class BatchProcessTest extends FSBatchTestBase {
 
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
+
         File targDir = getNewTargDir("one_heavy_hang-");
 
         Map<String, String> args = getDefaultArgs("one_heavy_hang", targDir);
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
-        System.out.println(streamStrings.getOutString());
         assertEquals(5, targDir.listFiles().length);
         File hvyHang = new File(targDir, "hang_heavy_load1.evil.xml");
         assertTrue(hvyHang.exists());
@@ -132,6 +132,25 @@ public class BatchProcessTest extends FSBatchTestBase {
                 streamStrings.getErrString());
     }
 
+
+
+    @Test(timeout = 15000)
+    public void noRestart() throws Exception {
+        File targDir = getNewTargDir("no_restart");
+
+        Map<String, String> args = getDefaultArgs("no_restart", targDir);
+        args.put("numConsumers", "1");
+
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+
+        StreamStrings streamStrings = ex.execute();
+        File[] files = targDir.listFiles();
+        assertEquals(2, files.length);
+        assertEquals(0, files[1].length());
+        assertContains("exitStatus=-1", streamStrings.getOutString());
+        assertContains("causeForTermination='CONSUMER_EXCEPTION_NO_RESTART'",
+                streamStrings.getOutString());
+    }
 
     private class BatchProcessTestExecutor {
         private final Map<String, String> args;

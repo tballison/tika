@@ -144,6 +144,7 @@ public abstract class FSBatchTestBase extends TikaTest {
             argList.add("-"+e.getKey());
             argList.add(e.getValue());
         }
+
         String[] fullCommandLine = commandLine(testConfig, argList.toArray(new String[argList.size()]));
         ProcessBuilder builder = new ProcessBuilder(fullCommandLine);
         return builder;
@@ -152,6 +153,8 @@ public abstract class FSBatchTestBase extends TikaTest {
     private String[] commandLine(String testConfig, String[] args) {
         List<String> commandLine = new ArrayList<String>();
         commandLine.add("java");
+        commandLine.add("-Dlog4j.configuration=file:"+
+            this.getClass().getResource("/log4j.xml").getFile());
         commandLine.add("-Xmx128m");
         commandLine.add("-cp");
         String cp = System.getProperty("java.class.path");

@@ -37,7 +37,7 @@ public class BasicFileComparerManager extends ConsumersManager {
 
     private final File outputFile;
     private ThreadSafeCSVWrapper printer = null;
-    private String encoding = "UTF-8";
+    private String encoding = "UTF-16LE";
     private Thread printerThread;
 
     public BasicFileComparerManager(List<FileResourceConsumer> consumers, File outputFile) {

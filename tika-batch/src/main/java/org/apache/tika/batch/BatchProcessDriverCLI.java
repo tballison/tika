@@ -35,6 +35,12 @@ import org.apache.tika.util.BatchLocalization;
 
 public class BatchProcessDriverCLI {
 
+    /**
+     * This relies on an exit value of -1 (do not restart),
+     * 0 ended correctly, 1 ended with exception
+     * and should restart.
+     */
+
     private static Logger logger = Logger.getLogger(BatchProcessDriverCLI.class);
 
     //TODO: need to set this!!!
@@ -42,7 +48,7 @@ public class BatchProcessDriverCLI {
     private long pulseMillis = 1000;
 
     private boolean mustRestartProcess = false;
-    private boolean mustStopSelf = false;
+    private boolean userInterrupted = false;
     private Process process = null;
 
     private StreamGobbler errorGobbler = null;
@@ -60,7 +66,7 @@ public class BatchProcessDriverCLI {
 
     public void execute() throws Exception {
         start();
-        while (!mustStopSelf) {
+        while (!userInterrupted) {
             int exit = Integer.MIN_VALUE;
             boolean hasExited = false;
             try {
@@ -78,14 +84,19 @@ public class BatchProcessDriverCLI {
             } catch (InterruptedException e) {
                 //swallow
             }
+
             if (hasExited && exit == 0 && ! mustRestartProcess) {
+                break;
+            }
+            //no restart
+            if (hasExited && exit < 0) {
                 break;
             }
             if ((hasExited && exit != 0) || mustRestartProcess) {
                 restart();
             }
         }
-        if (mustStopSelf) {
+        if (userInterrupted) {
             shutdownNow();
         }
     }
@@ -115,8 +126,8 @@ public class BatchProcessDriverCLI {
         return numRestarts;
     }
 
-    public boolean getStoppedSelf() {
-        return mustStopSelf;
+    public boolean getUserInterrupted() {
+        return userInterrupted;
     }
 
     private boolean restart() throws Exception {
@@ -185,7 +196,7 @@ public class BatchProcessDriverCLI {
                 if ((line = reader.readLine()) != null && this.running) {
                     writer.write(String.format(Locale.ENGLISH, "%s%n", line));
                     writer.flush();
-                    mustStopSelf = true;
+                    userInterrupted = true;
                 }
             } catch (IOException e) {
                 //swallow ioe

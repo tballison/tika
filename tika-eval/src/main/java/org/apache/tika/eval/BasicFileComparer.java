@@ -54,7 +54,7 @@ import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.util.mutable.MutableValueInt;
-import org.apache.tika.batch.BatchNoRestartException;
+import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
@@ -153,7 +153,7 @@ public class BasicFileComparer extends FileResourceConsumer {
         try {
             DetectorFactory.loadProfile(langModelDir);
         } catch (LangDetectException e) {
-            throw new BatchNoRestartException(e);
+            throw new BatchNoRestartError(e);
         }
     }
 
@@ -405,7 +405,7 @@ public class BasicFileComparer extends FileResourceConsumer {
         try {
             detector = DetectorFactory.create();
         } catch (LangDetectException e) {
-            throw new BatchNoRestartException(e);
+            throw new BatchNoRestartError(e);
         }
 
         detector.append(s);

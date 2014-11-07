@@ -186,7 +186,6 @@ public class BatchProcess {
                 } else {
                     causeForTermination = CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION;
                 }
-                e.printStackTrace();
                 logger.fatal("Execution exception " + e.getMessage());
                 break;
             }
@@ -302,7 +301,7 @@ public class BatchProcess {
     }
 
     private boolean isNonRestart(Throwable e) {
-        if (e instanceof BatchNoRestartException) {
+        if (e instanceof BatchNoRestartError) {
             return true;
         }
         Throwable cause = e.getCause();

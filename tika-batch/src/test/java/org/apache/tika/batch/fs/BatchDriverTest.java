@@ -18,6 +18,7 @@ package org.apache.tika.batch.fs;
  */
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,10 +45,9 @@ public class BatchDriverTest extends FSBatchTestBase {
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", args);
         driver.execute();
         assertEquals(0, driver.getNumRestarts());
-        assertFalse(driver.getStoppedSelf());
+        assertFalse(driver.getUserInterrupted());
         assertEquals(5, targDir.listFiles().length);
         assertContains(new File(targDir, "test1.txt.xml"), "UTF-8", "first test file");
-
     }
 
     @Test(timeout = 15000)
@@ -63,9 +63,30 @@ public class BatchDriverTest extends FSBatchTestBase {
         driver.execute();
         //could be one or two depending on timing
         assertTrue(driver.getNumRestarts() > 0);
-        assertFalse(driver.getStoppedSelf());
+        assertFalse(driver.getUserInterrupted());
         assertContains(new File(targDir, "test1.txt.xml"), "UTF-8",
                 "first test file");
+    }
+
+    @Test(timeout = 15000)
+    public void noRestartTest() throws Exception {
+        File targDir = getNewTargDir("daemon-");
+
+        //make sure target directory is empty!
+        assertEquals(0, targDir.listFiles().length);
+
+        String[] args = getDefaultCommandLineArgsArr("no_restart", targDir, null);
+        String[] mod = Arrays.copyOf(args, args.length + 2);
+        mod[args.length] = "-numConsumers";
+        mod[args.length+1] = "1";
+
+        BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", mod);
+        driver.execute();
+        assertEquals(0, driver.getNumRestarts());
+        assertFalse(driver.getUserInterrupted());
+        File[] files = targDir.listFiles();
+        assertEquals(2, files.length);
+        assertEquals(0, files[1].length());
     }
 
     @Test(timeout = 15000)
@@ -80,7 +101,7 @@ public class BatchDriverTest extends FSBatchTestBase {
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", args);
         driver.execute();
         assertEquals(1, driver.getNumRestarts());
-        assertFalse(driver.getStoppedSelf());
+        assertFalse(driver.getUserInterrupted());
         assertContains(new File(targDir, "test4.txt.xml"),
                 "UTF-8", "first test file");
     }
@@ -99,7 +120,7 @@ public class BatchDriverTest extends FSBatchTestBase {
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", commandLine);
         driver.execute();
         assertEquals(2, driver.getNumRestarts());
-        assertFalse(driver.getStoppedSelf());
+        assertFalse(driver.getUserInterrupted());
         assertContains(new File(targDir, "test1.txt.xml"), "UTF-8",
                 "first test file");
     }

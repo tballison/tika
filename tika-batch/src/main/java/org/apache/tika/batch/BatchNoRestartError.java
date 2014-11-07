@@ -21,12 +21,12 @@ package org.apache.tika.batch;
  * terrible has happened and the BatchProcess should shutdown
  * and not be restarted.
  */
-public class BatchNoRestartException extends RuntimeException {
+public class BatchNoRestartError extends Error {
 
-    public BatchNoRestartException(Throwable t) {
+    public BatchNoRestartError(Throwable t) {
         super(t);
     }
-    public BatchNoRestartException(String message) {
+    public BatchNoRestartError(String message) {
         super(message);
     }
 }
