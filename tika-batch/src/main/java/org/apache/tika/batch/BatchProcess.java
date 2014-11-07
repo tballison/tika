@@ -280,15 +280,14 @@ public class BatchProcess {
             restartMsg = "Resources still exist for processing";
         }
 
-
-        int exitStatus = handleRestartMsg(restartMsg);
+        int exitStatus = getExitStatus(causeForTermination, restartMsg);
 
         //need to re-check, report, remove stale consumers
         staleChecker.checkForStaleConsumers();
 
         for (FileStarted fs : stales) {
-            logger.error("A parser was still working on " + fs.getResourceId() +
-                    " for " + fs.getElapsedMillis() + " milliseconds after it started." +
+            logger.error("A parser was still working on >" + fs.getResourceId() +
+                    "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
                     " This exceeds the maxStaleMillis parameter");
         }
         logger.info("ConsumersManager is shutting down");
@@ -310,7 +309,12 @@ public class BatchProcess {
         return cause != null && isNonRestart(cause);
     }
 
-    private int handleRestartMsg(String restartMsg) {
+    private int getExitStatus(CAUSE_FOR_TERMINATION causeForTermination, String restartMsg) {
+        if (causeForTermination == CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION_NO_RESTART) {
+            logger.fatal("Consumer exception:: no restart");
+            return -1;
+        }
+
         if (restartMsg != null) {
             if (restartMsg.equals(BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString())) {
                 logger.info(restartMsg);

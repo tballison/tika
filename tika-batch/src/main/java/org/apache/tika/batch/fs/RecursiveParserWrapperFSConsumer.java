@@ -139,6 +139,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             StringWriter stringWriter = new StringWriter();
             PrintWriter w = new PrintWriter(stringWriter);
             t.printStackTrace(w);
+            stringWriter.flush();
             m.add(RecursiveParserWrapper.PARSE_EXCEPTION, stringWriter.toString());
             metadataList.add(0, m);
         } finally {

@@ -17,12 +17,12 @@ package org.apache.tika.batch.fs;
  */
 
 
-import org.apache.tika.batch.BatchProcess;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+
+import org.apache.tika.batch.BatchProcess;
+import org.junit.Test;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.fail;
@@ -37,7 +37,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         Map<String, String> args = getDefaultArgs("one_heavy_hang", targDir);
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
-
+        System.out.println(streamStrings.getOutString());
         assertEquals(5, targDir.listFiles().length);
         File hvyHang = new File(targDir, "hang_heavy_load1.evil.xml");
         assertTrue(hvyHang.exists());
