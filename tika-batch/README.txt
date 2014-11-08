@@ -24,4 +24,4 @@ output
     excel.xls.json
 
 Once this code is ready to go, I'll integrate it into tika-app so
-that the batch-mode will be built in.
+that the batch-mode will be built into the app.

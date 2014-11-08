@@ -148,7 +148,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertEquals(2, files.length);
         assertEquals(0, files[1].length());
         assertContains("exitStatus=-1", streamStrings.getOutString());
-        assertContains("causeForTermination='CONSUMER_EXCEPTION_NO_RESTART'",
+        assertContains("causeForTermination='MAIN_LOOP_EXCEPTION_NO_RESTART'",
                 streamStrings.getOutString());
     }
 
@@ -208,6 +208,12 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         private String getErrString() {
             return errString;
+        }
+
+        @Override
+        public String toString() {
+            return "OUT>>"+outString+"<<\n"+
+                    "ERR>>"+errString+"<<\n";
         }
     }
 }

@@ -154,7 +154,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         List<String> commandLine = new ArrayList<String>();
         commandLine.add("java");
         commandLine.add("-Dlog4j.configuration=file:"+
-            this.getClass().getResource("/log4j.xml").getFile());
+            this.getClass().getResource("/log4j.properties").getFile());
         commandLine.add("-Xmx128m");
         commandLine.add("-cp");
         String cp = System.getProperty("java.class.path");

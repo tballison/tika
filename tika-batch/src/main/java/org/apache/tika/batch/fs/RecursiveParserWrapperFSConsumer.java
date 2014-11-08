@@ -28,8 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -49,11 +47,10 @@ import org.xml.sax.helpers.DefaultHandler;
  * Basic FileResourceConsumer that reads files from an input
  * directory and writes content to the output directory.
  * <p/>
- * This tries to catch most of the common exceptions and log them as errors.
+ * This tries to catch most of the common exceptions, log them and
+ * store them in the metadata list output.
  */
 public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
-
-    Log log = LogFactory.getLog(RecursiveParserWrapperFSConsumer.class);
 
 
     private final ParserFactory parserFactory;
@@ -88,14 +85,14 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
-            log.fatal(e.getMessage());
+            super.logger.fatal(getLogMsg(fileResource.getResourceId(), e));
             throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
         //os can be null if fsOSFactory is set to skip processing a file and the target
         //file already exists
         if (os == null) {
-            log.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
+            super.logger.info("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
             return false;
         }
         String absolutePath = fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH);
@@ -108,7 +105,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             is = fileResource.openInputStream();
         } catch (IOException e) {
-            log.error(e.getMessage());
+            logger.error(getLogMsg(fileResource.getResourceId(), e));
             incrementHandledExceptions();
             flushAndClose(os);
             return false;
@@ -123,9 +120,9 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         } catch (Throwable t) {
             thrown = t;
             if (t instanceof Error) {
-                log.fatal(absolutePath + "\t" + t.getMessage());
+                logger.fatal(getLogMsg(fileResource.getResourceId(), t));
             } else {
-                log.error(absolutePath + "\t" + t.getMessage());
+                logger.error(getLogMsg(fileResource.getResourceId(), t));
             }
             if (metadataList == null) {
                 metadataList = new LinkedList<Metadata>();
@@ -151,10 +148,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             writer = new OutputStreamWriter(os, getOutputEncoding());
             JsonMetadataList.toJson(metadataList, writer);
-        } catch (IOException e) {
-            log.error(absolutePath + "\t" + e.getMessage());
-        } catch (TikaException e) {
-            log.error(absolutePath + "\t" + e.getMessage());
+        } catch (Exception e) {
+            logger.error(getLogMsg(fileResource.getResourceId() ,e));
         } finally {
             flushAndClose(writer);
         }

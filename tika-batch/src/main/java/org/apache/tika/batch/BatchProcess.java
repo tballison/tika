@@ -52,8 +52,8 @@ public class BatchProcess {
 
     private enum CAUSE_FOR_TERMINATION {
         COMPLETED_NORMALLY,
-        CONSUMER_EXCEPTION_NO_RESTART,
-        CONSUMER_EXCEPTION,
+        MAIN_LOOP_EXCEPTION_NO_RESTART,
+        MAIN_LOOP_EXCEPTION,
         CRAWLER_TIMED_OUT,
         TOO_MANY_STALES,
         USER_INTERRUPTION,
@@ -71,7 +71,7 @@ public class BatchProcess {
     //if there was an early termination via the Interrupter
     //or because of an uncaught runtime throwable, pause
     //this long before shutting down to allow parsers to finish
-    private long pauseOnEarlyTerminationMillis = 30000; //30 seconds
+    private long pauseOnEarlyTerminationMillis = 30*1000; //30 seconds
 
     //maximum time that this process should stay alive
     //to avoid potential memory leaks, not a bad idea to shutdown
@@ -100,6 +100,7 @@ public class BatchProcess {
         this.consumersManager = consumersManager;
         this.reporter = reporter;
         this.interrupter = interrupter;
+        //parameter check, maxStaleConsumers must be >= 0
         this.maxStaleConsumers = (maxStaleConsumers > -1) ? maxStaleConsumers : 0;
         stales = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
     }
@@ -111,7 +112,7 @@ public class BatchProcess {
         }
         long start = new Date().getTime();
         logger.info("BatchProcess starting up");
-
+        //TODO: hope that this doesn't hang. :)
         consumersManager.init();
         alreadyExecuted = true;
         long started = new Date().getTime();
@@ -141,9 +142,11 @@ public class BatchProcess {
 
         int removed = 0;
         int consumersRemoved = 0;
+        //room to grow...currently only one crawler
         int crawlerRemoved = 0;
 
         CAUSE_FOR_TERMINATION causeForTermination = null;
+        //main processing loop
         while (true) {
             try {
                 Future<IFileProcessorFutureResult> futureResult =
@@ -182,27 +185,28 @@ public class BatchProcess {
                 }
             } catch (Throwable e) {
                 if (isNonRestart(e)) {
-                    causeForTermination = CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION_NO_RESTART;
+                    causeForTermination = CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART;
                 } else {
-                    causeForTermination = CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION;
+                    causeForTermination = CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION;
                 }
-                logger.fatal("Execution exception " + e.getMessage());
+                logger.fatal("Main loop execution exception: " + e.getMessage());
                 break;
             }
         }
 
 
-        //Step 1, try a gentle shutdown.
-        //This just prevents un-"called" threads from being started
+        //Step 1: prevent uncalled threads from being started
         ex.shutdown();
 
-        //Step 2, ask consumers to retire politely.
-        //most should have by now under normal circumstances
+        //Step 2: ask consumers to retire politely.
+        //Under normal circumstances, they should all have completed by now.
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
             consumer.pleaseRetire();
         }
 
         //if there are any active/non-stale consumers, await termination
+        //this can happen if a user interrupts the process
+        //of if the crawler stops early
         if (countActiveConsumers() > 0) {
             if (causeForTermination != null) {
                 logger.trace("About to awaitTermination: " + pauseOnEarlyTerminationMillis);
@@ -213,7 +217,7 @@ public class BatchProcess {
         }
 
         //Step 3: Gloves come off.  We've tried to ask kindly before.
-        //Now it is time shut down. This could corrupt
+        //Now it is time shut down. This will corrupt
         //nio channels via thread interrupts!  Hopefully, everything
         //has shut down by now.
         logger.trace("About to shutdownNow()");
@@ -257,9 +261,9 @@ public class BatchProcess {
         //do we need to restart?
         String restartMsg = null;
         if (causeForTermination == CAUSE_FOR_TERMINATION.USER_INTERRUPTION
-                || causeForTermination == CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION_NO_RESTART) {
+                || causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART) {
             //do not restart!!!
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION) {
+        } else if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION) {
             restartMsg = "Uncaught consumer throwable";
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.TOO_MANY_STALES) {
             if (areResourcesPotentiallyRemaining()) {
@@ -289,15 +293,17 @@ public class BatchProcess {
                     "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
                     " This exceeds the maxStaleMillis parameter");
         }
+        //Now we try to shutdown the ConsumersManager
+        //TODO: put this in a separate thread and time it out if necessary.
+        //a ConsumersManager shutdown hang would cause entire BatchProcess to hang.
         logger.info("ConsumersManager is shutting down");
         consumersManager.shutdown();
-        logger.info("BatchProcess is shutting down");
+        logger.info("ConsumersManager has shut down");
 
         double elapsed = ((double) new Date().getTime() - (double) start) / 1000.0;
         return new
             ParallelFileProcessingResult(considered, added, processed,
                 elapsed, exitStatus, causeForTermination.toString());
-
     }
 
     private boolean isNonRestart(Throwable e) {
@@ -309,8 +315,8 @@ public class BatchProcess {
     }
 
     private int getExitStatus(CAUSE_FOR_TERMINATION causeForTermination, String restartMsg) {
-        if (causeForTermination == CAUSE_FOR_TERMINATION.CONSUMER_EXCEPTION_NO_RESTART) {
-            logger.fatal("Consumer exception:: no restart");
+        if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART) {
+            logger.info(CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART);
             return -1;
         }
 

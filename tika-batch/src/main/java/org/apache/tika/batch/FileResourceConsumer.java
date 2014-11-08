@@ -37,9 +37,6 @@ import org.apache.log4j.Logger;
  */
 public abstract class FileResourceConsumer implements Callable<IFileProcessorFutureResult> {
 
-
-
-
     private static enum STATE {
         NOT_YET_STARTED,
         ACTIVELY_CONSUMING,
@@ -53,7 +50,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         COMPLETED
     }
     private static AtomicInteger numConsumers = new AtomicInteger(-1);
-    private static Logger logger = Logger.getLogger(FileResourceConsumer.class);
+    protected static Logger logger = Logger.getLogger(FileResourceConsumer.class);
 
     private long maxConsecWaitInMillis = 10*60*1000;// 10 minutes
 
@@ -306,11 +303,8 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         }
     }
 
-    protected void logError(String fileResourceId, Throwable t) {
-        logger.error(fileResourceId + " : " + t.getMessage());
+    protected String getLogMsg(String fileResourceId, Throwable t) {
+        return ">"+fileResourceId + "< : " + t.getMessage();
     }
 
-    protected void logFatal(String fileResourceId, Throwable t) {
-        logger.fatal(fileResourceId + " : " + t.getMessage());
-    }
 }
