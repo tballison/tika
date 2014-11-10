@@ -30,10 +30,14 @@ public class PrettyMetadataKeyComparator implements java.util.Comparator<String>
         //but that would require making core a dependency of serialization...
         //do we want to do that?
         if (s1.equals("tika:content")) {
+            if (s2.equals("tika:content")) {
+                return 0;
+            }
             return 2;
         } else if (s2.equals("tika:content")) {
             return -2;
         }
+        //do we want to lowercase?
         return s1.compareTo(s2);
     }
 }

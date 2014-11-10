@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 package org.apache.tika.metadata.serialization;
 
 /*
@@ -49,7 +48,5 @@ public class JsonMetadataBase {
             Arrays.sort(names, new PrettyMetadataKeyComparator());
             return names;
         }
-
-
     }
 }
