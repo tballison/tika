@@ -39,7 +39,7 @@ public class FSBatchProcessCLI {
 
     public Options getOptions() {
         Options options = new Options();
-        options.addOption("c", "config", true, "xml config file");
+        options.addOption("bc", "batch-config", true, "xml config file");
         options.addOption("randomCrawl", false, "crawl files randomly");
         options.addOption("numConsumers", true, "how many consumer threads to use (default=number of processors-1)");
         options.addOption("maxFileSizeBytes", true, "if an input file is larger than this, skip it.");
@@ -51,12 +51,13 @@ public class FSBatchProcessCLI {
         options.addOption("startDir", "startDirectory", true, "start directory (default: srcDir). Must be a child of or equal to srcDir");
         options.addOption("targDir", "targetDirectory", true, "target directory (must be specified!)");
         options.addOption("recursiveParserWrapper", false, "use the recursive parser wrapper or not (default = false)");
-        options.addOption("handleExisting", false, "if a target file already exists, do you want to: overwrite, rename or skip");
+        options.addOption("handleExisting", true, "if a target file already exists, do you want to: overwrite, rename or skip");
         options.addOption("basicHandlerType", true, "what type of content handler: xml, text, html, body");
         options.addOption("targetSuffix", true, "suffix to add to the end of the target file name");
         options.addOption("staleThresholdMillis", true, "how long to wait before determining that a consumer has gone stale");
 
         //smelly!!!
+        //TODO: need to figure out how to specify options from config?
         options.addOption("thisDir", true, "this dir for eval");
         options.addOption("thatDir", true, "that dir for eval");
         options.addOption("outputFile", true, "results file for eval");
@@ -84,14 +85,14 @@ public class FSBatchProcessCLI {
             }
             mapArgs.put(option.getOpt(), v);
         }
-        String configFilePath = line.getOptionValue("c");
+        String configFilePath = line.getOptionValue("bc");
         InputStream is = null;
         if (configFilePath != null) {
             File configFile = new File(configFilePath);
             is = new FileInputStream(configFile);
         }
         if (is == null) {
-            throw new RuntimeException("Must specify a configuration file: -c");
+            throw new RuntimeException("Must specify a configuration file: -bc");
         }
         BatchProcessBuilder b = new BatchProcessBuilder();
         BatchProcess process = b.build(is, mapArgs);

@@ -55,6 +55,10 @@ public class BatchProcessDriverCLI {
     private StreamGobbler outGobbler = null;
     private StreamWriter stdinWriter = null;
 
+    private Thread errorGobblerThread = null;
+    private Thread outGobblerThread = null;
+    private Thread stdinWriterThread = null;
+
     private final String[] commandLine;
     private int numRestarts = 0;
 
@@ -71,6 +75,10 @@ public class BatchProcessDriverCLI {
             boolean hasExited = false;
             try {
                 exit = process.exitValue();
+                if (exit == Integer.MIN_VALUE) {
+                    throw new IllegalArgumentException("Client process must never "+
+                            "exit with value of Integer.MIN_VALUE!");
+                }
                 hasExited = true;
                 stop();
             } catch (IllegalThreadStateException e) {
@@ -84,40 +92,39 @@ public class BatchProcessDriverCLI {
             } catch (InterruptedException e) {
                 //swallow
             }
-
             if (hasExited && exit == 0 && ! mustRestartProcess) {
                 break;
             }
             //no restart
-            if (hasExited && exit < 0) {
+            if (hasExited && (exit > Integer.MIN_VALUE && exit < 0)) {
                 break;
             }
-            if ((hasExited && exit != 0) || mustRestartProcess) {
+            if ((hasExited && exit > 0) || mustRestartProcess) {
                 restart();
             }
         }
-        if (userInterrupted) {
-            shutdownNow();
-        }
+        shutdownNow();
     }
 
     private void shutdownNow() {
-        for (int i = 0; i < 10; i++) {
-            try {
-                int exit = process.exitValue();
-                stop();
-                return;
-            } catch (IllegalThreadStateException e) {
-                //hasn't exited
+        if (process != null) {
+            for (int i = 0; i < 10; i++) {
+                try {
+                    int exit = process.exitValue();
+                    stop();
+                    return;
+                } catch (IllegalThreadStateException e) {
+                    //hasn't exited
+                }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    //swallow
+                }
             }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                //swallow
-            }
+            logger.error("Process didn't stop after 10 seconds after shutdown. " +
+                    "I am forcefully killing it.");
         }
-        logger.error("Process didn't stop after 10 seconds after shutdown. " +
-                "I am forcefully killing it.");
         stop();
 
     }
@@ -151,6 +158,9 @@ public class BatchProcessDriverCLI {
         errorGobbler.stopGobblingAndDie();
         outGobbler.stopGobblingAndDie();
         stdinWriter.stopGobblingAndDie();
+        errorGobblerThread.interrupt();
+        outGobblerThread.interrupt();
+        stdinWriterThread.interrupt();
     }
 
     private void start() throws Exception {
@@ -158,13 +168,16 @@ public class BatchProcessDriverCLI {
         builder.directory(new File("."));
         process = builder.start();
         errorGobbler = new StreamGobbler(process.getErrorStream());
-        new Thread(errorGobbler).start();
+        errorGobblerThread = new Thread(errorGobbler);
+        errorGobblerThread.start();
 
         outGobbler = new StreamGobbler(process.getInputStream());
-        new Thread(outGobbler).start();
+        outGobblerThread = new Thread(outGobbler);
+        outGobblerThread.start();
 
         stdinWriter = new StreamWriter(System.in, process.getOutputStream());
-        new Thread(stdinWriter).start();
+        stdinWriterThread = new Thread(stdinWriter);
+        stdinWriterThread.start();
 
     }
 
@@ -174,11 +187,13 @@ public class BatchProcessDriverCLI {
      * to the stdin of the BatchProcess.  This allows for a graceful interrupt.
      */
     private class StreamWriter implements Runnable {
+        private InputStream is;
         private BufferedReader reader;
         private Writer writer;
         private boolean running = true;
 
         private StreamWriter(InputStream is, OutputStream os) {
+            this.is = is;
             try {
                 this.reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is),
                         BatchLocalization.getEncoding()));
@@ -204,6 +219,10 @@ public class BatchProcessDriverCLI {
         }
         private void stopGobblingAndDie() {
             running = false;
+            //this should force a thread interrupt
+            IOUtils.closeQuietly(is);
+
+
         }
 
 

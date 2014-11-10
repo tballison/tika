@@ -167,7 +167,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         commandLine.add("org.apache.tika.batch.fs.FSBatchProcessCLI");
 
         String configFile = this.getClass().getResource(testConfig).getFile();
-        commandLine.add("-c");
+        commandLine.add("-bc");
 
         commandLine.add(configFile);
 
@@ -176,6 +176,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         }
         return commandLine.toArray(new String[commandLine.size()]);
     }
+
     BatchProcessDriverCLI getNewDriver(String testConfig,
                                       String[] args) throws Exception {
         List<String> commandLine = new ArrayList<String>();
@@ -192,7 +193,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         commandLine.add("org.apache.tika.batch.fs.FSBatchProcessCLI");
 
         String configFile = this.getClass().getResource(testConfig).getFile();
-        commandLine.add("-c");
+        commandLine.add("-bc");
 
         commandLine.add(configFile);
 
