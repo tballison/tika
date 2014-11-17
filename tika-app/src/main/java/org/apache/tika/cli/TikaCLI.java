@@ -37,7 +37,6 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -61,6 +60,7 @@ import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.tika.Tika;
 import org.apache.tika.batch.BatchProcessDriverCLI;
+import org.apache.tika.batch.fs.FSBatchProcessCLI;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.detect.CompositeDetector;
 import org.apache.tika.detect.DefaultDetector;
@@ -72,6 +72,7 @@ import org.apache.tika.gui.TikaGUI;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.io.IOUtils;
+import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.language.LanguageProfilerBuilder;
 import org.apache.tika.language.ProfilingHandler;
@@ -103,7 +104,7 @@ import org.xml.sax.helpers.DefaultHandler;
  * Simple command line interface for Apache Tika.
  */
 public class TikaCLI {
-    private static File TEMP_BATCH_CONFIG = null;
+
 
     private File extractDir = new File(".");
 
@@ -116,14 +117,14 @@ public class TikaCLI {
 
         TikaCLI cli = new TikaCLI();
         if (args.length > 0) {
-            if (testForBatch(args)) {
-                try {
-                    procBatch(args);
-                } finally {
-                    if (TEMP_BATCH_CONFIG != null) {
-                        TEMP_BATCH_CONFIG.delete();
-                    }
-                }
+            if (cli.testForHelp(args)) {
+                FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
+                cli.usage();
+                batchProcessCLI.usage();
+            } else if (cli.testForBatch(args)) {
+                String[] batchArgs = BatchCommandLineBuilder.build(args);
+                BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
+                batchDriver.execute();
                 return;
             }
             for (int i = 0; i < args.length; i++) {
@@ -145,6 +146,15 @@ public class TikaCLI {
                 cli.process("--gui");
             }
         }
+    }
+
+    private boolean testForHelp(String[] args) {
+        for (String s : args) {
+            if (s.equals("-?") || s.equals("--help")) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -571,6 +581,8 @@ public class TikaCLI {
         out.println("    Apache Tika server. The server will listen to the");
         out.println("    ports you specify as one or more arguments.");
         out.println();
+
+
     }
 
     private void version() {
@@ -724,7 +736,7 @@ public class TikaCLI {
         }
     }
 
-    private static boolean testForBatch(String[] args) {
+    private boolean testForBatch(String[] args) {
         if (args.length > 0) {
             File inputDir = new File(args[args.length-1]);
             if (inputDir.isDirectory()) {
@@ -740,124 +752,8 @@ public class TikaCLI {
         }
         return false;
     }
-    private static void procBatch(String[] args) throws Exception {
-        args = translateCommandLine(args);
-        args = buildFullCommandLine(args);
-        for (String s : args) {
-            System.out.println("Commandline: "+s);
-        }
-        BatchProcessDriverCLI driver = new BatchProcessDriverCLI(args);
-        driver.execute();
 
-    }
-
-    private static String[] translateCommandLine(String[] args) throws IOException {
-        Map<String, String> map = new HashMap<String, String>();
-        //mapify
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].startsWith("-")) {
-                String k = args[i];
-                String v = "";
-                if (i < args.length-1 && ! args[i+1].startsWith("-")){
-                    v = args[i+1];
-                    i++;
-                }
-                map.put(k, v);
-            }
-        }
-        //if no -srcDir is specified, but the last
-        //item in the list is a directory, treat that as srcDir
-        if (! map.containsKey("-srcDir")) {
-            File tmp = new File(args[args.length-1]);
-            if (tmp.isDirectory()) {
-                map.put("-srcDir", args[args.length-1]);
-            }
-        }
-
-        if (! map.containsKey("-bc") && ! map.containsKey("--batch-config")) {
-            TEMP_BATCH_CONFIG = File.createTempFile("tika-batch-config", ".xml");
-            InputStream is = null;
-            OutputStream os = null;
-            try {
-                is = TikaCLI.class.getResourceAsStream("default-tika-batch-config.xml");
-                os = new FileOutputStream(TEMP_BATCH_CONFIG);
-                IOUtils.copy(is, os);
-                os.flush();
-            } finally {
-                IOUtils.closeQuietly(is);
-                IOUtils.closeQuietly(os);
-            }
-            String configPath = TEMP_BATCH_CONFIG.getAbsolutePath();
-            if (configPath.contains(" ")) {
-                configPath = "\""+configPath+"\"";
-            }
-            map.put("-bc", configPath);
-        }
-
-        //now translate output types
-        if (map.containsKey("-h") || map.containsKey("--html")) {
-            map.remove("-h");
-            map.remove("--html");
-            map.put("-basicHandlerType", "html");
-            map.put("-targetSuffix", "html");
-        } else if (map.containsKey("-x") || map.containsKey("--xml")) {
-            map.remove("-x");
-            map.remove("--xml");
-            map.put("-basicHandlerType", "xml");
-            map.put("-targetSuffix", "xml");
-        }else if (map.containsKey("-t") || map.containsKey("--text")) {
-            map.remove("-t");
-            map.remove("--text");
-            map.put("-basicHandlerType", "text");
-            map.put("-targetSuffix", "txt");
-        } else if (map.containsKey("-m") || map.containsKey("--metadata")) {
-            map.remove("-m");
-            map.remove("--metadata");
-            map.put("-basicHandlerType", "ignore");
-            map.put("-targetSuffix", "json");
-        } else if (map.containsKey("-T") || map.containsKey("--text-main")) {
-            map.remove("-T");
-            map.remove("--text-main");
-            map.put("-basicHandlerType", "body");
-            map.put("-targetSuffix", "txt");
-        }
-
-        if (map.containsKey("-J") || map.containsKey("--jsonRecursive")) {
-            map.remove("-J");
-            map.remove("--jsonRecursive");
-            map.put("-recursiveParserWrapper", "true");
-            //overwrite targetSuffix
-            map.put("-targetSuffix", "json");
-        }
-        //package
-        List<String> translated = new ArrayList<String>();
-        for (Map.Entry<String, String> e : map.entrySet()) {
-            translated.add(e.getKey());
-            if (e.getValue() != null && e.getValue().trim().length() > 0) {
-                translated.add(e.getValue());
-            }
-        }
-        return translated.toArray(new String[translated.size()]);
-    }
-
-    private static String[] buildFullCommandLine(String[] args){
-        List<String> commandLine = new ArrayList<String>();
-        commandLine.add("java");
-        commandLine.add("-Xmx128m");
-        commandLine.add("-cp");
-        String cp = System.getProperty("java.class.path");
-        //need to test for " " on *nix, can't just add double quotes
-        //across platforms.
-        if (cp.contains(" ")){
-            cp = "\""+cp+"\"";
-        }
-        commandLine.add(cp);
-        commandLine.add("org.apache.tika.batch.fs.FSBatchProcessCLI");
-
-        for (String s : args) {
-            commandLine.add(s);
-        }
-        return commandLine.toArray(new String[commandLine.size()]);
+    private void procBatch(String[] args, TemporaryResources tmp) throws Exception {
     }
 
 

@@ -17,14 +17,14 @@ package org.apache.tika.batch.builders;
  * limitations under the License.
  */
 
+import java.util.Map;
+
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceCrawler;
 import org.apache.tika.batch.SimpleLogStatusReporter;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
-
-import java.util.Map;
 
 public class SimpleLogReporterBuilder implements StatusReporterBuilder {
 
@@ -34,7 +34,7 @@ public class SimpleLogReporterBuilder implements StatusReporterBuilder {
 
         Map<String, String> attributes = XMLDOMUtil.mapifyAttrs(n, commandlineArguments);
         long sleepMillis = PropsUtil.getLong(attributes.get("sleepMillis"), 1000);
-        long staleThresholdMillis = PropsUtil.getLong(attributes.get("staleThresholdMillis"), 500000);
+        long staleThresholdMillis = PropsUtil.getLong(attributes.get("reporterStaleThresholdMillis"), 500000);
         SimpleLogStatusReporter reporter = new SimpleLogStatusReporter(crawler, consumersManager);
         reporter.setSleepMillis(sleepMillis);
         reporter.setStaleThresholdMillis(staleThresholdMillis);

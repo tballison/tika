@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.xml.DOMConfigurator;
 
 
 /**
@@ -60,7 +61,10 @@ public class BatchProcess {
         BATCH_PROCESS_ALIVE_TOO_LONG,
     }
 
-    private static final Log logger = LogFactory.getLog(BatchProcess.class);
+    private static final Log logger;
+    static {
+        logger = LogFactory.getLog(BatchProcess.class);
+    }
 
     // If a file hasn't been processed in this amount of time,
     // report it to the console. When the directory crawler has stopped, the thread will
@@ -317,7 +321,7 @@ public class BatchProcess {
     private int getExitStatus(CAUSE_FOR_TERMINATION causeForTermination, String restartMsg) {
         if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART) {
             logger.info(CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART);
-            return -1;
+            return BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE;
         }
 
         if (restartMsg != null) {
@@ -331,7 +335,7 @@ public class BatchProcess {
                     BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString() +
                             " >> " + restartMsg);
             System.err.flush();
-            return 1;
+            return BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE;
         }
         return 0;
     }

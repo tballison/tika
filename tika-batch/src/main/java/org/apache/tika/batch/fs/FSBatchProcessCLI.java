@@ -18,8 +18,8 @@ package org.apache.tika.batch.fs;
  */
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,52 +29,61 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.apache.tika.batch.BatchProcess;
+import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.batch.ParallelFileProcessingResult;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.batch.builders.CommandLineParserBuilder;
 import org.apache.tika.io.IOUtils;
+import org.apache.tika.io.TikaInputStream;
 
 public class FSBatchProcessCLI {
     public static String FINISHED_STRING = "Main thread in TikaFSBatchCLI has finished processing.";
 
-    public Options getOptions() {
-        Options options = new Options();
-        options.addOption("bc", "batch-config", true, "xml config file");
-        options.addOption("randomCrawl", false, "crawl files randomly");
-        options.addOption("numConsumers", true, "how many consumer threads to use (default=number of processors-1)");
-        options.addOption("maxFileSizeBytes", true, "if an input file is larger than this, skip it.");
-        options.addOption("maxStaleConsumers", true, "maximum number of stale consumers to allow before shutdown");
-        options.addOption("maxQueueSize", true, "maximum size of the FileResource queue");
-        options.addOption("fileList", true, "list of files to process (files relative to srcDir)");
-        options.addOption("fileListEncoding", true, "encoding for fileList");
-        options.addOption("srcDir", "sourceDirectory", true, "source directory (must be specified!)");
-        options.addOption("startDir", "startDirectory", true, "start directory (default: srcDir). Must be a child of or equal to srcDir");
-        options.addOption("targDir", "targetDirectory", true, "target directory (must be specified!)");
-        options.addOption("recursiveParserWrapper", false, "use the recursive parser wrapper or not (default = false)");
-        options.addOption("handleExisting", true, "if a target file already exists, do you want to: overwrite, rename or skip");
-        options.addOption("basicHandlerType", true, "what type of content handler: xml, text, html, body");
-        options.addOption("targetSuffix", true, "suffix to add to the end of the target file name");
-        options.addOption("staleThresholdMillis", true, "how long to wait before determining that a consumer has gone stale");
+    private final Options options;
 
-        //smelly!!!
-        //TODO: need to figure out how to specify options from config?
-        options.addOption("thisDir", true, "this dir for eval");
-        options.addOption("thatDir", true, "that dir for eval");
-        options.addOption("outputFile", true, "results file for eval");
-        options.addOption("?", "help", false, "this help message");
-        return options;
+    public FSBatchProcessCLI(String[] args) throws IOException {
+        TikaInputStream configIs = null;
+        try {
+            configIs = getConfigInputStream(args);
+            CommandLineParserBuilder builder = new CommandLineParserBuilder();
+            options = builder.build(configIs);
+        } finally {
+            IOUtils.closeQuietly(configIs);
+        }
     }
 
-    public static void main(String[] args) throws Exception {
-        Options options = new FSBatchProcessCLI().getOptions();
+    public void usage() {
+        HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.printHelp("tika filesystem batch", options);
+    }
+
+    private TikaInputStream getConfigInputStream(String[] args) throws IOException {
+        TikaInputStream is = null;
+        File batchConfigFile = getConfigFile(args);
+        if (batchConfigFile != null && batchConfigFile.isFile() && batchConfigFile.canRead()) {
+            is = TikaInputStream.get(batchConfigFile);
+        } else {
+            is = TikaInputStream.get(
+                    //TODO: PICKUP HERE org/apache/tika/batch/fs/default?
+                    FSBatchProcessCLI.class.getResourceAsStream("default-tika-batch-config.xml"));
+        }
+        return is;
+    }
+
+    private void execute(String[] args) throws Exception {
 
         CommandLineParser cliParser = new GnuParser();
         CommandLine line = cliParser.parse(options, args);
 
         if (line.hasOption("help")) {
-            HelpFormatter helpFormatter = new HelpFormatter();
-            helpFormatter.printHelp("tika filesystem batch", options);
-            System.exit(-1);
+            usage();
+            System.exit(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE);
         }
 
         Map<String, String> mapArgs = new HashMap<String, String>();
@@ -85,23 +94,50 @@ public class FSBatchProcessCLI {
             }
             mapArgs.put(option.getOpt(), v);
         }
-        String configFilePath = line.getOptionValue("bc");
-        InputStream is = null;
-        if (configFilePath != null) {
-            File configFile = new File(configFilePath);
-            is = new FileInputStream(configFile);
-        }
-        if (is == null) {
-            throw new RuntimeException("Must specify a configuration file: -bc");
-        }
+
         BatchProcessBuilder b = new BatchProcessBuilder();
-        BatchProcess process = b.build(is, mapArgs);
-        IOUtils.closeQuietly(is);
+        TikaInputStream is = null;
+        BatchProcess process = null;
+        try {
+            is = getConfigInputStream(args);
+            process = b.build(is, mapArgs);
+
+        } finally {
+            IOUtils.closeQuietly(is);
+        }
         ParallelFileProcessingResult result = process.execute();
         System.out.println(FINISHED_STRING);
         System.out.println("\n");
         System.out.println(result.toString());
         System.exit(result.getExitStatus());
+    }
+
+    private File getConfigFile(String[] args) {
+        File configFile = null;
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("-bc") || args[i].equals("-batch-config")) {
+                if (i < args.length-1) {
+                    configFile = new File(args[i+1]);
+                }
+            }
+        }
+        return configFile;
+    }
+
+
+    public static void main(String[] args) throws Exception {
+        //if no log4j config file has been set via
+        //sysprops, use BasicConfigurator
+        String log4jFile = System.getProperty("log4j.configuration");
+        if (log4jFile == null || log4jFile.trim().length()==0) {
+            ConsoleAppender appender = new ConsoleAppender();
+            appender.setLayout(new PatternLayout("%m%n"));
+            appender.setWriter(new PrintWriter(System.out));
+            BasicConfigurator.configure(appender);
+            Logger.getRootLogger().setLevel(Level.INFO);
+        }
+        FSBatchProcessCLI cli = new FSBatchProcessCLI(args);
+        cli.execute(args);
     }
 
 }

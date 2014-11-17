@@ -47,6 +47,10 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
         this.root = root;
         this.startDirectory = root;
         this.crawlOrder = crawlOrder;
+        if (! startDirectory.isDirectory()) {
+            throw new RuntimeException("Crawler couldn't find this directory:" + startDirectory.getAbsolutePath());
+        }
+
     }
 
     public FSDirectoryCrawler(ArrayBlockingQueue<FileResource> fileQueue,
@@ -57,6 +61,9 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
         this.startDirectory = startDirectory;
         this.crawlOrder = crawlOrder;
         assert(FSUtil.checkThisIsAncestorOfOrSameAsThat(root, startDirectory));
+        if (! startDirectory.isDirectory()) {
+            throw new RuntimeException("Crawler couldn't find this directory:" + startDirectory.getAbsolutePath());
+        }
     }
 
     public void start() throws InterruptedException {

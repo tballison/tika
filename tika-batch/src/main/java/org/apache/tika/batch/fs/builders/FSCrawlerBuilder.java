@@ -18,6 +18,11 @@ package org.apache.tika.batch.fs.builders;
  */
 
 
+import java.io.File;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.regex.Pattern;
+
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceCrawler;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
@@ -28,11 +33,6 @@ import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
-
-import java.io.File;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.regex.Pattern;
 
 /**
  * Builds either an FSDirectoryCrawler or an FSListCrawler.
@@ -60,7 +60,6 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
         Map<String, String> attributes = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
         int numConsumers = BatchProcessBuilder.getNumConsumers(runtimeAttributes);
-
         File srcDir = PropsUtil.getFile(attributes.get(SRC_DIR_ATTR), new File("input"));
         FileResourceCrawler crawler = null;
         if (attributes.containsKey("fileList")) {

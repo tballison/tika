@@ -75,7 +75,7 @@ public class SimpleLogStatusReporter implements IStatusReporter {
      * Startup the reporter.
      */
     public IFileProcessorFutureResult call() {
-        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.ROOT);
         try {
             while (true) {
                 Thread.sleep(sleepMillis);

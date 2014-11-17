@@ -35,6 +35,8 @@ import org.apache.tika.util.BatchLocalization;
 
 public class BatchProcessDriverCLI {
 
+    public static final int PROCESS_RESTART_EXIT_CODE = -1;
+    public static final int PROCESS_NO_RESTART_EXIT_CODE = 1;
     /**
      * This relies on an exit value of -1 (do not restart),
      * 0 ended correctly, 1 ended with exception
@@ -96,10 +98,12 @@ public class BatchProcessDriverCLI {
                 break;
             }
             //no restart
-            if (hasExited && (exit > Integer.MIN_VALUE && exit < 0)) {
+            if (hasExited && (exit == BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE)) {
                 break;
             }
-            if ((hasExited && exit > 0) || mustRestartProcess) {
+
+            if ((hasExited && exit == BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE)
+                    || mustRestartProcess) {
                 restart();
             }
         }
@@ -217,15 +221,10 @@ public class BatchProcessDriverCLI {
                 //swallow ioe
             }
         }
+
         private void stopGobblingAndDie() {
             running = false;
-            //this should force a thread interrupt
-            IOUtils.closeQuietly(is);
-
-
         }
-
-
     }
 
     private class StreamGobbler implements Runnable {

@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 
 <tika-batch-config
-        maxAliveTimeSeconds="-1"
-        pauseOnEarlyTerminationMillis="500"
-        staleThresholdMillis="3000"
+        maxAliveTimeSeconds="1800"
+        pauseOnEarlyTerminationMillis="1000"
+        staleThresholdMillis="300000"
         staleCheckPulseMillis="1000"
-        maxStaleConsumers="2"
+        maxStaleConsumers="0"
         maxQueueSize="10000"
-        numConsumers="3">
+        numConsumers="4">
+
     <!-- options to allow on the commandline -->
     <commandline>
         <option opt="bc" longOpt="batch-config" hasArg="true"
-                description="xml batch config file" required="true"/>
+                description="xml batch config file"/>
         <option opt="randomCrawl" hasArg="false"
                 description="file crawler crawls directories randomly"/>
         <option opt="numConsumers" hasArg="true"
@@ -27,8 +28,7 @@
         <option opt="fileListEncoding" hasArg="true"
                 description="encoding for fileList"/>
         <option opt="srcDir" hasArg="true"
-                description="root directory for the files to be processed"
-                required="true"/>
+                description="root directory for the files to be processed"/>
         <option opt="startDir" hasArg="true"
                 description="directory (under srcDir) at which to start crawling"/>
         <option opt="targDir" hasArg="true"
@@ -45,34 +45,43 @@
         <option opt="staleThresholdMillis" hasArg="true"
                 description="how long to wait before determining that a consumer is stale"/>
     </commandline>
-    <!--
-        Can also add startDir: this tells the crawler to start indexing a
-        child directory of the srcDir directory.
-    -->
+
 	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
-        crawlOrder="sorted"
-        maxConsecWaitMillis="5000"
-        maxFilesToAdd="-1"
+        crawlOrder="random"
+		maxFilesToAdd="-1" 
 		maxFilesToConsider="-1" 
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        srcDir="tika-batch/src/test/resources/test-input"
+        srcDir="input"
         />
-
-	<consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
+<!--
+    This is an example of a crawler that reads a list of files to be processed from a
+    file.  This assumes that the files in the list are relative to srcDir.
+    <crawler class="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
+             fileList="files.txt"
+             fileListEncoding="UTF-8"
+             maxFilesToAdd="-1"
+             maxFilesToConsider="-1"
+             includeFilePat="(?i).pdf$"
+             excludeFilePat="(?i).msg$"
+             maxFileSizeBytes="-1"
+             srcDir="input"
+    />
+-->
+    <consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
                recursiveParserWrapper="false">
-		<parser class="org.apache.tika.parser.evil.EvilParserFactory" parseRecursively="true"/>
-		<contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
+        <parser class="org.apache.tika.batch.AutoDetectParserFactory" parseRecursively="true"/>
+        <contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
                         basicHandlerType="xml" writeLimit="-1"/>
-		
-		<!-- overwritePolicy: "skip" a file if target file exists, "rename" a target file, "overwrite" -->
-		<outputstream class="FSOutputStreamFactory" handleExisting="skip" targDir="output"
-                encoding="UTF-8" targetSuffix="xml"/>
-	</consumers>
-	
-	<!-- reporter and interrupter are optional -->
-	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000"
-              reporterStaleThresholdMillis="500000"/>
-	<interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>
+
+        <!-- overwritePolicy: "skip" a file if target file exists, "rename" a target file, "overwrite" -->
+        <outputstream class="FSOutputStreamFactory" handleExisting="skip" targDir="output"
+                      encoding="UTF-8" targetSuffix="xml"/>
+    </consumers>
+
+    <!-- reporter and interrupter are optional -->
+    <reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000"
+              reporterStaleThresholdMillis="60000"/>
+    <interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>
 </tika-batch-config>

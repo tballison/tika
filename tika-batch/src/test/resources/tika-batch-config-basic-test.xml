@@ -2,12 +2,51 @@
 
 <tika-batch-config
         maxAliveTimeSeconds="-1"
-        pauseOnEarlyTerminationMillis = "500"
+        pauseOnEarlyTerminationMillis="500"
         staleThresholdMillis="300000"
         staleCheckPulseMillis="1000"
         maxStaleConsumers="2"
         maxQueueSize="10000"
         numConsumers="5">
+
+    <!-- options to allow on the commandline -->
+    <commandline>
+        <option opt="bc" longOpt="batch-config" hasArg="true"
+                description="xml batch config file" required="true"/>
+        <option opt="randomCrawl" hasArg="false"
+                description="file crawler crawls directories randomly"/>
+        <option opt="numConsumers" hasArg="true"
+                description="number of fileConsumers threads"/>
+        <option opt="maxFileSizeBytes" hasArg="true"
+                description="maximum file size to process; do not process files larger than this"/>
+        <option opt="maxStaleConsumers" hasArg="true"
+                description="maximum number of allowed stale consumers"/>
+        <option opt="maxQueueSize" hasArg="true"
+                description="maximum queue size for FileResources"/>
+        <option opt="fileList" hasArg="true"
+                description="file that contains a list of files (relative to srcDir) to process"/>
+        <option opt="fileListEncoding" hasArg="true"
+                description="encoding for fileList"/>
+        <option opt="srcDir" hasArg="true"
+                description="root directory for the files to be processed"
+                required="true"/>
+        <option opt="startDir" hasArg="true"
+                description="directory (under srcDir) at which to start crawling"/>
+        <option opt="targDir" hasArg="true"
+                description="target directory for output"
+                required="true"/>
+        <option opt="recursiveParserWrapper"
+                description="use the RecursiveParserWrapper or not (default = false)"/>
+        <option opt="handleExisting" hasArg="true"
+                description="if a target file already exists, do you want to: overwrite, rename or skip"/>
+        <option opt="basicHandlerType" hasArg="true"
+                description="what type of content handler: xml, text, html, body"/>
+        <option opt="targetSuffix" hasArg="true"
+                description="suffix to add to the end of the target file name"/>
+        <option opt="staleThresholdMillis" hasArg="true"
+                description="how long to wait before determining that a consumer is stale"/>
+    </commandline>
+
 
     <!--
         Can also add startDir: this tells the crawler to start indexing a
@@ -51,6 +90,7 @@
 	</consumers>
 	
 	<!-- reporter and interrupter are optional -->
-	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000" staleThresholdMillis="500000"/>
+	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000"
+              reporterStaleThresholdMillis="500000"/>
 	<interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>
 </tika-batch-config>
