@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.xml.DOMConfigurator;
 
 
 /**
@@ -326,7 +325,7 @@ public class BatchProcess {
 
         if (restartMsg != null) {
             if (restartMsg.equals(BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString())) {
-                logger.info(restartMsg);
+                logger.warn(restartMsg);
             } else {
                 logger.fatal(restartMsg);
             }

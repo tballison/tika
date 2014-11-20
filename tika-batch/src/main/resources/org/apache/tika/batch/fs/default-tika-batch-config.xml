@@ -32,8 +32,7 @@
         <option opt="startDir" hasArg="true"
                 description="directory (under srcDir) at which to start crawling"/>
         <option opt="targDir" hasArg="true"
-                description="target directory for output"
-                required="true"/>
+                description="target directory for output"/> <!-- do we want to make this mandatory -->
         <option opt="recursiveParserWrapper"
                 description="use the RecursiveParserWrapper or not (default = false)"/>
         <option opt="handleExisting" hasArg="true"

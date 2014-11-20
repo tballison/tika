@@ -181,6 +181,9 @@ public class BatchProcessDriverCLI {
 
         stdinWriter = new StreamWriter(System.in, process.getOutputStream());
         stdinWriterThread = new Thread(stdinWriter);
+        //this is a workaround to deal with the blocking readLine in StreamWriter
+        //TODO: There has _got_ to be a better way.
+        stdinWriterThread.setDaemon(true);
         stdinWriterThread.start();
 
     }
@@ -223,6 +226,11 @@ public class BatchProcessDriverCLI {
         }
 
         private void stopGobblingAndDie() {
+            try {
+                is.close();
+            } catch (IOException e) {
+                //swallow
+            }
             running = false;
         }
     }

@@ -121,6 +121,7 @@ public class TikaCLI {
                 FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
                 cli.usage();
                 batchProcessCLI.usage();
+                return;
             } else if (cli.testForBatch(args)) {
                 String[] batchArgs = BatchCommandLineBuilder.build(args);
                 BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
