@@ -17,15 +17,6 @@
 
 package org.apache.tika.server;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-
 import javax.mail.internet.ContentDisposition;
 import javax.mail.internet.ParseException;
 import javax.ws.rs.Consumes;
@@ -45,7 +36,16 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.lang.reflect.Field;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.jaxrs.ext.multipart.Attachment;
@@ -63,6 +63,8 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.html.HtmlParser;
+import org.apache.tika.parser.ocr.TesseractOCRConfig;
+import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.xml.sax.ContentHandler;
@@ -71,6 +73,10 @@ import org.xml.sax.SAXException;
 @Path("/tika")
 public class TikaResource {
   public static final String GREETING = "This is Tika Server. Please PUT\n";
+  public static final String X_TIKA_OCR_HEADER_PREFIX = "X-Tika-OCR";
+  public static final String X_TIKA_PDF_HEADER_PREFIX = "X-Tika-PDF";
+
+
   private final Log logger = LogFactory.getLog(TikaResource.class);
   
   private TikaConfig tikaConfig;
@@ -132,6 +138,48 @@ public class TikaResource {
     return httpHeaders.getFirst("File-Name");
   }
 
+  public static void fillParseContext(ParseContext parseContext, MultivaluedMap<String, String> httpHeaders) {
+    TesseractOCRConfig ocrConfig = new TesseractOCRConfig();
+    PDFParserConfig pdfParserConfig = new PDFParserConfig();
+    for (String key : httpHeaders.keySet()) {
+      if (StringUtils.startsWith(key, X_TIKA_OCR_HEADER_PREFIX)) {
+          processHeaderConfig(httpHeaders, ocrConfig, key, X_TIKA_OCR_HEADER_PREFIX);
+      } else if (StringUtils.startsWith(key, X_TIKA_PDF_HEADER_PREFIX)) {
+        processHeaderConfig(httpHeaders, pdfParserConfig, key, X_TIKA_PDF_HEADER_PREFIX);
+      }
+    }
+    parseContext.set(TesseractOCRConfig.class, ocrConfig);
+    parseContext.set(PDFParserConfig.class, pdfParserConfig);
+  }
+
+  /**
+   * Utility method to set a property on a class via reflection.
+   *
+   * @param httpHeaders the HTTP headers set.
+   * @param object the <code>Object</code> to set the property on.
+   * @param key the key of the HTTP Header.
+   * @param prefix the name of the HTTP Header prefix used to find property.
+   * @throws WebApplicationException thrown when field cannot be found.
+   */
+  private static void processHeaderConfig(MultivaluedMap<String, String> httpHeaders, Object object, String key, String prefix) {
+    try {
+      String property = StringUtils.removeStart(key, prefix);
+      Field field = object.getClass().getDeclaredField(StringUtils.uncapitalize(property));
+      field.setAccessible(true);
+      if (field.getType() == String.class) {
+        field.set(object, httpHeaders.getFirst(key));
+      } else if (field.getType() == int.class) {
+        field.setInt(object, Integer.parseInt(httpHeaders.getFirst(key)));
+      } else if (field.getType() == double.class) {
+        field.setDouble(object, Double.parseDouble(httpHeaders.getFirst(key)));
+      } else if (field.getType() == boolean.class) {
+        field.setBoolean(object, Boolean.parseBoolean(httpHeaders.getFirst(key)));
+      }
+    } catch (Throwable ex) {
+      throw new WebApplicationException(String.format("%s is an invalid %s header", key, X_TIKA_OCR_HEADER_PREFIX));
+    }
+  }
+
   @SuppressWarnings("serial")
 public static void fillMetadata(AutoDetectParser parser, Metadata metadata, MultivaluedMap<String, String> httpHeaders) {
     String fileName = detectFilename(httpHeaders);
@@ -186,8 +234,10 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
   public StreamingOutput produceText(final InputStream is, MultivaluedMap<String, String> httpHeaders, final UriInfo info) {	  
     final AutoDetectParser parser = createParser(tikaConfig);
     final Metadata metadata = new Metadata();
+    final ParseContext context = new ParseContext();
 
     fillMetadata(parser, metadata, httpHeaders);
+    fillParseContext(context, httpHeaders);
 
     logRequest(logger, info, metadata);
 
@@ -200,7 +250,7 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
         TikaInputStream tis = TikaInputStream.get(is);
 
         try {
-            parser.parse(tis, body, metadata);
+            parser.parse(tis, body, metadata, context);
         } catch (SAXException e) {
           throw new WebApplicationException(e);
         } catch (EncryptedDocumentException e) {
@@ -272,8 +322,11 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
         final UriInfo info, final String format) {
     final AutoDetectParser parser = createParser(tikaConfig);
     final Metadata metadata = new Metadata();
+    final ParseContext context = new ParseContext();
 
     fillMetadata(parser, metadata, httpHeaders);
+    fillParseContext(context, httpHeaders);
+
 
     logRequest(logger, info, metadata);
 
@@ -299,7 +352,7 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
         TikaInputStream tis = TikaInputStream.get(is);
 
         try {
-          parser.parse(tis, content, metadata);
+          parser.parse(tis, content, metadata, context);
         }
         catch (SAXException e) {
           throw new WebApplicationException(e);

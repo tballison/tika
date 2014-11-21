@@ -17,7 +17,10 @@
 package org.apache.tika.parser.ocr;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.util.Properties;
 
 /**
  * Configuration for TesseractOCRParser.
@@ -28,7 +31,10 @@ import java.io.Serializable;
  * config.setTesseractPath(tesseractFolder);<br>
  * parseContext.set(TesseractOCRConfig.class, config);<br>
  * </p>
- * 
+ *
+ * Parameters can also be set by either editing the existing TesseractOCRConfig.properties file in,
+ * tika-parser/src/main/resources/org/apache/tika/parser/ocr, or overriding it by creating your own
+ * and placing it in the package org/apache/tika/parser/ocr on the classpath.
  * 
  */
 public class TesseractOCRConfig implements Serializable{
@@ -52,7 +58,58 @@ public class TesseractOCRConfig implements Serializable{
 	
 	// Maximum time (seconds) to wait for the ocring process termination
 	private int timeout = 120;
-	
+
+	/**
+	 * Default contructor.
+	 */
+	public TesseractOCRConfig() {
+		init(this.getClass().getResourceAsStream("TesseractOCRConfig.properties"));
+	}
+
+	/**
+	 * Loads properties from InputStream and then tries to close InputStream.
+	 * If there is an IOException, this silently swallows the exception
+	 * and goes back to the default.
+	 *
+	 * @param is
+	 */
+	public TesseractOCRConfig(InputStream is) {
+		init(is);
+	}
+
+	private void init(InputStream is) {
+		if (is == null) {
+			return;
+		}
+		Properties props = new Properties();
+		try {
+			props.load(is);
+		} catch (IOException e) {
+		} finally {
+			if (is != null) {
+				try {
+					is.close();
+				} catch (IOException e) {
+					//swallow
+				}
+			}
+		}
+
+		setTesseractPath(
+				getProp(props, "tesseractPath", getTesseractPath()));
+		setLanguage(
+				getProp(props, "language", getLanguage()));
+		setPageSegMode(
+				getProp(props, "pageSegMode", getPageSegMode()));
+		setMinFileSizeToOcr(
+				getProp(props, "minFileSizeToOcr", getMinFileSizeToOcr()));
+		setMaxFileSizeToOcr(
+				getProp(props, "maxFileSizeToOcr", getMaxFileSizeToOcr()));
+		setTimeout(
+				getProp(props, "timeout", getTimeout()));
+
+	}
+
 	/** @see #setTesseractPath(String tesseractPath)*/
 	public String getTesseractPath() {
 		return tesseractPath;
@@ -62,7 +119,7 @@ public class TesseractOCRConfig implements Serializable{
 	 * Set tesseract installation folder, needed if it is not on system path.
 	 */
 	public void setTesseractPath(String tesseractPath) {
-		if(!tesseractPath.endsWith(File.separator))
+		if(!tesseractPath.isEmpty() && !tesseractPath.endsWith(File.separator))
 			tesseractPath += File.separator;
 		
 		this.tesseractPath = tesseractPath;
@@ -78,6 +135,9 @@ public class TesseractOCRConfig implements Serializable{
 	 * Multiple languages may be specified, separated by plus characters.
 	 */
 	public void setLanguage(String language) {
+		if (!language.matches("([A-Za-z](\\+?))*")) {
+			throw new IllegalArgumentException("Invalid language code");
+		}
 		this.language = language;
 	}
 	
@@ -91,6 +151,9 @@ public class TesseractOCRConfig implements Serializable{
 	 * Default is 1 = Automatic page segmentation with OSD (Orientation and Script Detection)
 	 */
 	public void setPageSegMode(String pageSegMode) {
+		if (!pageSegMode.matches("[1-9]|10")) {
+			throw new IllegalArgumentException("Invalid language code");
+		}
 		this.pageSegMode = pageSegMode;
 	}
 	
@@ -132,5 +195,34 @@ public class TesseractOCRConfig implements Serializable{
 	public int getTimeout() {
 		return timeout;
 	}
-	
+
+	/**
+	 * Get property from the properties file passed in.
+	 * @param properties properties file to read from.
+	 * @param property the property to fetch.
+	 * @param defaultMissing default parameter to use.
+	 * @return the value.
+	 */
+	private int getProp(Properties properties, String property, int defaultMissing) {
+		String p = properties.getProperty(property);
+		if (p == null || p.isEmpty()){
+			return defaultMissing;
+		}
+		try {
+			return Integer.parseInt(p);
+		} catch (Throwable ex) {
+			throw new RuntimeException(String.format("Cannot parse TesseractOCRConfig variable %s, invalid integer value", property), ex);
+		}
+	}
+
+	/**
+	 * Get property from the properties file passed in.
+	 * @param properties properties file to read from.
+	 * @param property the property to fetch.
+	 * @param defaultMissing default parameter to use.
+	 * @return the value.
+	 */
+	private String getProp(Properties properties, String property, String defaultMissing) {
+		return properties.getProperty(property, defaultMissing);
+	}
 }
