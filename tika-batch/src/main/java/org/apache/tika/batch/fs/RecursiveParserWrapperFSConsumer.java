@@ -34,7 +34,6 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.OutputStreamFactory;
 import org.apache.tika.batch.ParserFactory;
 import org.apache.tika.config.TikaConfig;
-import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.parser.ParseContext;
@@ -92,7 +91,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         //os can be null if fsOSFactory is set to skip processing a file and the target
         //file already exists
         if (os == null) {
-            super.logger.info("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
+            super.logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
             return false;
         }
         String absolutePath = fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH);

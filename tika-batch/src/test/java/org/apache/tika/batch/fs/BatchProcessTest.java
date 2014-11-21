@@ -127,8 +127,6 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         assertEquals(4, targDir.listFiles().length);
         assertContains(new File(targDir, "test1.txt.xml"), "UTF-8", "This is tika-batch's first test file");
-        System.out.println("ERR"+streamStrings.getErrString());
-        System.out.println("OUT"+streamStrings.getOutString());
         assertContains(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
     }
@@ -146,7 +144,6 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         StreamStrings streamStrings = ex.execute();
         File[] files = targDir.listFiles();
-        System.out.println(streamStrings.getOutString());
         assertEquals(2, files.length);
         assertEquals(0, files[1].length());
         assertContains("exitStatus=1", streamStrings.getOutString());

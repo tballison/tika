@@ -126,7 +126,7 @@ public class TikaCLI {
                 String[] batchArgs = BatchCommandLineBuilder.build(args);
                 BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
                 batchDriver.execute();
-                return;
+                System.exit(0);
             }
             for (int i = 0; i < args.length; i++) {
                 cli.process(args[i]);

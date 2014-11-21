@@ -43,7 +43,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         SWALLOWED_POISON,
         THREAD_INTERRUPTED,
         EXCEEDED_MAX_CONSEC_WAIT_MILLIS,
-        RETIRED,
+        ASKED_TO_SHUTDOWN,
         GONE_STALE,
         CONSUMER_EXCEPTION,
         CONSUMER_ERROR,
@@ -171,8 +171,8 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
      * besides passing it {@link org.apache.tika.batch.PoisonFileResource}.
      *
      */
-    public void pleaseRetire() {
-        setEndedState(STATE.RETIRED);
+    public void pleaseShutdown() {
+        setEndedState(STATE.ASKED_TO_SHUTDOWN);
     }
 
     /**

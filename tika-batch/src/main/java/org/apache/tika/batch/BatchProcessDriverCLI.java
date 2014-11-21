@@ -49,17 +49,20 @@ public class BatchProcessDriverCLI {
     private int maxProcessRestarts = -1;
     private long pulseMillis = 1000;
 
+    private volatile boolean userInterrupted = false;
     private boolean mustRestartProcess = false;
-    private boolean userInterrupted = false;
     private Process process = null;
 
     private StreamGobbler errorGobbler = null;
     private StreamGobbler outGobbler = null;
-    private StreamWriter stdinWriter = null;
+    private InterruptWriter interruptWriter = null;
+    private final InterruptWatcher interruptWatcher =
+            new InterruptWatcher(System.in);
 
     private Thread errorGobblerThread = null;
     private Thread outGobblerThread = null;
-    private Thread stdinWriterThread = null;
+    private Thread interruptWriterThread = null;
+    private final Thread interruptWatcherThread = new Thread(interruptWatcher);
 
     private final String[] commandLine;
     private int numRestarts = 0;
@@ -71,6 +74,10 @@ public class BatchProcessDriverCLI {
     }
 
     public void execute() throws Exception {
+
+        interruptWatcherThread.setDaemon(true);
+        interruptWatcherThread.start();
+
         start();
         while (!userInterrupted) {
             int exit = Integer.MIN_VALUE;
@@ -107,15 +114,16 @@ public class BatchProcessDriverCLI {
                 restart();
             }
         }
-        shutdownNow();
+        shutdownDriverNow();
     }
 
-    private void shutdownNow() {
+    private void shutdownDriverNow() {
         if (process != null) {
             for (int i = 0; i < 10; i++) {
                 try {
                     int exit = process.exitValue();
                     stop();
+                    interruptWatcherThread.interrupt();
                     return;
                 } catch (IllegalThreadStateException e) {
                     //hasn't exited
@@ -129,8 +137,7 @@ public class BatchProcessDriverCLI {
             logger.error("Process didn't stop after 10 seconds after shutdown. " +
                     "I am forcefully killing it.");
         }
-        stop();
-
+        interruptWatcherThread.interrupt();
     }
 
     public int getNumRestarts() {
@@ -158,13 +165,15 @@ public class BatchProcessDriverCLI {
         if (process != null) {
             process.destroy();
         }
+
         mustRestartProcess = false;
+        //interrupt the writer thread first
+        interruptWriterThread.interrupt();
+
         errorGobbler.stopGobblingAndDie();
         outGobbler.stopGobblingAndDie();
-        stdinWriter.stopGobblingAndDie();
         errorGobblerThread.interrupt();
         outGobblerThread.interrupt();
-        stdinWriterThread.interrupt();
     }
 
     private void start() throws Exception {
@@ -179,31 +188,47 @@ public class BatchProcessDriverCLI {
         outGobblerThread = new Thread(outGobbler);
         outGobblerThread.start();
 
-        stdinWriter = new StreamWriter(System.in, process.getOutputStream());
-        stdinWriterThread = new Thread(stdinWriter);
-        //this is a workaround to deal with the blocking readLine in StreamWriter
-        //TODO: There has _got_ to be a better way.
-        stdinWriterThread.setDaemon(true);
-        stdinWriterThread.start();
+        interruptWriter = new InterruptWriter(process.getOutputStream());
+        interruptWriterThread = new Thread(interruptWriter);
+        interruptWriterThread.start();
 
     }
 
+    /**
+     * Class to watch stdin from the driver for anything that is typed.
+     * This will currently cause an interrupt if anything followed by
+     * a return key is entered.  We may want to add an "Are you sure?" dialogue.
+     */
+    private class InterruptWatcher implements Runnable {
+        private BufferedReader reader;
+
+        private InterruptWatcher(InputStream is) {
+            reader = new BufferedReader(new InputStreamReader(is));
+        }
+
+        @Override
+        public void run() {
+            try {
+                //this will block
+                //as soon as it reads anything,
+                //set userInterrupted to true and stop
+                reader.readLine();
+                userInterrupted = true;
+            } catch (IOException e) {
+                //swallow
+            }
+        }
+    }
 
     /**
-     * Class that transfers anything sent to stdin to the process driver
-     * to the stdin of the BatchProcess.  This allows for a graceful interrupt.
+     * Class that writes to the child process
+     * to force an interrupt in the child process.
      */
-    private class StreamWriter implements Runnable {
-        private InputStream is;
-        private BufferedReader reader;
-        private Writer writer;
-        private boolean running = true;
+    private class InterruptWriter implements Runnable {
+        private final Writer writer;
 
-        private StreamWriter(InputStream is, OutputStream os) {
-            this.is = is;
+        private InterruptWriter(OutputStream os) {
             try {
-                this.reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is),
-                        BatchLocalization.getEncoding()));
                 this.writer = new OutputStreamWriter(os, BatchLocalization.getEncoding());
             } catch (UnsupportedEncodingException e) {
                 throw new RuntimeException("Unsupported encoding:" +
@@ -213,25 +238,19 @@ public class BatchProcessDriverCLI {
 
         @Override
         public void run() {
-            String line = null;
             try {
-                if ((line = reader.readLine()) != null && this.running) {
-                    writer.write(String.format(Locale.ENGLISH, "%s%n", line));
-                    writer.flush();
-                    userInterrupted = true;
+                while (true) {
+                    Thread.sleep(500);
+                    if (userInterrupted) {
+                        writer.write(String.format(Locale.ENGLISH, "Ave atque vale!%n"));
+                        writer.flush();
+                    }
                 }
             } catch (IOException e) {
-                //swallow ioe
-            }
-        }
-
-        private void stopGobblingAndDie() {
-            try {
-                is.close();
-            } catch (IOException e) {
                 //swallow
+            } catch (InterruptedException e) {
+                //job is done, ok
             }
-            running = false;
         }
     }
 

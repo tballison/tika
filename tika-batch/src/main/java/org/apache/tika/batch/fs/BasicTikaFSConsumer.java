@@ -82,7 +82,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         //os can be null if fsOSFactory is set to skip processing a file if the target
         //file already exists
         if (os == null) {
-            logger.info("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
+            logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
             return false;
         }
 

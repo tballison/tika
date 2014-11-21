@@ -204,7 +204,7 @@ public class BatchProcess {
         //Step 2: ask consumers to retire politely.
         //Under normal circumstances, they should all have completed by now.
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
-            consumer.pleaseRetire();
+            consumer.pleaseShutdown();
         }
 
         //if there are any active/non-stale consumers, await termination
@@ -292,7 +292,7 @@ public class BatchProcess {
         staleChecker.checkForStaleConsumers();
 
         for (FileStarted fs : stales) {
-            logger.error("A parser was still working on >" + fs.getResourceId() +
+            logger.fatal("A parser was still working on >" + fs.getResourceId() +
                     "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
                     " This exceeds the maxStaleMillis parameter");
         }
@@ -374,6 +374,9 @@ public class BatchProcess {
      * If there is an early termination via an interrupt or too many stale consumers
      * or because a consumer or other Runnable threw a Throwable, pause this long
      * before killing the consumers and other threads.
+     *
+     * Typically makes sense for this to be the same or slightly larger than
+     * staleThresholdMillis
      *
      * @param pauseOnEarlyTerminationMillis how long to pause if there is an early termination
      */
