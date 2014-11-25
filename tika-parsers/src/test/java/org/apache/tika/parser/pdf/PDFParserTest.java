@@ -84,6 +84,7 @@ public class PDFParserTest extends TikaTest {
 //        assertEquals("Sat Sep 15 10:02:31 BST 2007", metadata.get(Metadata.CREATION_DATE));
 //        assertEquals("Sat Sep 15 10:02:31 BST 2007", metadata.get(Metadata.LAST_MODIFIED));
 
+
         assertTrue(content.contains("Apache Tika"));
         assertTrue(content.contains("Tika - Content Analysis Toolkit"));
         assertTrue(content.contains("incubator"));
