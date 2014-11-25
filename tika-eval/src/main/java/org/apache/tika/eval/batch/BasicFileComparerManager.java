@@ -49,9 +49,11 @@ public class BasicFileComparerManager extends ConsumersManager {
     public void init() {
         try {
             OutputStream os = new FileOutputStream(outputFile);
-            //TODO: parameterize encoding, csvformat and queue size
+            //need to include BOM! TODO: parameterize encoding, bom and delimiter
+            os.write((byte)255);
+            os.write((byte)254);
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, encoding));
-            CSVPrinter p = new CSVPrinter(writer, CSVFormat.EXCEL);
+            CSVPrinter p = new CSVPrinter(writer, CSVFormat.EXCEL.withDelimiter('\t'));
             this.printer = new ThreadSafeCSVWrapper(p, 1000);
             printerThread = new Thread(printer);
             printerThread.start();
@@ -60,7 +62,7 @@ public class BasicFileComparerManager extends ConsumersManager {
             throw new RuntimeException(e);
         }
         for (FileResourceConsumer consumer: getConsumers()) {
-            ((BasicFileComparer)consumer).setWriter(printer);
+            ((BasicFileComparer)consumer).setTableWriter(printer);
         }
     }
 

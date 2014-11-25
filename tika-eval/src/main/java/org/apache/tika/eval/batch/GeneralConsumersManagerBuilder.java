@@ -1,5 +1,20 @@
 package org.apache.tika.eval.batch;
 
+import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+
+import org.apache.tika.batch.ConsumersManager;
+import org.apache.tika.batch.FileResource;
+import org.apache.tika.batch.FileResourceConsumer;
+import org.apache.tika.batch.builders.AbstractConsumersBuilder;
+import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.eval.BasicFileComparer;
+import org.apache.tika.util.XMLDOMUtil;
+import org.w3c.dom.Node;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,23 +31,7 @@ package org.apache.tika.eval.batch;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import java.io.File;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-
-import org.apache.tika.batch.ConsumersManager;
-import org.apache.tika.batch.FileResource;
-import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.batch.builders.AbstractConsumersBuilder;
-import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.eval.BasicFileComparer;
-import org.apache.tika.util.XMLDOMUtil;
-import org.w3c.dom.Node;
-
-public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
+public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
@@ -60,4 +59,5 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         }
         return new File(filePath);
     }
+
 }

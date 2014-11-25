@@ -193,6 +193,7 @@ public class BatchProcess {
                     causeForTermination = CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION;
                 }
                 logger.fatal("Main loop execution exception: " + e.getMessage());
+                e.printStackTrace();
                 break;
             }
         }

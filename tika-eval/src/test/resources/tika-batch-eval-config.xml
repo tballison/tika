@@ -25,11 +25,15 @@
         />
 
 
-	<consumers builderClass="org.apache.tika.eval.batch.BasicFileComparerBuilder"
-               thisDir="thisDir"
-               thatDir="thatDir"
-               outputFile="results.csv">
-	</consumers>
+	<consumersManager class="BasicFileComparerManager"
+                      builderClass="org.apache.tika.batch.GeneralConsumersManagerBuilder">
+        <file name="thisDir">thisDir</file>
+        <file name="thatDir">thatDir</file>
+        <tableWriter class="ThreadSafeCSVWrapper">
+            <file name="outputFile">results.csv</file>
+            <str name="outputFileEncoding">UTF-8</str>
+        </tableWriter>
+	</consumersManager>
 	
 	<!-- reporter and interrupter are optional -->
 	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000" staleThresholdMillis="500000"/>

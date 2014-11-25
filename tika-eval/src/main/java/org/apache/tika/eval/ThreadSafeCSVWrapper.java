@@ -15,21 +15,24 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.csv.CSVPrinter;
 
-public class ThreadSafeCSVWrapper implements Runnable {
+public class ThreadSafeCSVWrapper implements Runnable, TableWriter {
 
-    private final ArrayBlockingQueue<List<String>> queue;
+    private final ArrayBlockingQueue<Iterable<String>> queue;
     private final CSVPrinter printer;
     private volatile boolean keepGoing = true;
 
     public ThreadSafeCSVWrapper(CSVPrinter printer, int queueSize) {
-        queue = new ArrayBlockingQueue<List<String>>(queueSize);
+        queue = new ArrayBlockingQueue<Iterable<String>>(queueSize);
         this.printer = printer;
     }
 
@@ -37,10 +40,19 @@ public class ThreadSafeCSVWrapper implements Runnable {
     public void run() {
         while (keepGoing) {
             try {
-                List<String> row = queue.poll(100, TimeUnit.MILLISECONDS);
-                if (row != null) {
-                    printer.printRecord(row);
+                Iterable<String> row = queue.poll(100, TimeUnit.MILLISECONDS);
+                if (row == null) {
+                    continue;
                 }
+                List<String> tmp = new ArrayList<String>();
+                for (String s : row) {
+                    //stupid workaround for Excel that can't
+                    //read a Unicode csv with new lines in a cell
+                    s = s.replaceAll("(\r\n|[\r\n])", " ");
+                    tmp.add(s);
+                }
+                printer.printRecord(tmp);
+
             } catch (InterruptedException e) {
                 keepGoing = false;
             } catch (IOException e) {
@@ -50,7 +62,21 @@ public class ThreadSafeCSVWrapper implements Runnable {
     }
 
 
-    public void printRecord(List<String> row) {
+    @Override
+    public void writeRow(Map<String, String> data, Iterable<String> headers) {
+        List<String> list = new ArrayList<String>();
+        for (String h : headers) {
+            String v = data.get(h);
+            if (v == null) {
+                v = "";
+            }
+            list.add(v);
+        }
+        writeRow(list);
+    }
+
+    @Override
+    public void writeRow(Iterable<String> row) {
         try {
             //block
             queue.put(row);

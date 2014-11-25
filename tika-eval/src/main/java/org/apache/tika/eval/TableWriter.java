@@ -24,9 +24,8 @@ import java.util.Map;
  * but it would be better to be able to specify a db.
  */
 public interface TableWriter {
-    public enum Header {};
 
-    public void writeRow(Map<Header, String> data);
+    public void writeRow(Map<String, String> data, Iterable<String> headers);
 
     public void writeRow(Iterable<String> row);
 }

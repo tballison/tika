@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<tika-batch-config>
+	<consumersManager interface="org.apache.tika.batch.ConsumersManager"
+                      class="org.apache.tika.eval.batch.BasicFileComparerManager">
+        <file name="thisDir">thisDir</file>
+        <file name="thatDir">thatDir</file>
+        <tableWriter class="ThreadSafeCSVWrapper">
+            <file name="outputFile">results.csv</file>
+            <str name="outputFileEncoding">UTF-8</str>
+        </tableWriter>
+	</consumersManager>
+</tika-batch-config>

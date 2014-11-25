@@ -17,78 +17,39 @@ package org.apache.tika.eval;
  * limitations under the License.
  */
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import com.cybozu.labs.langdetect.Detector;
 import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
-import com.cybozu.labs.langdetect.Language;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenFilter;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.core.StopFilter;
-import org.apache.lucene.analysis.icu.ICUFoldingFilter;
-import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.util.CharArraySet;
-import org.apache.lucene.util.PriorityQueue;
-import org.apache.lucene.util.Version;
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
-import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypeException;
 import org.apache.tika.mime.MimeTypes;
-import org.apache.tika.parser.RecursiveParserWrapper;
 
-public class BasicFileComparer extends FileResourceConsumer {
+public class BasicFileComparer extends AbstractProfiler {
 
-    public final String[] headers;
+    public enum COMPARISON_HEADERS  {
+        DIFF_NUM_ATTACHMENTS,
+        DIFF_NUM_METADATA_VALUES,
+        DICE_COEFFICIENT,
+        OVERLAP,
+    };
+    public final List<String> headers;
 
-    //these remove runtime info from the stacktraces so
-    //that actual causes can be counted.
-    private final static Pattern CAUSED_BY_SNIPPER =
-            Pattern.compile("(Caused by: [^:]+):[^\\r\\n]+");
-    private final static Pattern OBJECT_ID_SNIPPER =
-            Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
-
-    private final static int MAX_STRING_LENGTH = 2000000;
-    private final static int MAX_LEN_FOR_LANG_ID = 20000;
-    private final static int TOP_N_WORDS = 10;
-
-    private static AtomicInteger threadNum = new AtomicInteger(0);
 
     //good enough? or do we need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
-    private final JsonMetadataList serializer = new JsonMetadataList();
-    private ThreadSafeCSVWrapper writer;
 
     private final File thisRootDir;
     private final File thatRootDir;
@@ -101,53 +62,50 @@ public class BasicFileComparer extends FileResourceConsumer {
         this.thisRootDir = thisRootDir;
         this.thatRootDir = thatRootDir;
         thisDirLen = thisRootDir.getAbsolutePath().length()+1;
-        thisExtension = thisRootDir.getName();
-        thatExtension = thatRootDir.getName();
-        headers = new String[]{
-            "FILE_PATH",
-            "JSON_EX_"+thisExtension,
-            "JSON_EX_"+thatExtension,
-            "ORIG_STACK_TRACE_"+thisExtension,
-            "ORIG_STACK_TRACE_"+thatExtension,
-            "SORT_STACK_TRACE_"+thisExtension,
-            "SORT_STACK_TRACE_"+thatExtension,
-            "FILE_EXTENSION",
-            "DETECTED_CONTENT_TYPE_"+thisExtension,
-            "DETECTED_CONTENT_TYPE_"+thatExtension,
-            "DETECTED_FILE_EXTENSION_"+thisExtension,
-            "DETECTED_FILE_EXTENSION_"+thatExtension,
-            "NUM_ATTACHMENTS_"+thisExtension,
-            "NUM_ATTACHMENTS_"+thatExtension,
-            "NUM_META_VALUES_"+thisExtension,
-            "NUM_META_VALUES_"+thatExtension,
-            "MILLIS_"+thisExtension,
-            "MILLIS_"+thatExtension,
-            "NUM_UNIQUE_TOKENS_"+thisExtension,
-            "NUM_UNIQUE_TOKENS_"+thatExtension,
-            "DICE_COEFFICIENT",
-            "TOKEN_COUNT_"+thisExtension,
-            "TOKEN_COUNT_"+thatExtension,
-            "OVERLAP",
-            "TOP_N_WORDS_"+thisExtension,
-            "TOP_N_WORDS_"+thatExtension,
-            "NUM_EN_STOPS_TOP_N_"+thisExtension,
-            "NUM_EN_STOPS_TOP_N_"+thatExtension,
-            "LANG_ID_"+thisExtension,
-            "LANG_ID_PROB_"+thisExtension,
-            "LANG_ID_"+thatExtension,
-            "LANG_ID_PROB_"+thatExtension,
+        thisExtension = "_"+thisRootDir.getName();
+        thatExtension = "_"+thatRootDir.getName();
+        String[] headerArr = new String[]{
+            HEADERS.FILE_PATH.name(),
+            HEADERS.JSON_EX+thisExtension,
+            HEADERS.JSON_EX+thatExtension,
+            HEADERS.ORIG_STACK_TRACE+thisExtension,
+            HEADERS.ORIG_STACK_TRACE+thatExtension,
+            HEADERS.SORT_STACK_TRACE+thisExtension,
+            HEADERS.SORT_STACK_TRACE+thatExtension,
+            HEADERS.FILE_EXTENSION.name(),
+            HEADERS.DETECTED_CONTENT_TYPE+thisExtension,
+            HEADERS.DETECTED_CONTENT_TYPE+thatExtension,
+            HEADERS.DETECTED_FILE_EXTENSION+thisExtension,
+            HEADERS.DETECTED_FILE_EXTENSION+thatExtension,
+            HEADERS.NUM_ATTACHMENTS+thisExtension,
+            HEADERS.NUM_ATTACHMENTS+thatExtension,
+            COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
+            HEADERS.NUM_METADATA_VALUES+thisExtension,
+            HEADERS.NUM_METADATA_VALUES+thatExtension,
+            COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
+            HEADERS.ELAPSED_TIME_MILLIS+thisExtension,
+            HEADERS.ELAPSED_TIME_MILLIS+thatExtension,
+            HEADERS.NUM_UNIQUE_TOKENS+thisExtension,
+            HEADERS.NUM_UNIQUE_TOKENS+thatExtension,
+            COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
+            HEADERS.TOKEN_COUNT+thisExtension,
+            HEADERS.TOKEN_COUNT+thatExtension,
+            COMPARISON_HEADERS.OVERLAP.name(),
+            HEADERS.TOP_N_WORDS+thisExtension,
+            HEADERS.TOP_N_WORDS+thatExtension,
+            HEADERS.NUM_EN_STOPS_TOP_N+thisExtension,
+            HEADERS.NUM_EN_STOPS_TOP_N+thatExtension,
+            HEADERS.LANG_ID1+thisExtension,
+            HEADERS.LANG_ID_PROB1+thisExtension,
+            HEADERS.LANG_ID1+thatExtension,
+            HEADERS.LANG_ID_PROB1+thatExtension,
         };
-
-    }
-    public void setWriter(ThreadSafeCSVWrapper writer) {
-        this.writer = writer;
-        //stinky
-        if (threadNum.getAndIncrement() == 0) {
-            List<String> headerList = Arrays.asList(headers);
-            writer.printRecord(headerList);
+        headers = new ArrayList<String>();
+        for (String s : headerArr) {
+            headers.add(s);
         }
-
     }
+
 
     public static void setLangModelDir(File langModelDir) {
         try {
@@ -166,58 +124,69 @@ public class BasicFileComparer extends FileResourceConsumer {
         File thatFile = new File(thatRootDir, relativePath);
 
         try {
-            compareFiles(thisFile, thatFile);
+            compareFiles(relativePath, thisFile, thatFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return true;
     }
 
-    protected void compareFiles(File thisFile, File thatFile) throws IOException {
-        List<Metadata> thisMetadata = getMetadata(thisFile, serializer);
-        List<Metadata> thatMetadata = getMetadata(thatFile, serializer);
+    public Iterable<String> getHeaders() {
+        return headers;
+    }
+
+    protected void compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
+        List<Metadata> thisMetadata = getMetadata(thisFile);
+        List<Metadata> thatMetadata = getMetadata(thatFile);
         Map<String, String> output = new HashMap<String, String>();
-        output.put(
-                "FILE_PATH",
-                thisFile.getAbsolutePath().substring(thisDirLen));
+        output.put(HEADERS.FILE_PATH.name(), relativePath);
+
         if (thisMetadata == null) {
-            output.put("JSON_EX_"+thisExtension,
+            output.put(HEADERS.JSON_EX+thisExtension,
                     "Error with json parsing");
         }
         if (thatMetadata == null) {
-            output.put("JSON_EX_"+thatExtension,
+            output.put(HEADERS.JSON_EX+thatExtension,
                     "Error with json parsing");
         }
 
         getExceptionStrings(thisMetadata, thisExtension, output);
         getExceptionStrings(thatMetadata, thatExtension, output);
 
-        output.put("FILE_EXTENSION",
+        output.put(HEADERS.FILE_EXTENSION.name(),
                 getOriginalFileExtension(thisFile.getName()));
 
         getFileTypes(thisMetadata, thisExtension, output);
         getFileTypes(thatMetadata, thatExtension, output);
 
-        if (thisMetadata != null) {
-            output.put("NUM_ATTACHMENTS_"+thisExtension,
-                Integer.toString(thisMetadata.size()-1));
-        }
-        if (thatMetadata != null) {
-            output.put("NUM_ATTACHMENTS_"+thatExtension,
-                Integer.toString(thatMetadata.size()-1));
-        }
-        output.put("NUM_META_VALUES_"+thisExtension,
-                countMetadataValues(thisMetadata));
+        int thisNumAttachments = (thisMetadata==null) ? 0 : thisMetadata.size()-1;
+        int thatNumAttachments = (thatMetadata==null) ? 0: thatMetadata.size()-1;
+        output.put(HEADERS.NUM_ATTACHMENTS+thisExtension,
+            Integer.toString(thisNumAttachments));
+        output.put(HEADERS.NUM_ATTACHMENTS+thatExtension,
+            Integer.toString(thatNumAttachments));
 
-        output.put("NUM_META_VALUES_"+thatExtension,
-                countMetadataValues(thatMetadata));
-        output.put("MILLIS_"+thisExtension,
+        output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
+                Integer.toString(thatNumAttachments-thisNumAttachments));
+
+        int thisNumMetadataValues = countMetadataValues(thisMetadata);
+        int thatNumMetadataValues = countMetadataValues(thatMetadata);
+        output.put(HEADERS.NUM_METADATA_VALUES+thisExtension,
+                Integer.toString(thisNumMetadataValues));
+
+        output.put(HEADERS.NUM_METADATA_VALUES+thatExtension,
+                Integer.toString(thatNumMetadataValues));
+
+        output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
+            Integer.toString(thatNumMetadataValues-thisNumMetadataValues));
+
+        output.put(HEADERS.ELAPSED_TIME_MILLIS+thisExtension,
                 getTime(thisMetadata));
-        output.put("MILLIS_"+thatExtension,
+        output.put(HEADERS.ELAPSED_TIME_MILLIS+thatExtension,
                 getTime(thatMetadata));
 
         compareUnigramOverlap(thisMetadata, thatMetadata, output);
-        printRecord(output);
+        writer.writeRow(output, getHeaders());
     }
 
     private void getFileTypes(List<Metadata> metadata, String extension, Map<String, String> output) {
@@ -228,7 +197,7 @@ public class BasicFileComparer extends FileResourceConsumer {
         if (type == null) {
             return;
         }
-        output.put("DETECTED_CONTENT_TYPE_"+extension, type);
+        output.put(HEADERS.DETECTED_CONTENT_TYPE+extension, type);
 
         try{
             MimeTypes types = config.getMimeRepository();
@@ -237,112 +206,11 @@ public class BasicFileComparer extends FileResourceConsumer {
             if (ext.startsWith(".")){
                 ext = ext.substring(1);
             }
-            output.put("DETECTED_FILE_EXTENSION_"+extension, ext);
+            output.put(HEADERS.DETECTED_FILE_EXTENSION+extension, ext);
         } catch (MimeTypeException e) {
             //swallow
         }
 
-    }
-
-    public void printRecord(Map<String, String> data) {
-        List<String> row = new ArrayList<String>();
-        for (String h : headers) {
-            String c = data.get(h);
-            if (c == null) {
-                c = "";
-            }
-            row.add(c);
-        }
-        writer.printRecord(row);
-    }
-
-
-    private void getExceptionStrings(List<Metadata> metadataList, String extension, Map<String, String> data) {
-
-        if (metadataList == null) {
-            return;
-        }
-        for (Metadata m : metadataList) {
-            String exc = m.get(RecursiveParserWrapper.PARSE_EXCEPTION);
-            if (exc != null) {
-                data.put("ORIG_STACK_TRACE_"+extension, exc);
-                //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
-                //org.apache.tika.exception.TikaException: TIKA-198: Illegal
-                // IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
-                //For reporting purposes, let's snip off the object id so that we can more
-                //easily count exceptions.
-                Matcher matcher = OBJECT_ID_SNIPPER.matcher(exc);
-                if (matcher.matches()) {
-                    exc = matcher.group(1) + matcher.group(2);
-                }
-                matcher = CAUSED_BY_SNIPPER.matcher(exc);
-                exc = matcher.replaceAll("$1");
-                data.put("SORT_STACK_TRACE_"+extension, exc);
-            }
-        }
-    }
-
-    private List<Metadata> getMetadata(File thisFile, JsonMetadataList serializer) {
-        Reader reader = null;
-        List<Metadata> metadataList = null;
-        try {
-            InputStream is = new FileInputStream(thisFile);
-            if (thisFile.getName().endsWith("bz2")) {
-                is = new BZip2CompressorInputStream(is);
-            } else if (thisFile.getName().endsWith("gz")) {
-                is = new GzipCompressorInputStream(is);
-            } else if (thisFile.getName().endsWith("zip")) {
-                is = new ZCompressorInputStream(is);
-            }
-            reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-            metadataList = serializer.fromJson(reader);
-        } catch (IOException e) {
-            //log
-        } catch (TikaException e) {
-            //log
-        } finally {
-            IOUtils.closeQuietly(reader);
-        }
-        return metadataList;
-    }
-    private String getOriginalFileExtension(String fName) {
-        Matcher m = Pattern.compile("\\.([^\\.]+)\\.json(?:\\.(?:bz2|gz(?:ip)?|zip))?$").matcher(fName);
-        if (m.find()) {
-            return m.group(1);
-        }
-        return "";
-    }
-
-    private String getTime(List<Metadata> metadatas) {
-        if (metadatas == null) {
-            return "";
-        }
-        String elapsed = "-1";
-
-        for (Metadata m : metadatas) {
-            String v = m.get(RecursiveParserWrapper.PARSE_TIME_MILLIS);
-            if (v != null) {
-                return v;
-            }
-        }
-        return elapsed;
-    }
-
-
-    private String countMetadataValues(List<Metadata> metadatas) {
-        if (metadatas == null) {
-            return "";
-        }
-
-        int i = 0;
-        for (Metadata m : metadatas) {
-            for (String n : m.names()) {
-                for (String v : m.getValues(n)) {
-                    i++;
-                }
-            }
-        }
-        return Integer.toString(i);
     }
 
 
@@ -378,184 +246,18 @@ public class BasicFileComparer extends FileResourceConsumer {
         }
         float dice = (float) diceNum / (float) diceDenom;
         float overlap = (float) overlapNum / (float)(tokenCountThis+tokenCountThat);
-        data.put("NUM_UNIQUE_TOKENS_"+thisExtension,
+        data.put(HEADERS.NUM_UNIQUE_TOKENS+thisExtension,
                 Integer.toString(theseTokens.size()));
-        data.put("NUM_UNIQUE_TOKENS_"+thatExtension,
+        data.put(HEADERS.NUM_UNIQUE_TOKENS+thatExtension,
                 Integer.toString(thoseTokens.size()));
-        data.put("DICE_COEFFICIENT",
+        data.put(COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
                 Float.toString(dice));
-        data.put("OVERLAP", Float.toString(overlap));
+        data.put(COMPARISON_HEADERS.OVERLAP.name(), Float.toString(overlap));
 
-        data.put("TOKEN_COUNT_"+thisExtension, Integer.toString(tokenCountThis));
-        data.put("TOKEN_COUNT_"+thatExtension, Integer.toString(tokenCountThat));
+        data.put(HEADERS.TOKEN_COUNT+thisExtension, Integer.toString(tokenCountThis));
+        data.put(HEADERS.TOKEN_COUNT+thatExtension, Integer.toString(tokenCountThat));
 
         handleWordCounts(data, theseTokens, thisExtension);
         handleWordCounts(data, thoseTokens, thatExtension);
     }
-
-    private void langid(String content, String extension, Map<String, String> data) {
-        if (content.length() < 200) {
-            return;
-        }
-        String s = content;
-        if (content.length() > MAX_LEN_FOR_LANG_ID) {
-            s = content.substring(0, MAX_LEN_FOR_LANG_ID);
-        }
-        Detector detector = null;
-        try {
-            detector = DetectorFactory.create();
-        } catch (LangDetectException e) {
-            throw new BatchNoRestartError(e);
-        }
-
-        detector.append(s);
-        String lang = null;
-        double prob = -1.0;
-        try {
-            List<Language> probabilities = detector.getProbabilities();
-            if (probabilities.size() > 0) {
-                lang = probabilities.get(0).lang;
-                prob = probabilities.get(0).prob;
-            }
-        } catch (LangDetectException e) {
-            //log
-        }
-        data.put("LANG_ID_"+extension, lang);
-        data.put("LANG_ID_PROB_"+extension, Double.toString(prob));
-    }
-
-    private void handleWordCounts(Map<String, String> data,
-                                  Map<String, MutableValueInt> tokens, String extension) {
-        MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
-        for (Map.Entry<String, MutableValueInt> e : tokens.entrySet()) {
-            if (queue.top() == null || queue.size() < TOP_N_WORDS ||
-                    e.getValue().value >= queue.top().value){
-                queue.insertWithOverflow(new TermIntPair(e.getKey(), e.getValue().value));
-            }
-        }
-
-        StringBuilder sb = new StringBuilder();
-        TermIntPair term = queue.pop();
-        List<TermIntPair> terms = new ArrayList<TermIntPair>();
-        while (term != null) {
-            terms.add(0, term);
-            term = queue.pop();
-        }
-        CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
-        int stops = 0;
-        int i = 0;
-        for (TermIntPair t : terms) {
-            if (i++ > 0) {
-                sb.append(" | ");
-            }
-            sb.append(t.term + ": " + t.value);
-            if (en_stops.contains(t.term)){
-                stops++;
-            }
-            term = queue.pop();
-        }
-
-        data.put("TOP_N_WORDS_"+extension, sb.toString());
-        data.put("NUM_EN_STOPS_TOP_N_"+extension, Integer.toString(stops));
-    }
-
-    private Map<String, MutableValueInt> getTokens(String s) throws IOException {
-        if (s == null || s.equals("")) {
-            return new HashMap<String, MutableValueInt>();
-        }
-
-        Analyzer analyzer = new ICUAnalyzer(Version.LUCENE_4_9, CharArraySet.EMPTY_SET);
-        Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();
-        TokenStream stream = analyzer.tokenStream("", s);
-        stream.reset();
-        CharTermAttribute attr = stream.getAttribute(CharTermAttribute.class);
-        while (stream.incrementToken()) {
-            String t = attr.toString();
-            MutableValueInt i = m.get(t);
-            if (i == null) {
-                i = new MutableValueInt();
-                i.value = 0;
-            }
-            i.value++;
-            m.put(t, i);
-        }
-        stream.end();
-        stream.close();
-        return m;
-    }
-
-    private String getContent(List<Metadata> metadataList) {
-        if (metadataList == null) {
-            return "";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        for (Metadata m : metadataList) {
-            String c = m.get(RecursiveParserWrapper.TIKA_CONTENT);
-            if (c != null) {
-                sb.append(c);
-                sb.append("\n\n");
-                if (sb.length() > MAX_STRING_LENGTH) {
-                    sb.setLength(MAX_STRING_LENGTH);
-                    break;
-                }
-            }
-        }
-        return sb.toString();
-    }
-
-
-    private class ICUAnalyzer extends Analyzer {
-
-        private CharArraySet stopWords = null;
-        private final Version version;
-
-        public ICUAnalyzer(Version version) {
-            this.version = version;
-        }
-
-        private ICUAnalyzer(Version version, CharArraySet stopWords) {
-            this(version);
-            this.stopWords = stopWords;
-        }
-
-        @Override
-        protected TokenStreamComponents createComponents(String field, Reader reader) {
-            Tokenizer stream = new ICUTokenizer(reader);
-            TokenFilter icu = new ICUFoldingFilter(stream);
-            if (stopWords != null && stopWords.size() > 0) {
-                TokenFilter stop = new StopFilter(version, icu, stopWords);
-                return new TokenStreamComponents(stream, stop);
-            }
-            return new TokenStreamComponents(stream, icu);
-
-        }
-    }
-
-    public class MutableValueIntPriorityQueue extends PriorityQueue<TermIntPair> {
-
-        public MutableValueIntPriorityQueue(int maxSize) {
-            super(maxSize);
-
-        }
-
-        @Override
-        protected boolean lessThan(TermIntPair arg0, TermIntPair arg1) {
-            if (arg0.value < arg1.value){
-                return true;
-            }
-            return false;
-        }
-    }
-
-    private class TermIntPair {
-        private final String term;
-        private final int value;
-
-        private TermIntPair(String term, int value) {
-            this.term = term;
-            this.value = value;
-        }
-    }
-
 }
