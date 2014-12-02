@@ -3,9 +3,9 @@
 <tika-batch-config
         maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis="500"
-        staleThresholdMillis="300000"
-        staleCheckPulseMillis="1000"
-        maxStaleConsumers="2"
+        timeoutThresholdMillis="300000"
+        timeoutCheckPulseMillis="1000"
+        maxTimedOutConsumers="2"
         maxQueueSize="10000"
         numConsumers="5">
 
@@ -19,8 +19,8 @@
                 description="number of fileConsumers threads"/>
         <option opt="maxFileSizeBytes" hasArg="true"
                 description="maximum file size to process; do not process files larger than this"/>
-        <option opt="maxStaleConsumers" hasArg="true"
-                description="maximum number of allowed stale consumers"/>
+        <option opt="maxTimedOutConsumers" hasArg="true"
+                description="maximum number of allowed timed out consumers"/>
         <option opt="maxQueueSize" hasArg="true"
                 description="maximum queue size for FileResources"/>
         <option opt="fileList" hasArg="true"
@@ -43,8 +43,8 @@
                 description="what type of content handler: xml, text, html, body"/>
         <option opt="targetSuffix" hasArg="true"
                 description="suffix to add to the end of the target file name"/>
-        <option opt="staleThresholdMillis" hasArg="true"
-                description="how long to wait before determining that a consumer is stale"/>
+        <option opt="timeoutThresholdMillis" hasArg="true"
+                description="how long to wait before determining that a consumer should be timed out"/>
     </commandline>
 
 

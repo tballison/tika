@@ -3,9 +3,9 @@
 <tika-batch-config
         maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis="500"
-        staleThresholdMillis="3000"
-        staleCheckPulseMillis="1000"
-        maxStaleConsumers="2"
+        timeoutThresholdMillis="3000"
+        timeoutCheckPulseMillis="1000"
+        maxTimedOutConsumers="2"
         maxQueueSize="10000"
         numConsumers="3">
     <!-- options to allow on the commandline -->
@@ -18,8 +18,8 @@
                 description="number of fileConsumers threads"/>
         <option opt="maxFileSizeBytes" hasArg="true"
                 description="maximum file size to process; do not process files larger than this"/>
-        <option opt="maxStaleConsumers" hasArg="true"
-                description="maximum number of allowed stale consumers"/>
+        <option opt="maxTimedOutConsumers" hasArg="true"
+                description="maximum number of allowed timed out consumers"/>
         <option opt="maxQueueSize" hasArg="true"
                 description="maximum queue size for FileResources"/>
         <option opt="fileList" hasArg="true"
@@ -42,8 +42,13 @@
                 description="what type of content handler: xml, text, html, body"/>
         <option opt="targetSuffix" hasArg="true"
                 description="suffix to add to the end of the target file name"/>
-        <option opt="staleThresholdMillis" hasArg="true"
-                description="how long to wait before determining that a consumer is stale"/>
+        <option opt="timeoutThresholdMillis" hasArg="true"
+                description="how long to wait before determining that a consumer should be timed out"/>
+        <option opt="pauseOnEarlyTerminationMillis" hasArg="true"
+                description="how long to wait for parsers to finish if there is an early termination from the main loop."/>
+        <!-- in long running process, might be good to restart every hour or so to avoid memory leaks-->
+        <option opt="maxAliveTimeSeconds" hasArg="true"
+                description="how long should this process run in seconds."/>
     </commandline>
     <!--
         Can also add startDir: this tells the crawler to start indexing a

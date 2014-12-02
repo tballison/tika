@@ -29,7 +29,6 @@ import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertTrue;
 
 public class BatchProcessTest extends FSBatchTestBase {
-
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
 
@@ -50,7 +49,7 @@ public class BatchProcessTest extends FSBatchTestBase {
     @Test(timeout = 15000)
     public void allHeavyHangsTest() throws Exception {
         //each of the three threads hits a heavy hang.  The BatchProcess runs into
-        //all stales and shuts down.
+        //all timedouts and shuts down.
         File targDir = getNewTargDir("allHeavyHangs-");
         Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", targDir);
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
@@ -94,7 +93,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", targDir);
         args.put("numConsumers", "2");
         args.put("maxQueueSize", "2");
-        args.put("staleThresholdMillis", "100000000");//make sure that the batch process doesn't stale out
+        args.put("timeoutThresholdMillis", "100000000");//make sure that the batch process doesn't time out
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
 
@@ -120,7 +119,7 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         Map<String, String> args = getDefaultArgs("oom", targDir);
         args.put("numConsumers", "3");
-        args.put("staleThresholdMillis", "30000");
+        args.put("timeoutThresholdMillis", "30000");
 
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
@@ -148,6 +147,55 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertEquals(0, files[1].length());
         assertContains("exitStatus=1", streamStrings.getOutString());
         assertContains("causeForTermination='MAIN_LOOP_EXCEPTION_NO_RESTART'",
+                streamStrings.getOutString());
+    }
+
+    /**
+     * This tests to make sure that BatchProcess waits the appropriate
+     * amount of time on an early termination before stopping.
+     *
+     * If this fails, then interruptible parsers (e.g. those with
+     * nio channels) will be interrupted and there will be corrupted data.
+     */
+    @Test(timeout = 60000)
+    public void testWaitAfterEarlyTermination() throws Exception {
+        File targDir = getNewTargDir("wait_after_early_termination");
+
+        Map<String, String> args = getDefaultArgs("wait_after_early_termination", targDir);
+        args.put("numConsumers", "1");
+        args.put("maxAliveTimeSeconds", "5");//main process loop should stop after 5 seconds
+        args.put("timeoutThresholdMillis", "300000");//effectively never
+        args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
+
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+
+        StreamStrings streamStrings = ex.execute();
+        File[] files = targDir.listFiles();
+        assertEquals(1, files.length);
+        assertContains(files[0], "UTF-8", "<p>sleep 10000</p>");
+        assertContains("exitStatus=-1", streamStrings.getOutString());
+        assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",
+                streamStrings.getOutString());
+    }
+
+    @Test(timeout = 60000)
+    public void testTimeOutAfterBeingAskedToShutdown() throws Exception {
+        File targDir = getNewTargDir("timeout_after_early_termination");
+
+        Map<String, String> args = getDefaultArgs("timeout_after_early_termination", targDir);
+        args.put("numConsumers", "1");
+        args.put("maxAliveTimeSeconds", "5");//main process loop should stop after 5 seconds
+        args.put("timeoutThresholdMillis", "10000");
+        args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
+
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+
+        StreamStrings streamStrings = ex.execute();
+        File[] files = targDir.listFiles();
+        assertEquals(1, files.length);
+        assertEquals(0, files[0].length());
+        assertContains("exitStatus=-1", streamStrings.getOutString());
+        assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",
                 streamStrings.getOutString());
     }
 

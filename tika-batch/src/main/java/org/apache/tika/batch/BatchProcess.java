@@ -39,7 +39,8 @@ import org.apache.commons.logging.LogFactory;
  * It requires a {@link FileResourceCrawler} and {@link FileResourceConsumer}s, and it can also
  * support a {@link SimpleLogStatusReporter} and an {@link CommandLineInterrupter}.
  * <p/>
- * This is designed to shutdown if there are too many stale processors (runaway parser)
+ * This is designed to shutdown if there are too many timed out processors (runaway parser)
+ * This is designed to shutdown if there are too many timed out processors (runaway parser)
  * or an OutOfMemoryError. Consider using {@link BatchProcessDriverCLI}
  * for more robust handling of these types of errors.
  */
@@ -55,7 +56,7 @@ public class BatchProcess {
         MAIN_LOOP_EXCEPTION_NO_RESTART,
         MAIN_LOOP_EXCEPTION,
         CRAWLER_TIMED_OUT,
-        TOO_MANY_STALES,
+        TOO_MANY_TIMED_OUT_CONSUMERS,
         USER_INTERRUPTION,
         BATCH_PROCESS_ALIVE_TOO_LONG,
     }
@@ -68,9 +69,9 @@ public class BatchProcess {
     // If a file hasn't been processed in this amount of time,
     // report it to the console. When the directory crawler has stopped, the thread will
     // be terminated and the file name will be logged
-    private long staleThresholdMillis = 5 * 60 * 1000; // 5 minutes
+    private long timeoutThresholdMillis = 5 * 60 * 1000; // 5 minutes
 
-    private long staleCheckPulseMillis = 2 * 60 * 1000; //2 minutes
+    private long timeoutCheckPulseMillis = 2 * 60 * 1000; //2 minutes
     //if there was an early termination via the Interrupter
     //or because of an uncaught runtime throwable, pause
     //this long before shutting down to allow parsers to finish
@@ -89,23 +90,23 @@ public class BatchProcess {
 
     private final IInterrupter interrupter;
 
-    private final ArrayBlockingQueue<FileStarted> stales;
+    private final ArrayBlockingQueue<FileStarted> timedOuts;
 
     private boolean alreadyExecuted = false;
 
-    private final int maxStaleConsumers;
+    private final int maxTimedOutConsumers;
 
     public BatchProcess(FileResourceCrawler fileResourceCrawler,
                         ConsumersManager consumersManager,
                         IStatusReporter reporter,
-                        IInterrupter interrupter, int maxStaleConsumers) {
+                        IInterrupter interrupter, int maxTimedOutConsumers) {
         this.fileResourceCrawler = fileResourceCrawler;
         this.consumersManager = consumersManager;
         this.reporter = reporter;
         this.interrupter = interrupter;
-        //parameter check, maxStaleConsumers must be >= 0
-        this.maxStaleConsumers = (maxStaleConsumers > -1) ? maxStaleConsumers : 0;
-        stales = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
+        //parameter check, maxTimedOutConsumers must be >= 0
+        this.maxTimedOutConsumers = (maxTimedOutConsumers > -1) ? maxTimedOutConsumers : 0;
+        timedOuts = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
     }
 
     public ParallelFileProcessingResult execute()
@@ -123,7 +124,7 @@ public class BatchProcess {
         int added = 0;
         int processed = 0;
         int numConsumers = consumersManager.getConsumers().size();
-        // fileResourceCrawler, statusReporter, the Interrupter, staleChecker
+        // fileResourceCrawler, statusReporter, the Interrupter, timeoutChecker
         int numNonConsumers = 4;
 
         ExecutorService ex = Executors.newFixedThreadPool(numConsumers
@@ -132,11 +133,11 @@ public class BatchProcess {
         CompletionService<IFileProcessorFutureResult> completionService =
                 new ExecutorCompletionService<IFileProcessorFutureResult>(
                         ex);
-        StaleChecker staleChecker = new StaleChecker();
+        TimeoutChecker timeoutChecker = new TimeoutChecker();
         completionService.submit(interrupter);
         completionService.submit(fileResourceCrawler);
         completionService.submit(reporter);
-        completionService.submit(staleChecker);
+        completionService.submit(timeoutChecker);
 
 
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
@@ -172,8 +173,8 @@ public class BatchProcess {
                     } else if (result instanceof InterrupterFutureResult) {
                         causeForTermination = CAUSE_FOR_TERMINATION.USER_INTERRUPTION;
                         break;
-                    } else if (result instanceof StaleFutureResult) {
-                        causeForTermination = CAUSE_FOR_TERMINATION.TOO_MANY_STALES;
+                    } else if (result instanceof TimeoutFutureResult) {
+                        causeForTermination = CAUSE_FOR_TERMINATION.TOO_MANY_TIMED_OUT_CONSUMERS;
                         break;
                     } //only thing left should be StatusReporterResult
                 }
@@ -202,23 +203,16 @@ public class BatchProcess {
         //Step 1: prevent uncalled threads from being started
         ex.shutdown();
 
-        //Step 2: ask consumers to retire politely.
+        //Step 2: ask consumers to shutdown politely.
         //Under normal circumstances, they should all have completed by now.
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
             consumer.pleaseShutdown();
         }
 
-        //if there are any active/non-stale consumers, await termination
+        //if there are any active/asked to shutdown consumers, await termination
         //this can happen if a user interrupts the process
-        //of if the crawler stops early
-        if (countActiveConsumers() > 0) {
-            if (causeForTermination != null) {
-                logger.trace("About to awaitTermination: " + pauseOnEarlyTerminationMillis);
-                ex.awaitTermination(pauseOnEarlyTerminationMillis, TimeUnit.MILLISECONDS);
-            } else {
-                ex.awaitTermination(1, TimeUnit.SECONDS);
-            }
-        }
+        //of if the crawler stops early, or ...
+        politelyAwaitTermination(causeForTermination);
 
         //Step 3: Gloves come off.  We've tried to ask kindly before.
         //Now it is time shut down. This will corrupt
@@ -246,7 +240,7 @@ public class BatchProcess {
                     processed += consumerResult.getFilesProcessed();
                     FileStarted fileStarted = consumerResult.getFileStarted();
                     if (fileStarted != null
-                            && fileStarted.getElapsedMillis() > staleThresholdMillis) {
+                            && fileStarted.getElapsedMillis() > timeoutThresholdMillis) {
                         logger.warn(fileStarted.getResourceId()
                                 + "\t caused a file processor to hang or crash. You may need to remove "
                                 + "this file from your input set and rerun.");
@@ -269,9 +263,9 @@ public class BatchProcess {
             //do not restart!!!
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION) {
             restartMsg = "Uncaught consumer throwable";
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.TOO_MANY_STALES) {
+        } else if (causeForTermination == CAUSE_FOR_TERMINATION.TOO_MANY_TIMED_OUT_CONSUMERS) {
             if (areResourcesPotentiallyRemaining()) {
-                restartMsg = "Staled out with resources remaining";
+                restartMsg = "Too many timed out consumers with resources remaining";
             }
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.BATCH_PROCESS_ALIVE_TOO_LONG) {
             restartMsg = BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString();
@@ -289,13 +283,13 @@ public class BatchProcess {
 
         int exitStatus = getExitStatus(causeForTermination, restartMsg);
 
-        //need to re-check, report, remove stale consumers
-        staleChecker.checkForStaleConsumers();
+        //need to re-check, report, mark timed out consumers
+        timeoutChecker.checkForTimedOutConsumers();
 
-        for (FileStarted fs : stales) {
+        for (FileStarted fs : timedOuts) {
             logger.fatal("A parser was still working on >" + fs.getResourceId() +
                     "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
-                    " This exceeds the maxStaleMillis parameter");
+                    " This exceeds the maxTimeoutMillis parameter");
         }
         //Now we try to shutdown the ConsumersManager
         //TODO: put this in a separate thread and time it out if necessary.
@@ -308,6 +302,33 @@ public class BatchProcess {
         return new
             ParallelFileProcessingResult(considered, added, processed,
                 elapsed, exitStatus, causeForTermination.toString());
+    }
+
+    /**
+     * This is used instead of awaitTermination(), because that interrupts
+     * the thread and then waits for its termination.  This politely waits.
+     *
+     * @param causeForTermination reason for termination.
+     */
+    private void politelyAwaitTermination(CAUSE_FOR_TERMINATION causeForTermination) {
+        if (causeForTermination == CAUSE_FOR_TERMINATION.COMPLETED_NORMALLY) {
+            return;
+        }
+        long start = new Date().getTime();
+        while (countActiveConsumers() > 0) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                //swallow
+            }
+            long elapsed = new Date().getTime()-start;
+            if (pauseOnEarlyTerminationMillis > -1 &&
+                    elapsed > pauseOnEarlyTerminationMillis) {
+                logger.warn("I waited after an early termination for "+
+                elapsed + ", but there was at least one active consumer");
+                return;
+            }
+        }
     }
 
     private boolean isNonRestart(Throwable e) {
@@ -372,12 +393,12 @@ public class BatchProcess {
     }
 
     /**
-     * If there is an early termination via an interrupt or too many stale consumers
+     * If there is an early termination via an interrupt or too many timed out consumers
      * or because a consumer or other Runnable threw a Throwable, pause this long
      * before killing the consumers and other threads.
      *
      * Typically makes sense for this to be the same or slightly larger than
-     * staleThresholdMillis
+     * timeoutThresholdMillis
      *
      * @param pauseOnEarlyTerminationMillis how long to pause if there is an early termination
      */
@@ -386,16 +407,16 @@ public class BatchProcess {
     }
 
     /**
-     * The amount of time allowed before a consumer is determined to be stale.
+     * The amount of time allowed before a consumer should be timed out.
      *
-     * @param staleThresholdMillis threshold in milliseconds before declaring a process stale
+     * @param timeoutThresholdMillis threshold in milliseconds before declaring a consumer timed out
      */
-    public void setStaleThresholdMillis(long staleThresholdMillis) {
-        this.staleThresholdMillis = staleThresholdMillis;
+    public void setTimeoutThresholdMillis(long timeoutThresholdMillis) {
+        this.timeoutThresholdMillis = timeoutThresholdMillis;
     }
 
-    public void setStaleCheckPulseMillis(long staleCheckPulseMillis) {
-        this.staleCheckPulseMillis = staleCheckPulseMillis;
+    public void setTimeoutCheckPulseMillis(long timeoutCheckPulseMillis) {
+        this.timeoutCheckPulseMillis = timeoutCheckPulseMillis;
     }
 
     /**
@@ -411,47 +432,47 @@ public class BatchProcess {
         this.maxAliveTimeSeconds = maxAliveTimeSeconds;
     }
 
-    private class StaleChecker implements Callable<IFileProcessorFutureResult> {
+    private class TimeoutChecker implements Callable<IFileProcessorFutureResult> {
 
         @Override
-        public StaleFutureResult call() throws Exception {
-            while (stales.size() <= maxStaleConsumers) {
+        public TimeoutFutureResult call() throws Exception {
+            while (timedOuts.size() <= maxTimedOutConsumers) {
                 try {
-                    Thread.sleep(staleCheckPulseMillis);
+                    Thread.sleep(timeoutCheckPulseMillis);
                 } catch (InterruptedException e) {
-                    logger.debug("interrupted ex in stalechecker");
+                    logger.debug("interrupted ex in TimeoutChecker");
                     break;
                     //just stop.
                 }
-                checkForStaleConsumers();
+                checkForTimedOutConsumers();
                 if (countActiveConsumers() == 0) {
-                    logger.error("No activeConsumers in StaleChecker");
+                    logger.error("No activeConsumers in TimeoutChecker");
                     break;
                 }
             }
-            logger.debug("Stale checker quitting: " + stales.size());
-            return new StaleFutureResult(stales.size());
+            logger.debug("TimeoutChecker quitting: " + timedOuts.size());
+            return new TimeoutFutureResult(timedOuts.size());
         }
 
-        private void checkForStaleConsumers() {
+        private void checkForTimedOutConsumers() {
             for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
-                FileStarted fs = consumer.checkForStaleMillis(staleThresholdMillis);
+                FileStarted fs = consumer.checkForTimedOutMillis(timeoutThresholdMillis);
                 if (fs != null) {
-                    stales.add(fs);
+                    timedOuts.add(fs);
                 }
             }
         }
     }
 
-    private class StaleFutureResult implements IFileProcessorFutureResult {
-        private final int staleCount;
+    private class TimeoutFutureResult implements IFileProcessorFutureResult {
+        private final int timedOutCount;
 
-        private StaleFutureResult(final int staleCount) {
-            this.staleCount = staleCount;
+        private TimeoutFutureResult(final int timedOutCount) {
+            this.timedOutCount = timedOutCount;
         }
 
-        protected int getStaleCount() {
-            return staleCount;
+        protected int getTimedOutCount() {
+            return timedOutCount;
         }
     }
 }

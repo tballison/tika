@@ -88,13 +88,13 @@ public class BatchProcessBuilder {
     public BatchProcess build(Node docElement, Map<String, String> incomingRuntimeAttributes) {
 
         //key components
-        long staleThresholdMillis = XMLDOMUtil.getLong("staleThresholdMillis",
+        long timeoutThresholdMillis = XMLDOMUtil.getLong("timeoutThresholdMillis",
                 incomingRuntimeAttributes, docElement);
-        long staleCheckPulseMillis = XMLDOMUtil.getLong("staleCheckPulseMillis",
+        long timeoutCheckPulseMillis = XMLDOMUtil.getLong("timeoutCheckPulseMillis",
                 incomingRuntimeAttributes, docElement);
         long pauseOnEarlyTerminationMillis = XMLDOMUtil.getLong("pauseOnEarlyTerminationMillis",
                 incomingRuntimeAttributes, docElement);
-        int maxStaleConsumers = XMLDOMUtil.getInt("maxStaleConsumers",
+        int maxTimedOutConsumers = XMLDOMUtil.getInt("maxTimedOutConsumers",
                 incomingRuntimeAttributes, docElement);
         int maxAliveTimeSeconds = XMLDOMUtil.getInt("maxAliveTimeSeconds",
                 incomingRuntimeAttributes, docElement);
@@ -135,18 +135,18 @@ public class BatchProcessBuilder {
         interrupter = buildInterrupter(keyNodes.get("interrupter"), runtimeAttributes);
 
         BatchProcess proc = new BatchProcess(
-                crawler, consumersManager, reporter, interrupter, maxStaleConsumers);
+                crawler, consumersManager, reporter, interrupter, maxTimedOutConsumers);
 
-        if (staleThresholdMillis > -1) {
-            proc.setStaleThresholdMillis(staleThresholdMillis);
+        if (timeoutThresholdMillis > -1) {
+            proc.setTimeoutThresholdMillis(timeoutThresholdMillis);
         }
 
         if (pauseOnEarlyTerminationMillis > -1) {
             proc.setPauseOnEarlyTerminationMillis(pauseOnEarlyTerminationMillis);
         }
 
-        if (staleCheckPulseMillis > -1) {
-            proc.setStaleCheckPulseMillis(staleCheckPulseMillis);
+        if (timeoutCheckPulseMillis > -1) {
+            proc.setTimeoutCheckPulseMillis(timeoutCheckPulseMillis);
         }
         proc.setMaxAliveTimeSeconds(maxAliveTimeSeconds);
         return proc;

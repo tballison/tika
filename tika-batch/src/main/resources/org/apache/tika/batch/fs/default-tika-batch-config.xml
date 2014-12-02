@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 
 <tika-batch-config
-        maxAliveTimeSeconds="1800"
+        maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis="1000"
         staleThresholdMillis="300000"
         staleCheckPulseMillis="1000"

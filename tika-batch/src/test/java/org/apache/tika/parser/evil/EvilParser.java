@@ -67,16 +67,18 @@ public class EvilParser extends AbstractParser {
             Metadata metadata, ParseContext context) throws IOException,
             SAXException, TikaException {
         String content = basicAsciiString(stream);
-        Matcher sleepMatcher  = Pattern.compile("sleep (\\d+)").matcher(content);
+        Matcher sleepMatcher  = Pattern.compile("sleep\\s+(\\d+)").matcher(content);
         if (sleepMatcher.find()) {
             String durationString = sleepMatcher.group(1);
-            long duration = 1000;
+            long duration = -1;
             try{
                 duration = Long.parseLong(durationString);
             } catch (NumberFormatException e) {
                 //not going to happen unless something goes wrong w regex
+                throw new RuntimeException("Problem in regex parsing sleep duration");
             }
             handle(content, handler, duration);
+            return;
         } else if(content.contains(OOM_STRING)) {
             kabOOM();
         } else if (content.contains(HANG_HEAVY_STRING)) {
@@ -103,7 +105,7 @@ public class EvilParser extends AbstractParser {
             try {
                 Thread.sleep(sleep);
             } catch (InterruptedException e) {
-                //NO-OP
+                throw new RuntimeException(e);
             }
         }
         handler.startDocument();

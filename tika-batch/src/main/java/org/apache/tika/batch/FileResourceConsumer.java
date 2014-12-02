@@ -44,7 +44,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         THREAD_INTERRUPTED,
         EXCEEDED_MAX_CONSEC_WAIT_MILLIS,
         ASKED_TO_SHUTDOWN,
-        GONE_STALE,
+        TIMED_OUT,
         CONSUMER_EXCEPTION,
         CONSUMER_ERROR,
         COMPLETED
@@ -137,10 +137,20 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
     }
 
 
+    /**
+     * Returns whether or not the consumer is still could process
+     * a file or is still processing a file (ACTIVELY_CONSUMING or ASKED_TO_SHUTDOWN)
+     * @return
+     */
     public boolean isStillActive() {
-        return (! Thread.currentThread().isInterrupted() &&
-                (currentState == STATE.NOT_YET_STARTED ||
-                currentState == STATE.ACTIVELY_CONSUMING));
+        if (Thread.currentThread().isInterrupted()) {
+            return false;
+        } else if( currentState == STATE.NOT_YET_STARTED ||
+                currentState == STATE.ACTIVELY_CONSUMING ||
+                currentState == STATE.ASKED_TO_SHUTDOWN) {
+            return true;
+        }
+        return false;
     }
 
     private boolean _processFileResource(FileResource fileResource) {
@@ -195,26 +205,27 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
 
     /**
      * Checks to see if the currentFile being processed (if there is one)
-     * has gone stale (still being worked on after staleThresholdMillis).
+     * should be timed out (still being worked on after staleThresholdMillis).
      * <p>
-     * If the consumer has gone stale, this will return the currentFile and
-     * set the state to GONE_STALE.
+     * If the consumer should be timed out, this will return the currentFile and
+     * set the state to TIMED_OUT.
      * <p>
-     * If the consumer was already staled out earlier or
+     * If the consumer was already timed out earlier or
      * is not processing a file or has been working on a file
-     * for less than #staleThresholdMills, then this will return null.
+     * for less than #staleThresholdMillis, then this will return null.
      * <p>
      * @param staleThresholdMillis threshold to determine whether the consumer has gone stale.
      * @return null or the file started that triggered the stale condition
      */
-    public FileStarted checkForStaleMillis(long staleThresholdMillis) {
-        //if it isn't actually running, don't bother obtaining lock
-        if (currentState != STATE.ACTIVELY_CONSUMING) {
+    public FileStarted checkForTimedOutMillis(long staleThresholdMillis) {
+        //if it there isn't a current file, don't bother obtaining lock
+        if (currentFile == null) {
             return null;
         }
         synchronized(lock) {
             //check again once the lock has been obtained
-            if (currentState != STATE.ACTIVELY_CONSUMING) {
+            if (currentState != STATE.ACTIVELY_CONSUMING
+                    && currentState != STATE.ASKED_TO_SHUTDOWN) {
                 return null;
             }
             FileStarted tmp = currentFile;
@@ -222,7 +233,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
                 return null;
             }
             if (tmp.getElapsedMillis() > staleThresholdMillis) {
-                setEndedState(STATE.GONE_STALE);
+                setEndedState(STATE.TIMED_OUT);
                 return tmp;
             }
         }
@@ -291,13 +302,15 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         close(closeable);
     }
 
-    //do not overwrite a finished state.  This should
+    //do not overwrite a finished state except if
+    //not yet started, actively consuming or shutting down.  This should
     //represent the initial cause; all subsequent calls
     //to set will be ignored!!!
     private void setEndedState(STATE cause) {
         synchronized(lock) {
             if (currentState == STATE.NOT_YET_STARTED ||
-                    currentState == STATE.ACTIVELY_CONSUMING) {
+                    currentState == STATE.ACTIVELY_CONSUMING ||
+                    currentState == STATE.ASKED_TO_SHUTDOWN) {
                 currentState = cause;
             }
         }

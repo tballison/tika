@@ -93,6 +93,7 @@ public class TikaCLIBatchCommandLineTest {
             path = "\""+path+"\"";
         }
         String[] params = {"-JXmx1g", "-JDlog4j.configuration=batch_process_log4j.xml",
+                "-bc", "batch-config.xml",
                 "-J", "-h", path};
 
         try {
@@ -101,6 +102,7 @@ public class TikaCLIBatchCommandLineTest {
             assertEquals("true", attrs.get("-recursiveParserWrapper"));
             assertEquals("html", attrs.get("-basicHandlerType"));
             assertEquals("json", attrs.get("-targetSuffix"));
+            assertEquals("batch-config.xml", attrs.get("-bc"));
 
         } finally {
             tmp.close();

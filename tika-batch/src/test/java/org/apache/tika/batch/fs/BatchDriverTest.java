@@ -115,7 +115,7 @@ public class BatchDriverTest extends FSBatchTestBase {
         Map<String, String> args = new HashMap<String,String>();
         args.put("-numConsumers", "2");
         args.put("-maxQueueSize", "50");
-        args.put("-maxStaleConsumers", "100");
+        args.put("-maxTimedOutConsumers", "100");
         String[] commandLine = getDefaultCommandLineArgsArr("heavy_heavy_hangs", targDir, args);
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", commandLine);
         driver.execute();

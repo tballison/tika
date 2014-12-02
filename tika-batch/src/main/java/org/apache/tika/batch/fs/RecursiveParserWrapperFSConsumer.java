@@ -35,6 +35,7 @@ import org.apache.tika.batch.OutputStreamFactory;
 import org.apache.tika.batch.ParserFactory;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
@@ -136,7 +137,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             PrintWriter w = new PrintWriter(stringWriter);
             t.printStackTrace(w);
             stringWriter.flush();
-            m.add(RecursiveParserWrapper.PARSE_EXCEPTION, stringWriter.toString());
+            m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stringWriter.toString());
             metadataList.add(0, m);
         } finally {
             close(is);

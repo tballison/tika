@@ -57,6 +57,7 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
@@ -122,8 +123,10 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             metadataList = serializer.fromJson(reader);
         } catch (IOException e) {
             //log
+            e.printStackTrace();
         } catch (TikaException e) {
             //log
+            e.printStackTrace();
         } finally {
             IOUtils.closeQuietly(reader);
         }
@@ -212,7 +215,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return;
         }
         for (Metadata m : metadataList) {
-            String exc = m.get(RecursiveParserWrapper.PARSE_EXCEPTION);
+            String exc = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime");
             if (exc != null) {
                 data.put(HEADERS.ORIG_STACK_TRACE+extension, exc);
                 //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:

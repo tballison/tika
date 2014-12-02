@@ -45,6 +45,7 @@ import org.apache.tika.io.TikaInputStream;
 public class FSBatchProcessCLI {
     public static String FINISHED_STRING = "Main thread in TikaFSBatchCLI has finished processing.";
 
+    private static Logger logger = Logger.getLogger(FSBatchProcessCLI.class);
     private final Options options;
 
     public FSBatchProcessCLI(String[] args) throws IOException {
@@ -66,11 +67,13 @@ public class FSBatchProcessCLI {
     private TikaInputStream getConfigInputStream(String[] args) throws IOException {
         TikaInputStream is = null;
         File batchConfigFile = getConfigFile(args);
-        if (batchConfigFile != null && batchConfigFile.isFile() && batchConfigFile.canRead()) {
+        if (batchConfigFile != null) {
+            //this will throw IOException if it can't find a specified config file
+            //better to throw an exception than silently back off to default.
             is = TikaInputStream.get(batchConfigFile);
         } else {
+            logger.info("No config file set via -bc, relying on default-tika-batch-config.xml");
             is = TikaInputStream.get(
-                    //TODO: PICKUP HERE org/apache/tika/batch/fs/default?
                     FSBatchProcessCLI.class.getResourceAsStream("default-tika-batch-config.xml"));
         }
         return is;
