@@ -106,12 +106,13 @@ public class PDFParser extends AbstractParser {
         TemporaryResources tmp = new TemporaryResources();
         //config from context, or default if not set via context
         PDFParserConfig localConfig = context.get(PDFParserConfig.class, defaultConfig);
-        String password = getPassword(metadata, context);
+        String password = "";
         try {
             // PDFBox can process entirely in memory, or can use a temp file
             //  for unpacked / processed resources
             // Decide which to do based on if we're reading from a file or not already
             TikaInputStream tstream = TikaInputStream.cast(stream);
+            password = getPassword(metadata, context);
             if (tstream != null && tstream.hasFile()) {
                 // File based, take that as a cue to use a temporary file
                 RandomAccess scratchFile = new RandomAccessFile(tmp.createTemporaryFile(), "rw");
@@ -123,22 +124,22 @@ public class PDFParser extends AbstractParser {
             } else {
                 // Go for the normal, stream based in-memory parsing
                 if (localConfig.getUseNonSequentialParser() == true) {
-                    pdfDocument = PDDocument.loadNonSeq(new CloseShieldInputStream(stream),
-                            new RandomAccessBuffer(), password);
+                    pdfDocument = PDDocument.loadNonSeq(new CloseShieldInputStream(stream), new RandomAccessBuffer(), password);
                 } else {
                     pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), true);
                 }
             }
-
             metadata.set("pdf:encrypted", Boolean.toString(pdfDocument.isEncrypted()));
 
-            if (localConfig.getUseNonSequentialParser() == false && pdfDocument.isEncrypted()) {
+            //if using the classic parser and the doc is encrypted, we must manually decrypt
+            if (! localConfig.getUseNonSequentialParser() && pdfDocument.isEncrypted()) {
                 try {
                     pdfDocument.decrypt(password);
                 } catch (Exception e) {
-                   // Ignore
+                    // Ignore
                 }
             }
+
             metadata.set(Metadata.CONTENT_TYPE, "application/pdf");
             extractMetadata(pdfDocument, metadata);
             if (handler != null) {
@@ -155,26 +156,27 @@ public class PDFParser extends AbstractParser {
         }
     }
 
-   private String getPassword(Metadata metadata, ParseContext context) {
-       String password = null;
+    private String getPassword(Metadata metadata, ParseContext context) {
+        String password = null;
 
-       // Did they supply a new style Password Provider?
-       PasswordProvider passwordProvider = context.get(PasswordProvider.class);
-       if (passwordProvider != null) {
-           password = passwordProvider.getPassword(metadata);
-       }
+        // Did they supply a new style Password Provider?
+        PasswordProvider passwordProvider = context.get(PasswordProvider.class);
+        if (passwordProvider != null) {
+            password = passwordProvider.getPassword(metadata);
+        }
 
-       // Fall back on the old style metadata if set
-       if (password == null && metadata.get(PASSWORD) != null) {
-           password = metadata.get(PASSWORD);
-       }
+        // Fall back on the old style metadata if set
+        if (password == null && metadata.get(PASSWORD) != null) {
+            password = metadata.get(PASSWORD);
+        }
 
-       // If no password is given, use an empty string as the default
-       if (password == null) {
-           password = "";
-       }
-       return password;
-   }
+        // If no password is given, use an empty string as the default
+        if (password == null) {
+            password = "";
+        }
+        return password;
+    }
+
 
     private void extractMetadata(PDDocument document, Metadata metadata)
             throws TikaException {
