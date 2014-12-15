@@ -6,7 +6,7 @@
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,23 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.tika.metadata;
 
-/**
- * XMP Paged-text schema. This is a collection of
- * {@link Property property definition} constants for the paged text
- * properties defined in the XMP standard.
- *
- * @since Apache Tika 0.8
- * @see <a href="http://wwwimages.adobe.com/content/dam/Adobe/en/devnet/xmp/pdfs/cc-201306/XMPSpecificationPart2.pdf"
- *        >XMP Specification, Part 2: Standard Schemas</a>
- */
-public interface PagedText {
+package org.apache.tika.io;
 
-    /**
-     * "The number of pages in the document (including any in contained
-     * documents)."
-     */
-    Property N_PAGES = Property.internalInteger("xmpTPg:NPages");
+import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
+
+import org.junit.Test;
+
+public class EndianUtilsTest {
+    @Test
+    public void testReadUE7() throws Exception {
+        byte[] data;
+        
+        data = new byte[] { 0x08 };
+        assertEquals((long)8, EndianUtils.readUE7(new ByteArrayInputStream(data)));
+        
+        data = new byte[] { (byte)0x84, 0x1e };
+        assertEquals((long)542, EndianUtils.readUE7(new ByteArrayInputStream(data)));
+        
+        data = new byte[] { (byte)0xac, (byte)0xbe, 0x17 };
+        assertEquals((long)728855, EndianUtils.readUE7(new ByteArrayInputStream(data)));
+    }
 }

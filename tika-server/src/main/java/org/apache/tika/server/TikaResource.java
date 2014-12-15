@@ -36,6 +36,7 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,6 +46,7 @@ import java.lang.reflect.Field;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -62,6 +64,7 @@ import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.parser.html.HtmlParser;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
@@ -181,7 +184,7 @@ public class TikaResource {
   }
 
   @SuppressWarnings("serial")
-public static void fillMetadata(AutoDetectParser parser, Metadata metadata, MultivaluedMap<String, String> httpHeaders) {
+public static void fillMetadata(AutoDetectParser parser, Metadata metadata, ParseContext context, MultivaluedMap<String, String> httpHeaders) {
     String fileName = detectFilename(httpHeaders);
     if (fileName != null) {
       metadata.set(TikaMetadataKeys.RESOURCE_NAME_KEY, fileName);
@@ -215,6 +218,16 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
         }
       });
     }
+    
+    final String password = httpHeaders.getFirst("Password");
+    if (password != null) {
+        context.set(PasswordProvider.class, new PasswordProvider() {
+            @Override
+            public String getPassword(Metadata metadata) {
+                return password;
+            }
+        });
+    }
   }
 
   @PUT
@@ -236,7 +249,7 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
     final Metadata metadata = new Metadata();
     final ParseContext context = new ParseContext();
 
-    fillMetadata(parser, metadata, httpHeaders);
+    fillMetadata(parser, metadata, context, httpHeaders);
     fillParseContext(context, httpHeaders);
 
     logRequest(logger, info, metadata);
@@ -324,7 +337,7 @@ public static void fillMetadata(AutoDetectParser parser, Metadata metadata, Mult
     final Metadata metadata = new Metadata();
     final ParseContext context = new ParseContext();
 
-    fillMetadata(parser, metadata, httpHeaders);
+    fillMetadata(parser, metadata, context, httpHeaders);
     fillParseContext(context, httpHeaders);
 
 
