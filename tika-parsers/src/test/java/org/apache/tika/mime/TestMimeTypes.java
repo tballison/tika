@@ -587,7 +587,8 @@ public class TestMimeTypes {
              repo.getMediaTypeRegistry().getSupertype(getTypeByNameAndData("testDITA.ditamap")).toString());
        assertEquals("application/dita+xml", 
              repo.getMediaTypeRegistry().getSupertype(getTypeByNameAndData("testDITA.dita")).toString());
-       assertEquals("application/dita+xml", 
+       // Concept inherits from topic
+       assertEquals("application/dita+xml; format=topic", 
              repo.getMediaTypeRegistry().getSupertype(getTypeByNameAndData("testDITA2.dita")).toString());
     }
 
@@ -756,13 +757,18 @@ public class TestMimeTypes {
     }
     
     @Test
-    public void testEmlx() throws IOException {
+    public void testEmail() throws IOException {
+        // EMLX
         assertTypeDetection("testEMLX.emlx", "message/x-emlx");
-    }
-    
-    @Test
-    public void testGroupWiseEml() throws Exception {
+        
+        // Groupwise
         assertTypeDetection("testGroupWiseEml.eml", "message/rfc822");
+        
+        // Lotus
+        assertTypeDetection("testLotusEml.eml", "message/rfc822");
+        
+        // Thunderbird - doesn't currently work by name
+        assertTypeByNameAndData("message/rfc822", "testThunderbirdEml.eml");
     }
     
     @Test
@@ -818,6 +824,36 @@ public class TestMimeTypes {
         assertText(new byte[] { 'a', 'b', 'c' });
         assertText(new byte[] { '\t', '\r', '\n', 0x0C, 0x1B });
         assertNotText(new byte[] { '\t', '\r', '\n', 0x0E, 0x1C });
+    }
+    
+    @Test
+    public void testBerkeleyDB() throws IOException {
+        assertTypeByData(
+                "application/x-berkeley-db; format=btree; version=2", 
+                "testBDB_btree_2.db");
+        assertTypeByData(
+                "application/x-berkeley-db; format=btree; version=3", 
+                "testBDB_btree_3.db");
+        assertTypeByData(
+                "application/x-berkeley-db; format=btree; version=4", 
+                "testBDB_btree_4.db");
+        // V4 and V5 share the same btree format
+        assertTypeByData(
+                "application/x-berkeley-db; format=btree; version=4", 
+                "testBDB_btree_5.db");
+        
+        assertTypeByData(
+                "application/x-berkeley-db; format=hash; version=2", 
+                "testBDB_hash_2.db");
+        assertTypeByData(
+                "application/x-berkeley-db; format=hash; version=3", 
+                "testBDB_hash_3.db");
+        assertTypeByData(
+                "application/x-berkeley-db; format=hash; version=4", 
+                "testBDB_hash_4.db");
+        assertTypeByData(
+                "application/x-berkeley-db; format=hash; version=5", 
+                "testBDB_hash_5.db");
     }
 
     private void assertText(byte[] prefix) throws IOException {

@@ -17,6 +17,7 @@
 package org.apache.tika.parser.netcdf;
 
 //JDK imports
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +27,8 @@ import java.util.List;
 
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
+import org.apache.tika.io.TemporaryResources;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -51,11 +54,13 @@ import ucar.nc2.Dimension;
  */
 public class NetCDFParser extends AbstractParser {
 
-    /** Serial version UID */
+    /**
+     * Serial version UID
+     */
     private static final long serialVersionUID = -5940938274907708665L;
 
     private final Set<MediaType> SUPPORTED_TYPES =
-        Collections.singleton(MediaType.application("x-netcdf"));
+            Collections.singleton(MediaType.application("x-netcdf"));
 
     /*
      * (non-Javadoc)
@@ -76,18 +81,12 @@ public class NetCDFParser extends AbstractParser {
      * org.apache.tika.parser.ParseContext)
      */
     public void parse(InputStream stream, ContentHandler handler,
-            Metadata metadata, ParseContext context) throws IOException,
+                      Metadata metadata, ParseContext context) throws IOException,
             SAXException, TikaException {
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        IOUtils.copy(stream, os);
 
-        String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
-        if (name == null) {
-            name = "";
-        }
-
+        TikaInputStream tis = TikaInputStream.get(stream, new TemporaryResources());
         try {
-            NetcdfFile ncFile = NetcdfFile.openInMemory(name, os.toByteArray());
+            NetcdfFile ncFile = NetcdfFile.open(tis.getFile().getAbsolutePath());
 
             // first parse out the set of global attributes
             for (Attribute attr : ncFile.getGlobalAttributes()) {
@@ -99,51 +98,45 @@ public class NetCDFParser extends AbstractParser {
                     metadata.add(property, String.valueOf(value));
                 }
             }
-            
-            
-           XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
-           xhtml.startDocument();
 
-		   		xhtml.characters("dimensions:");
-				xhtml.newline();
-			
-				for (Dimension dim : ncFile.getDimensions()){
-                	xhtml.characters(dim.getName()); 
-                	xhtml.characters(" = ");
-                	xhtml.characters(String.valueOf(dim.getLength()));
-                	xhtml.characters(";");
-                	xhtml.newline();
-        		}
-			
-				xhtml.newline();
-				xhtml.characters("variables:");
-			
-				for (Variable var : ncFile.getVariables()){
-					xhtml.newline();
-					xhtml.characters(String.valueOf(var.getDataType())); // data type
-					xhtml.characters(" ");
-					xhtml.characters(var.getNameAndDimensions()); //variable name and dimensions
-					xhtml.characters(";");
 
-					xhtml.newline();
+            XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+            xhtml.startDocument();
+            xhtml.newline();
+            xhtml.element("h1", "dimensions");
+            xhtml.startElement("ul");
+            xhtml.newline();
+            for (Dimension dim : ncFile.getDimensions()) {
+                xhtml.element("li", dim.getName() + " = " + dim.getLength());
+            }
+            xhtml.endElement("ul");
 
-                    for(Attribute element : var.getAttributes()){
-                        String text = element.toString();
-
-                        xhtml.characters("	:");
-                        xhtml.characters(text);
-                        xhtml.characters(";");
-                        xhtml.newline();
+            xhtml.element("h1", "variables");
+            xhtml.startElement("ul");
+            xhtml.newline();
+            for (Variable var : ncFile.getVariables()) {
+                xhtml.startElement("li");
+                xhtml.characters(var.getDataType() + " " + var.getNameAndDimensions());
+                xhtml.newline();
+                List<Attribute> attributes = var.getAttributes();
+                if (!attributes.isEmpty()) {
+                    xhtml.startElement("ul");
+                    for (Attribute element : attributes) {
+                        xhtml.element("li", element.toString());
                     }
-            	}   
-			
-          xhtml.endDocument();
-         
+                    xhtml.endElement("ul");
+                }
+                xhtml.endElement("li");
+            }
+            xhtml.endElement("ul");
+
+            xhtml.endDocument();
+
         } catch (IOException e) {
             throw new TikaException("NetCDF parse error", e);
-        } 
+        }
     }
-    
+
     private Property resolveMetadataKey(String localName) {
         if ("title".equals(localName)) {
             return TikaCoreProperties.TITLE;

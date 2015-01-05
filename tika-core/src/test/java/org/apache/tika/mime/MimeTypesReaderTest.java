@@ -23,9 +23,9 @@ import java.util.List;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.metadata.Metadata;
-
 import org.junit.Before;
 import org.junit.Test;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -140,6 +140,30 @@ public class MimeTypesReaderTest {
         assertEquals("public.xml", mime.getUniformTypeIdentifier());
         assertEquals("http://en.wikipedia.org/wiki/Xml", 
             mime.getLinks().get(0).toString());
+    }
+    
+    @Test
+    public void testReadParameterHierarchy() throws Exception {
+        MimeType mimeBTree4 = this.mimeTypes.forName("application/x-berkeley-db;format=btree;version=4");
+        MediaType mtBTree4 = mimeBTree4.getType();
+        
+        // Canonicalised with spaces
+        assertEquals("application/x-berkeley-db; format=btree; version=4", mimeBTree4.toString());
+        assertEquals("application/x-berkeley-db; format=btree; version=4", mtBTree4.toString());
+        
+        // Parent has one parameter
+        MediaType mtBTree = this.mimeTypes.getMediaTypeRegistry().getSupertype(mtBTree4);
+        assertEquals("application/x-berkeley-db; format=btree", mtBTree.toString());
+        
+        // Parent of that has none
+        MediaType mtBD = this.mimeTypes.getMediaTypeRegistry().getSupertype(mtBTree);
+        assertEquals("application/x-berkeley-db", mtBD.toString());
+        
+        // If we use one with parameters not known in the media registry,
+        //  getting the parent will return the non-parameter version
+        MediaType mtAlt = MediaType.application("x-berkeley-db; format=unknown; version=42");
+        MediaType mtAltP = this.mimeTypes.getMediaTypeRegistry().getSupertype(mtAlt);
+        assertEquals("application/x-berkeley-db", mtAltP.toString());
     }
     
     /**

@@ -1,10 +1,27 @@
-Release 1.7 - Current Development
+Release 1.7 - 1/1/2015
+
+  * HTML tags are properly stripped from content by FeedParser
+    (TIKA-1500).
+
+  * Tika Server support for selecting a single metadata key;
+    wrapped MetadataEP into MetadataResource (TIKA-1499).
+
+  * Tika Server support for JSON and XMP views of metadata (TIKA-1497).
+
+  * Tika Parent uses dependency management to keep duplicate 
+    dependencies in different modules the same version (TIKA-1384).
+
+  * Upgraded slf4j to version 1.7.7 (TIKA-1496).
+
+  * Tika Server support for RecursiveParserWrapper's JSON output
+    (endpoint=rmeta) equivalent to (TIKA-1451's) -J option 
+    in tika-app (TIKA-1498).
 
   * Tika Server support for providing the password for files on a 
-    per-request basis through the Password http header (TIKA-1494)
+    per-request basis through the Password http header (TIKA-1494).
 
   * Simple support for the BPG (Better Portable Graphics) image format
-    (TIKA-1491, TIKA-1495)
+    (TIKA-1491, TIKA-1495).
 
   * Prevent exceptions from being thrown for some malformed
     mp3 files (TIKA-1218).
@@ -17,7 +34,8 @@ Release 1.7 - Current Development
     of RecursiveParserWrapper (TIKA-1451).
 
   * Tika now integrates the Geospatial Data Abstraction Library
-    (GDAL) for parsing hundreds of geospatial formats (TIKA-605).
+    (GDAL) for parsing hundreds of geospatial formats (TIKA-605,
+    TIKA-1503).
 
   * ExternalParsers can now use Regexs to specify dynamic keys
    (TIKA-1441).
@@ -34,7 +52,7 @@ Release 1.7 - Current Development
  
   * Extract files embedded in annotations in PDFS (TIKA-1433).
 
-  * Upgrade to PDFBox 1.8.7 (TIKA-1419).
+  * Upgrade to PDFBox 1.8.8 (TIKA-1419, TIKA-1442).
 
   * Add RecursiveParserWrapper (aka Jukka's and Nick's) 
     RecursiveMetadataParser (TIKA-1329)
@@ -48,6 +66,9 @@ Release 1.7 - Current Development
 
   * Created a new Tesseract OCR Parser to extract text from images.
     Requires installation of Tesseract before use (TIKA-93).
+
+  * Basic parser for older Excel formats, such as Excel 4, 5 and 95,
+    which can get simple text, and metadata for Excel 5+95 (TIKA-1490)
 
 
 Release 1.6 - 08/31/2014
