@@ -28,6 +28,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,20 +76,13 @@ import org.xml.sax.SAXException;
  */
 public class TesseractOCRParser extends AbstractParser {
   private static final long serialVersionUID = -8167538283213097265L;
-  private static final Set<MediaType> SUPPORTED_TYPES = getTypes();
   private static final TesseractOCRConfig DEFAULT_CONFIG = new TesseractOCRConfig();
-
-  private static Set<MediaType> getTypes() {
-    HashSet<MediaType> supportedTypes = new HashSet<MediaType>();
-
-    supportedTypes.add(MediaType.image("png"));
-    supportedTypes.add(MediaType.image("jpeg"));
-    supportedTypes.add(MediaType.image("tiff"));
-    supportedTypes.add(MediaType.image("x-ms-bmp"));
-    supportedTypes.add(MediaType.image("gif"));
-
-    return supportedTypes;
-  }
+  private static final Set<MediaType> SUPPORTED_TYPES = Collections.unmodifiableSet(
+          new HashSet<MediaType>(Arrays.asList(new MediaType[] {
+              MediaType.image("png"), MediaType.image("jpeg"), MediaType.image("tiff"),
+              MediaType.image("x-ms-bmp"), MediaType.image("gif")
+  })));
+  private static Map<String,Boolean> TESSERACT_PRESENT = new HashMap<String, Boolean>();
 
   @Override
   public Set<MediaType> getSupportedTypes(ParseContext context) {
@@ -110,8 +104,27 @@ public class TesseractOCRParser extends AbstractParser {
   }
   
   private boolean hasTesseract(TesseractOCRConfig config) {
-      String[] checkCmd = { config.getTesseractPath() + getTesseractProg() };
-      return ExternalParser.check(checkCmd);
+      // Fetch where the config says to find Tesseract
+      String tesseract = config.getTesseractPath() + getTesseractProg();
+      
+      // Have we already checked for a copy of Tesseract there?
+      if (TESSERACT_PRESENT.containsKey(tesseract)) {
+          return TESSERACT_PRESENT.get(tesseract);
+      }
+      
+      // Try running Tesseract from there, and see if it exists + works
+      String[] checkCmd = { tesseract };
+      try {
+          boolean hasTesseract = ExternalParser.check(checkCmd);
+          TESSERACT_PRESENT.put(tesseract, hasTesseract);
+          return hasTesseract;
+      } catch (NoClassDefFoundError e) {
+          // This happens under OSGi + Fork Parser - see TIKA-1507
+          // As a workaround for now, just say we can't use OCR
+          // TODO Resolve it so we don't need this try/catch block
+          TESSERACT_PRESENT.put(tesseract, false);
+          return false;
+      }
   }
 
   public void parse(Image image, ContentHandler handler, Metadata metadata, ParseContext context) throws IOException,
