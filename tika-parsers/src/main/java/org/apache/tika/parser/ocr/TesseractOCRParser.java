@@ -26,7 +26,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -43,7 +46,9 @@ import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
+import org.apache.tika.mime.MediaTypeRegistry;
 import org.apache.tika.parser.AbstractParser;
+import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.external.ExternalParser;
@@ -69,10 +74,9 @@ import org.xml.sax.SAXException;
  * 
  */
 public class TesseractOCRParser extends AbstractParser {
-
-  private static final long serialVersionUID = 1L;
-
+  private static final long serialVersionUID = -8167538283213097265L;
   private static final Set<MediaType> SUPPORTED_TYPES = getTypes();
+  private static final TesseractOCRConfig DEFAULT_CONFIG = new TesseractOCRConfig();
 
   private static Set<MediaType> getTypes() {
     HashSet<MediaType> supportedTypes = new HashSet<MediaType>();
@@ -87,8 +91,15 @@ public class TesseractOCRParser extends AbstractParser {
   }
 
   @Override
-  public Set<MediaType> getSupportedTypes(ParseContext arg0) {
-    return SUPPORTED_TYPES;
+  public Set<MediaType> getSupportedTypes(ParseContext context) {
+      // If Tesseract is installed, offer our supported image types
+      TesseractOCRConfig config = context.get(TesseractOCRConfig.class, DEFAULT_CONFIG);
+      if (hasTesseract(config))
+          return SUPPORTED_TYPES;
+      
+      // Otherwise don't advertise anything, so the other image parsers
+      //  can be selected instead
+      return Collections.emptySet();
   }
 
   private void setEnv(TesseractOCRConfig config, ProcessBuilder pb) {
@@ -96,6 +107,11 @@ public class TesseractOCRParser extends AbstractParser {
       Map<String, String> env = pb.environment();
       env.put("TESSDATA_PREFIX", config.getTesseractPath());
     }
+  }
+  
+  private boolean hasTesseract(TesseractOCRConfig config) {
+      String[] checkCmd = { config.getTesseractPath() + getTesseractProg() };
+      return ExternalParser.check(checkCmd);
   }
 
   public void parse(Image image, ContentHandler handler, Metadata metadata, ParseContext context) throws IOException,
@@ -131,14 +147,12 @@ public class TesseractOCRParser extends AbstractParser {
   @Override
   public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
       throws IOException, SAXException, TikaException {
+    TesseractOCRConfig config = context.get(TesseractOCRConfig.class, DEFAULT_CONFIG);
 
-    TesseractOCRConfig config = context.get(TesseractOCRConfig.class);
-    if (config == null)
-      config = new TesseractOCRConfig();
-
-    String[] checkCmd = { config.getTesseractPath() + getTesseractProg() };
-    // If Tesseract is not on the path, do not try to run OCR.
-    if (!ExternalParser.check(checkCmd))
+    // If Tesseract is not on the path with the current config, do not try to run OCR
+    // getSupportedTypes shouldn't have listed us as handling it, so this should only
+    //  occur if someone directly calls this parser, not via DefaultParser or similar
+    if (! hasTesseract(config))
       return;
 
     XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
@@ -167,16 +181,7 @@ public class TesseractOCRParser extends AbstractParser {
       //  composite parsers with strategies (eg Composite, Try In Turn),
       //  always send the image onwards to the regular parser to have
       //  the metadata for them extracted as well
-      String type = metadata.get(Metadata.CONTENT_TYPE);
-      if (_TMP_IMG_PARSER.getSupportedTypes(context).contains(type)) {
-          _TMP_IMG_PARSER.parse(tikaStream, handler, metadata, context);
-      }
-      if (_TMP_JPEG_PARSER.getSupportedTypes(context).contains(type)) {
-          _TMP_JPEG_PARSER.parse(tikaStream, handler, metadata, context);
-      }
-      if (_TMP_TIFF_PARSER.getSupportedTypes(context).contains(type)) {
-          _TMP_TIFF_PARSER.parse(tikaStream, handler, metadata, context);
-      }
+      _TMP_IMAGE_METADATA_PARSER.parse(tikaStream, handler, metadata, context);
     } finally {
       tmp.dispose();
       if (output != null) {
@@ -184,10 +189,17 @@ public class TesseractOCRParser extends AbstractParser {
       }
     }
   }
-  // TIKA-1445 workaround parsers
-  private static Parser _TMP_IMG_PARSER = new ImageParser();
-  private static Parser _TMP_JPEG_PARSER = new JpegParser();
-  private static Parser _TMP_TIFF_PARSER = new TiffParser();
+  // TIKA-1445 workaround parser
+  private static Parser _TMP_IMAGE_METADATA_PARSER = new CompositeImageParser();
+  private static class CompositeImageParser extends CompositeParser {
+      private static final long serialVersionUID = -2398203346206381382L;
+      private static List<Parser> imageParsers = Arrays.asList(new Parser[]{
+          new ImageParser(), new JpegParser(), new TiffParser()
+      });
+      CompositeImageParser() {
+          super(new MediaTypeRegistry(), imageParsers);
+      }
+  }
 
   /**
    * Run external tesseract-ocr process.
