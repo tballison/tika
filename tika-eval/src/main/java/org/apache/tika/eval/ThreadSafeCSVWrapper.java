@@ -22,20 +22,45 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.tika.eval.db.ColInfo;
 
-public class ThreadSafeCSVWrapper implements Runnable, TableWriter {
+class ThreadSafeCSVWrapper implements Runnable, TableWriter {
 
+    private AtomicBoolean headerWritten = new AtomicBoolean(false);
     private final ArrayBlockingQueue<Iterable<String>> queue;
     private final CSVPrinter printer;
+    private final String[] headers;
     private volatile boolean keepGoing = true;
 
-    public ThreadSafeCSVWrapper(CSVPrinter printer, int queueSize) {
+    public ThreadSafeCSVWrapper(CSVPrinter printer, int queueSize, Map<String, ColInfo> colInfos) {
         queue = new ArrayBlockingQueue<Iterable<String>>(queueSize);
         this.printer = printer;
+        this.headers = loadHeaderLabels(colInfos);
     }
 
+    private String[] loadHeaderLabels(Map<String, ColInfo> colInfos) {
+        int max = -1;
+        for (ColInfo colInfo : colInfos.values()) {
+            max = (max > colInfo.getJavaColOffset()) ? max : colInfo.getJavaColOffset();
+        }
+        String[] headers = new String[max];
+
+        for (Map.Entry<String, ColInfo> info : colInfos.entrySet()) {
+            if (info.getValue().getDBColOffset() < 1) {
+                throw new IllegalArgumentException("DBColumnOffset must be > 0");
+            }
+            headers[info.getValue().getJavaColOffset()] = info.getKey();
+        }
+        return headers;
+    }
+
+
+    public void init() {
+
+    }
     @Override
     public void run() {
         while (keepGoing) {
@@ -63,10 +88,29 @@ public class ThreadSafeCSVWrapper implements Runnable, TableWriter {
 
 
     @Override
-    public void writeRow(Map<String, String> data, Iterable<String> headers) {
+    public void writeHeaders() {
+        boolean headersWritten = headerWritten.compareAndSet(false, true);
+        if (!headersWritten) {
+            List<String> list = new ArrayList<String>();
+            for (String h : headers) {
+                String v = h;
+                if (v == null) {
+                    v = "";
+                }
+                list.add(v);
+            }
+            writeRow(list);
+        }
+    }
+
+    @Override
+    public void writeRow(Map<String, String> data) {
         List<String> list = new ArrayList<String>();
         for (String h : headers) {
-            String v = data.get(h);
+            String v = "";
+            if (h != null) {
+                v = data.get(h);
+            }
             if (v == null) {
                 v = "";
             }
@@ -75,8 +119,7 @@ public class ThreadSafeCSVWrapper implements Runnable, TableWriter {
         writeRow(list);
     }
 
-    @Override
-    public void writeRow(Iterable<String> row) {
+    private void writeRow(Iterable<String> row) {
         try {
             //block
             queue.put(row);
@@ -94,9 +137,7 @@ public class ThreadSafeCSVWrapper implements Runnable, TableWriter {
     public boolean stillGoing() {
         return queue.size() > 0;
     }
-    public void flush() throws IOException {
-        printer.flush();
-    }
+
 
     public void close() throws IOException {
         printer.close();

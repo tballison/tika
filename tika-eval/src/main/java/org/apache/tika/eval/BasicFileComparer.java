@@ -19,9 +19,11 @@ package org.apache.tika.eval;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -34,6 +36,7 @@ import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypeException;
@@ -42,77 +45,95 @@ import org.apache.tika.mime.MimeTypes;
 public class BasicFileComparer extends AbstractProfiler {
 
     public enum COMPARISON_HEADERS {
-        DIFF_NUM_ATTACHMENTS,
-        DIFF_NUM_METADATA_VALUES,
-        TOP_10_UNIQUE_TOKEN_DIFFS,
-        TOP_10_TOKEN_DIFFS,
-        DICE_COEFFICIENT,
-        OVERLAP,
+        DIFF_NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
+        DIFF_NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
+        TOP_10_UNIQUE_TOKEN_DIFFS(new ColInfo(-1, Types.VARCHAR, 1024)),
+        TOP_10_TOKEN_DIFFS(new ColInfo(-1, Types.VARCHAR, 1024)),
+        DICE_COEFFICIENT(new ColInfo(-1, Types.FLOAT)),
+        OVERLAP(new ColInfo(-1, Types.FLOAT));
+
+        private final ColInfo colInfo;
+
+        COMPARISON_HEADERS(ColInfo colInfo) {
+            this.colInfo = colInfo;
+        }
+
+        protected ColInfo getColInfo() {
+            return colInfo;
+        }
+
     }
 
-    ;
-    public final List<String> headers;
+    public static Map<String, ColInfo> headers;
 
 
     //good enough? or do we need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
-    private final File thisRootDir;
-    private final File thatRootDir;
-    private final String thisExtension;
-    private final String thatExtension;
-    private final int thisDirLen;
+    private static File thisRootDir;
+    private static File thatRootDir;
+    private static String thisExtension;
+    private static String thatExtension;
+    private static int thisDirLen;
 
-    public BasicFileComparer(ArrayBlockingQueue<FileResource> queue, File thisRootDir, File thatRootDir) {
+    public static void init(File thsRootDir, File thtRootDir) {
+        thisRootDir = thsRootDir;
+        thatRootDir = thtRootDir;
+        thisDirLen = thsRootDir.getAbsolutePath().length() + 1;
+        thisExtension = "_" + thsRootDir.getName();
+        thatExtension = "_" + thtRootDir.getName();
+        headers = new HashMap<String, ColInfo>();
+        addHeader(headers, HEADERS.FILE_PATH);
+        addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.ORIG_STACK_TRACE, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.SORT_STACK_TRACE, thisExtension, thatExtension);
+        addHeader(headers, HEADERS.FILE_EXTENSION);
+        addHeaders(headers, HEADERS.DETECTED_CONTENT_TYPE, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.DETECTED_FILE_EXTENSION, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.NUM_ATTACHMENTS, thisExtension, thatExtension);
+        addHeader(headers, COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS);
+        addHeaders(headers, HEADERS.NUM_METADATA_VALUES, thisExtension, thatExtension);
+        addHeader(headers, COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES);
+        addHeaders(headers, HEADERS.ELAPSED_TIME_MILLIS, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.NUM_UNIQUE_TOKENS, thisExtension, thatExtension);
+        addHeader(headers, COMPARISON_HEADERS.DICE_COEFFICIENT);
+        addHeaders(headers, COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.TOKEN_COUNT, thisExtension, thatExtension);
+        addHeader(headers, COMPARISON_HEADERS.OVERLAP);
+        addHeader(headers, COMPARISON_HEADERS.TOP_10_TOKEN_DIFFS);
+        addHeaders(headers, HEADERS.TOP_N_WORDS, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.NUM_EN_STOPS_TOP_N, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.LANG_ID1, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.LANG_ID_PROB1, thisExtension, thatExtension);
+
+    }
+
+    public BasicFileComparer(ArrayBlockingQueue<FileResource> queue) {
         super(queue);
-        this.thisRootDir = thisRootDir;
-        this.thatRootDir = thatRootDir;
-        thisDirLen = thisRootDir.getAbsolutePath().length() + 1;
-        thisExtension = "_" + thisRootDir.getName();
-        thatExtension = "_" + thatRootDir.getName();
-        String[] headerArr = new String[]{
-                HEADERS.FILE_PATH.name(),
-                HEADERS.JSON_EX + thisExtension,
-                HEADERS.JSON_EX + thatExtension,
-                HEADERS.ORIG_STACK_TRACE + thisExtension,
-                HEADERS.ORIG_STACK_TRACE + thatExtension,
-                HEADERS.SORT_STACK_TRACE + thisExtension,
-                HEADERS.SORT_STACK_TRACE + thatExtension,
-                HEADERS.FILE_EXTENSION.name(),
-                HEADERS.DETECTED_CONTENT_TYPE + thisExtension,
-                HEADERS.DETECTED_CONTENT_TYPE + thatExtension,
-                HEADERS.DETECTED_FILE_EXTENSION + thisExtension,
-                HEADERS.DETECTED_FILE_EXTENSION + thatExtension,
-                HEADERS.NUM_ATTACHMENTS + thisExtension,
-                HEADERS.NUM_ATTACHMENTS + thatExtension,
-                COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
-                HEADERS.NUM_METADATA_VALUES + thisExtension,
-                HEADERS.NUM_METADATA_VALUES + thatExtension,
-                COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
-                HEADERS.ELAPSED_TIME_MILLIS + thisExtension,
-                HEADERS.ELAPSED_TIME_MILLIS + thatExtension,
-                HEADERS.NUM_UNIQUE_TOKENS + thisExtension,
-                HEADERS.NUM_UNIQUE_TOKENS + thatExtension,
-                COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
-                COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + thisExtension,
-                COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + thatExtension,
-                HEADERS.TOKEN_COUNT + thisExtension,
-                HEADERS.TOKEN_COUNT + thatExtension,
-                COMPARISON_HEADERS.OVERLAP.name(),
-                COMPARISON_HEADERS.TOP_10_TOKEN_DIFFS.name(),
-                HEADERS.TOP_N_WORDS + thisExtension,
-                HEADERS.TOP_N_WORDS + thatExtension,
-                HEADERS.NUM_EN_STOPS_TOP_N + thisExtension,
-                HEADERS.NUM_EN_STOPS_TOP_N + thatExtension,
-                HEADERS.LANG_ID1 + thisExtension,
-                HEADERS.LANG_ID_PROB1 + thisExtension,
-                HEADERS.LANG_ID1 + thatExtension,
-                HEADERS.LANG_ID_PROB1 + thatExtension,
-        };
-        headers = new ArrayList<String>();
-        for (String s : headerArr) {
-            headers.add(s);
-        }
+    }
+
+    private static void addHeaders(Map<String, ColInfo> headers, HEADERS header, String thisExtension, String thatExtension) {
+        headers.put(header.name()+thisExtension, new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+        headers.put(header.name()+thatExtension, new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
+    private static void addHeaders(Map<String, ColInfo> headers, COMPARISON_HEADERS header, String thisExtension, String thatExtension) {
+        headers.put(header.name()+thisExtension, new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+        headers.put(header.name()+thatExtension, new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
+    private static void addHeader(Map<String, ColInfo> headers, COMPARISON_HEADERS header) {
+        headers.put(header.name(), new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
+    private static void addHeader(Map<String, ColInfo> headers, HEADERS header) {
+        headers.put(header.name(), new ColInfo(headers.size()+1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
 
@@ -134,14 +155,14 @@ public class BasicFileComparer extends AbstractProfiler {
 
         try {
             Map<String, String> output = compareFiles(relativePath, thisFile, thatFile);
-            writer.writeRow(output, getHeaders());
+            writer.writeRow(output);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return true;
     }
 
-    public Iterable<String> getHeaders() {
+    public static Map<String, ColInfo> getHeaders() {
         return headers;
     }
 

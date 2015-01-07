@@ -9,22 +9,6 @@
         maxQueueSize="10000"
         numConsumers="5">
 
-    <commandline>
-    <option opt="bc" longOpt="batch-config" hasArg="true"
-            description="xml batch config file" required="true"/>
-    <option opt="srcDir" hasArg="true"
-            description="dir to start crawling"/>
-    <option opt="numConsumers" hasArg="true"
-            description="number of fileConsumers threads"/>
-    <option opt="thisDir" hasArg="true"
-            description="this dir for analysis" required="false"/>
-    <option opt="thatDir" hasArg="true"
-            description="thatDir for analysis"/>
-    <option opt="outputFile" hasArg="true"
-            description="name of file to which to write results"/>
-    </commandline>
-
-
     <!--
         Can also add startDir: this tells the crawler to start indexing a
         child directory of the srcDir directory.
@@ -41,15 +25,16 @@
         />
 
 
-
-    <consumersManager builderClass="org.apache.tika.eval.batch.BasicFileComparerBuilder">
-               thisDir="thisDir"
-               thatDir="thatDir"
-               outputFile="results_all.csv"
-               langModelDir="resources/langmodels">
-    </consumersManager>
-
-
+	<consumersManager class="BasicFileComparerManager"
+                      builderClass="org.apache.tika.batch.GeneralConsumersManagerBuilder">
+        <file name="thisDir">thisDir</file>
+        <file name="thatDir">thatDir</file>
+        <tableWriter class="ThreadSafeCSVWrapper">
+            <file name="outputFile">results.csv</file>
+            <str name="outputFileEncoding">UTF-8</str>
+        </tableWriter>
+	</consumersManager>
+	
 	<!-- reporter and interrupter are optional -->
 	<reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000" staleThresholdMillis="500000"/>
 	<interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
@@ -63,27 +65,37 @@ import org.apache.tika.parser.RecursiveParserWrapper;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
-    enum HEADERS {
-        FILE_PATH,
-        FILE_EXTENSION,
-        JSON_EX,
-        ORIG_STACK_TRACE,
-        SORT_STACK_TRACE,
-        DETECTED_CONTENT_TYPE,
-        DETECTED_FILE_EXTENSION,
-        ELAPSED_TIME_MILLIS,
-        NUM_METADATA_VALUES,
-        NUM_ATTACHMENTS,
-        TOKEN_COUNT,
-        NUM_UNIQUE_TOKENS,
-        TOP_N_WORDS,
-        NUM_EN_STOPS_TOP_N,
-        LANG_ID1,
-        LANG_ID_PROB1,
-        LANG_ID2,
-        LANG_ID_PROB2,
-        LANG_ID3,
-        LANG_ID_PROB3,
+    public enum HEADERS {
+        FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
+        JSON_EX(new ColInfo(-1, Types.VARCHAR, 1024)),
+        ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
+        SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
+        DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 32)),
+        DETECTED_FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 32)),
+        ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
+        NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
+        NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
+        TOKEN_COUNT(new ColInfo(-1, Types.INTEGER)),
+        NUM_UNIQUE_TOKENS(new ColInfo(-1, Types.INTEGER)),
+        TOP_N_WORDS(new ColInfo(-1, Types.VARCHAR, 1024)),
+        NUM_EN_STOPS_TOP_N(new ColInfo(-1, Types.INTEGER)),
+        LANG_ID1(new ColInfo(-1, Types.VARCHAR, 12)),
+        LANG_ID_PROB1(new ColInfo(-1, Types.FLOAT)),
+        LANG_ID2(new ColInfo(-1, Types.VARCHAR, 12)),
+        LANG_ID_PROB2(new ColInfo(-1, Types.FLOAT)),
+        LANG_ID3(new ColInfo(-1, Types.VARCHAR, 12)),
+        LANG_ID_PROB3(new ColInfo(-1, Types.FLOAT));
+
+        private final ColInfo colInfo;
+
+        HEADERS(ColInfo colInfo) {
+            this.colInfo = colInfo;
+        }
+
+        protected ColInfo getColInfo() {
+            return colInfo;
+        }
     };
 
     private static AtomicInteger threadNum = new AtomicInteger(0);
@@ -135,12 +147,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     public void setTableWriter(TableWriter writer) {
         this.writer = writer;
-        if (threadNum.getAndIncrement() == 0) {
-            writer.writeRow(getHeaders());
-        }
     }
-
-    public abstract Iterable<String> getHeaders();
 
     public static void setLangModelDir(File langModelDir) {
         try {

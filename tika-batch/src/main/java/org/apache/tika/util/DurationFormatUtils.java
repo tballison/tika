@@ -20,43 +20,47 @@ package org.apache.tika.util;
 /**
  * Functionality and naming conventions (roughly) copied from org.apache.commons.lang3
  * so that we didn't have to add another dependency.
- *
  */
 public class DurationFormatUtils {
 
-  public static String formatMillis(long duration) {
-      duration = Math.abs(duration);
-      StringBuilder sb = new StringBuilder();
-      int secs = (int) (duration / 1000) % 60 ;
-      int mins = (int) ((duration / (1000*60)) % 60);
-      int hrs   = (int) ((duration / (1000*60*60)) % 24);
-      int days   = (int) ((duration / (1000*60*60*24)) % 7);
-      
-      //sb.append(millis + " milliseconds");
-      addUnitString(sb, days, "day");
-      addUnitString(sb, hrs, "hour");
-      addUnitString(sb, mins, "minute");
-      addUnitString(sb, secs, "second");
-      if (duration < 1000){
-         addUnitString(sb, duration, "millisecond");
-      }
-      
-      return sb.toString();
-   }
-   
-   private static void addUnitString(StringBuilder sb, long unit, String unitString){
-    
-      if (sb.length() > 0){
-         sb.append(", ");
-      }
-      if (unit == 1){
-         sb.append("1 ");
-         sb.append(unitString);
-      } else if (unit > 1){
-         sb.append(unit);
-         sb.append(" ");
-         sb.append(unitString);
-         sb.append("s");
-      }
-   } 
+    public static String formatMillis(long duration) {
+        duration = Math.abs(duration);
+        StringBuilder sb = new StringBuilder();
+        int secs = (int) (duration / 1000) % 60;
+        int mins = (int) ((duration / (1000 * 60)) % 60);
+        int hrs = (int) ((duration / (1000 * 60 * 60)) % 24);
+        int days = (int) ((duration / (1000 * 60 * 60 * 24)) % 7);
+
+        //sb.append(millis + " milliseconds");
+        addUnitString(sb, days, "day");
+        addUnitString(sb, hrs, "hour");
+        addUnitString(sb, mins, "minute");
+        addUnitString(sb, secs, "second");
+        if (duration < 1000) {
+            addUnitString(sb, duration, "millisecond");
+        }
+
+        return sb.toString();
+    }
+
+    private static void addUnitString(StringBuilder sb, long unit, String unitString) {
+        //only add unit if >= 1
+        if (unit == 1) {
+            addComma(sb);
+            sb.append("1 ");
+            sb.append(unitString);
+        } else if (unit > 1) {
+            addComma(sb);
+            sb.append(unit);
+            sb.append(" ");
+            sb.append(unitString);
+            sb.append("s");
+        }
+    }
+
+    private static void addComma(StringBuilder sb) {
+        if (sb.length() > 0) {
+            sb.append(", ");
+        }
+    }
 }

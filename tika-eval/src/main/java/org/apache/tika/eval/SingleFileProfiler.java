@@ -69,22 +69,14 @@ public class SingleFileProfiler extends AbstractProfiler {
             tokens = getTokens(content);
             handleWordCounts(output, tokens, "");
         } catch (IOException e) {
-            //log
+            //should log
             e.printStackTrace();
         }
-        writer.writeRow(output, getHeaders());
+        try {
+            writer.writeRow(output);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         return true;
-    }
-
-    @Override
-    public Iterable<String> getHeaders() {
-        if (localHeaders != null) {
-            return localHeaders;
-        }
-        localHeaders = new ArrayList<String>();
-        for (HEADERS h : HEADERS.values()) {
-            localHeaders.add(h.name());
-        }
-        return localHeaders;
     }
 }

@@ -17,6 +17,7 @@ package org.apache.tika.eval;
  * limitations under the License.
  */
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -24,8 +25,21 @@ import java.util.Map;
  * but it would be better to be able to specify a db.
  */
 public interface TableWriter {
+    /**
+     * if the writer needs to write headers, call this
+     */
+    public void writeHeaders() throws IOException;
 
-    public void writeRow(Map<String, String> data, Iterable<String> headers);
+    public void writeRow(Map<String, String> data) throws IOException;
 
-    public void writeRow(Iterable<String> row);
+    /**
+     * give hint to stop processing, no more input available
+     */
+    public void shutdown();
+
+    /**
+     * now actually close all resources
+     * @throws IOException
+     */
+    public void close() throws IOException;
 }

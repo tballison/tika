@@ -15,22 +15,20 @@ public class TestComparer {
 
     @Test
     public void testBasic() throws Exception {
-        BasicFileComparer comparer = new BasicFileComparer(null,
-                new File("pathA"), new File("pathB"));
+        BasicFileComparer.init(new File("testA"), new File("testB"));
+        BasicFileComparer comparer = new BasicFileComparer(null);
         Map<String, String> data = comparer.compareFiles("relPath",
-                getResourceAsFile("/test-documents/testA.json"),
-                getResourceAsFile("/test-documents/testB.json"));
-        for (String k : data.keySet()) {
-            System.out.println(k + " : " + data.get(k));
-        }
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_pathA").startsWith("over: 1"));
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_pathB").startsWith("aardvark: 3 | bear: 2"));
+                getResourceAsFile("/test-documents/testA/file1.json"),
+                getResourceAsFile("/test-documents/testB/file1.json"));
+
+        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_testA").startsWith("over: 1"));
+        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_testB").startsWith("aardvark: 3 | bear: 2"));
         assertEquals("aardvark: 3 | bear: 2 | fox: -2 | lazy: -1 | over: -1",
                 data.get("TOP_10_TOKEN_DIFFS"));
-        assertEquals("13", data.get("TOKEN_COUNT_pathB"));
-        assertEquals("12", data.get("TOKEN_COUNT_pathA"));
-        assertEquals("8", data.get("NUM_UNIQUE_TOKENS_pathA"));
-        assertEquals("9", data.get("NUM_UNIQUE_TOKENS_pathB"));
+        assertEquals("13", data.get("TOKEN_COUNT_testB"));
+        assertEquals("12", data.get("TOKEN_COUNT_testA"));
+        assertEquals("8", data.get("NUM_UNIQUE_TOKENS_testA"));
+        assertEquals("9", data.get("NUM_UNIQUE_TOKENS_testB"));
     }
 
     //TODO: copied from TikaTest...import tika-parsers so as to avoid redundancy

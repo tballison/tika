@@ -1,21 +1,4 @@
-package org.apache.tika.eval.batch;
-
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package org.apache.tika.eval;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -36,13 +19,33 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
-import org.apache.tika.eval.CSVTableWriter;
-import org.apache.tika.eval.DerbyTableWriter;
-import org.apache.tika.eval.TableWriter;
+import org.apache.tika.eval.batch.BasicFileComparerManager;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
-public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ *
+ * This is a toy dev class!!!
+ *
+ * */
+public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
@@ -52,24 +55,24 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
         File thisRootDir = getNonNullFile(localAttrs, "thisDir");
         File thatRootDir = getNonNullFile(localAttrs, "thatDir");
-
-        //make sure to init BasicFileComparer _before_ building writer!
         BasicFileComparer.init(thisRootDir, thatRootDir);
         File outputFile = getFile(localAttrs, "outputFile");
         File dbDir = getFile(localAttrs, "dbDir");
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
+
         BasicFileComparer.setLangModelDir(langModelDir);
+
+
         TableWriter writer = buildTableWriter(outputFile, dbDir, tableName);
 
-
         for (int i = 0; i < numConsumers; i++) {
-            BasicFileComparer consumer = new BasicFileComparer(queue);
-            consumer.setTableWriter(writer);
+            FileResourceConsumer consumer = new BasicFileComparer(queue);
             consumers.add(consumer);
         }
         return new BasicFileComparerManager(consumers, writer);
     }
+
 
     private TableWriter buildTableWriter(File outputFile, File dbDir, String tableName) {
         if (outputFile != null) {
@@ -123,4 +126,5 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         }
         return new File(filePath);
     }
+
 }
