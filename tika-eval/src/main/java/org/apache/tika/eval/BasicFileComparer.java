@@ -21,22 +21,22 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import com.cybozu.labs.langdetect.DetectorFactory;
 import com.cybozu.labs.langdetect.LangDetectException;
-import org.apache.lucene.util.mutable.MutableValueInt;
+import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.tokens.TokenCounter;
+import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypeException;
@@ -113,26 +113,26 @@ public class BasicFileComparer extends AbstractProfiler {
     }
 
     private static void addHeaders(Map<String, ColInfo> headers, HEADERS header, String thisExtension, String thatExtension) {
-        headers.put(header.name()+thisExtension, new ColInfo(headers.size()+1,
+        headers.put(header.name() + thisExtension, new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
-        headers.put(header.name()+thatExtension, new ColInfo(headers.size()+1,
+        headers.put(header.name() + thatExtension, new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
     private static void addHeaders(Map<String, ColInfo> headers, COMPARISON_HEADERS header, String thisExtension, String thatExtension) {
-        headers.put(header.name()+thisExtension, new ColInfo(headers.size()+1,
+        headers.put(header.name() + thisExtension, new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
-        headers.put(header.name()+thatExtension, new ColInfo(headers.size()+1,
+        headers.put(header.name() + thatExtension, new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
     private static void addHeader(Map<String, ColInfo> headers, COMPARISON_HEADERS header) {
-        headers.put(header.name(), new ColInfo(headers.size()+1,
+        headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
     private static void addHeader(Map<String, ColInfo> headers, HEADERS header) {
-        headers.put(header.name(), new ColInfo(headers.size()+1,
+        headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
@@ -156,8 +156,8 @@ public class BasicFileComparer extends AbstractProfiler {
         try {
             Map<String, String> output = compareFiles(relativePath, thisFile, thatFile);
             writer.writeRow(output);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable e) {
+            throw new RuntimeException("Exception while working on: " + relativePath, e);
         }
         return true;
     }
@@ -244,159 +244,246 @@ public class BasicFileComparer extends AbstractProfiler {
 
     }
 
-
     private void compareUnigramOverlap(List<Metadata> thisMetadata,
                                        List<Metadata> thatMetadata,
                                        Map<String, String> data) throws IOException {
 
-        String content = getContent(thisMetadata);
-        langid(content, thisExtension, data);
-        Map<String, MutableValueInt> theseTokens = getTokens(content);
-        content = getContent(thatMetadata);
-        langid(content, thatExtension, data);
-        Map<String, MutableValueInt> thoseTokens = getTokens(content);
+        langid(thisMetadata, thisExtension, data);
+        langid(thatMetadata, thatExtension, data);
 
+        Map<String, PairCount> tokens = new HashMap<String, PairCount>();
+        TokenCounter theseTokens = new CounterA(tokens);
+        TokenCounter thoseTokens = new CounterB(tokens);
+        countTokens(thisMetadata, theseTokens);
+        countTokens(thatMetadata, thoseTokens);
 
-        int tokenCountThis = 0;
-        int tokenCountThat = 0;
-        int diceDenom = theseTokens.size() + thoseTokens.size();
+        int diceDenom = theseTokens.getUniqueTokenCount() + thoseTokens.getUniqueTokenCount();
         int diceNum = 0;
-
         int overlapNum = 0;
-        Map<String, Integer> diffTokenCounts = new HashMap<String, Integer>();
-        Map<String, Integer> thisUniqueTokens = new HashMap<String, Integer>();
-        Map<String, Integer> thatUniqueTokens = new HashMap<String, Integer>();
 
-        for (Map.Entry<String, MutableValueInt> e : theseTokens.entrySet()) {
-            MutableValueInt thatCount = thoseTokens.get(e.getKey());
-            if (thatCount != null) {
+        for (PairCount p : tokens.values()) {
+            if (p.a > 0 && p.b > 0) {
                 diceNum += 2;
-                overlapNum += 2 * Math.min(e.getValue().value, thatCount.value);
-            }
-            tokenCountThis += e.getValue().value;
-
-            int localThatCount = (thatCount == null) ? 0 : thatCount.value;
-            if (e.getValue().value != localThatCount) {
-                diffTokenCounts.put(e.getKey(), localThatCount - e.getValue().value);
-            }
-            if (localThatCount == 0) {
-                thisUniqueTokens.put(e.getKey(), e.getValue().value);
-            }
-
-        }
-
-        for (Map.Entry<String, MutableValueInt> e : thoseTokens.entrySet()) {
-            tokenCountThat += e.getValue().value;
-            if (!theseTokens.containsKey(e.getKey())) {
-                diffTokenCounts.put(e.getKey(), e.getValue().value);
-                thatUniqueTokens.put(e.getKey(), e.getValue().value);
+                overlapNum += 2 * Math.min(p.a, p.b);
             }
         }
 
         float dice = (float) diceNum / (float) diceDenom;
-        float overlap = (float) overlapNum / (float) (tokenCountThis + tokenCountThat);
+        float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + theseTokens.getTokenCount());
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thisExtension,
-                Integer.toString(theseTokens.size()));
+                Integer.toString(theseTokens.getUniqueTokenCount()));
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thatExtension,
-                Integer.toString(thoseTokens.size()));
+                Integer.toString(thoseTokens.getUniqueTokenCount()));
         data.put(COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
                 Float.toString(dice));
         data.put(COMPARISON_HEADERS.OVERLAP.name(), Float.toString(overlap));
 
-        data.put(HEADERS.TOKEN_COUNT + thisExtension, Integer.toString(tokenCountThis));
-        data.put(HEADERS.TOKEN_COUNT + thatExtension, Integer.toString(tokenCountThat));
+        data.put(HEADERS.TOKEN_COUNT + thisExtension, Integer.toString(theseTokens.getTokenCount()));
+        data.put(HEADERS.TOKEN_COUNT + thatExtension, Integer.toString(thoseTokens.getTokenCount()));
 
         handleWordCounts(data, theseTokens, thisExtension);
         handleWordCounts(data, thoseTokens, thatExtension);
 
-        handleUniques(data, thisUniqueTokens, thisExtension);
-        handleUniques(data, thatUniqueTokens, thatExtension);
+        handleUniques(data, tokens, thisExtension, true);
+        handleUniques(data, tokens, thatExtension, false);
 
-        handleDiffs(data, diffTokenCounts);
+        handleDiffs(data, tokens);
     }
 
-    private void handleDiffs(Map<String, String> data, Map<String, Integer> diffTokenCounts) {
-        if (diffTokenCounts.size() == 0) {
+    private void handleDiffs(Map<String, String> data, Map<String, PairCount> tokens) {
+        if (tokens.size() == 0) {
             return;
         }
-        Comparator descValSorter = new DescendingAbsValSorter(diffTokenCounts);
-        TreeMap<String, Integer> sorted = new TreeMap<String, Integer>(descValSorter);
-        sorted.putAll(diffTokenCounts);
+        int topNDiffs = 10;
+        MutableValueAbsIntPriorityQueue queue = new MutableValueAbsIntPriorityQueue(topNDiffs);
+        for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
+            int diff = e.getValue().b - e.getValue().a;
+            if (diff == 0) {
+                continue;
+            }
+            if (queue.top() == null || queue.size() < topNDiffs ||
+                    Math.abs(diff) >= Math.abs(queue.top().getValue())) {
+                queue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
+            }
+        }
+
+        List<TokenIntPair> tokenDiffs = new ArrayList<TokenIntPair>();
+        //now we reverse the queue
+        TokenIntPair term = queue.pop();
+        while (term != null) {
+            tokenDiffs.add(0, term);
+            term = queue.pop();
+        }
+
         int i = 0;
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, Integer> e : sorted.entrySet()) {
-            if (i > 0) {
+        for (TokenIntPair p : tokenDiffs) {
+            if (i++ > 0) {
                 sb.append(" | ");
             }
-            sb.append(e.getKey()).append(": ").append(e.getValue());
-            i++;
-            if (i >= 10) {
-                break;
-            }
+            sb.append(p.getToken()).append(": ").append(p.getValue());
         }
         data.put(COMPARISON_HEADERS.TOP_10_TOKEN_DIFFS.name(), sb.toString());
     }
 
     private void handleUniques(Map<String, String> data,
-                               Map<String, Integer> uniqueTokens, String extension) {
-        if (uniqueTokens.size() == 0) {
+                               Map<String, PairCount> tokens, String extension, boolean counterA) {
+        if (tokens.size() == 0) {
             return;
         }
-        Comparator descValSorter = new DescendingValSorter(uniqueTokens);
-        TreeMap<String, Integer> sorted = new TreeMap<String, Integer>(descValSorter);
-        sorted.putAll(uniqueTokens);
+        int topNUniques = 10;
+        MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(topNUniques);
+
+        if (counterA) {
+            for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
+                if (e.getValue().b == 0) {
+                    if (queue.top() == null || queue.size() < topNUniques ||
+                            e.getValue().a >= queue.top().getValue()){
+                        queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().a));
+                    }
+                }
+            }
+        } else {
+            for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
+                if (e.getValue().a == 0) {
+                    if (queue.top() == null || queue.size() < topNUniques ||
+                            e.getValue().a >= queue.top().getValue()){
+                        queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().b));
+                    }
+                }
+            }
+        }
+        List<TokenIntPair> tokenCounts = new ArrayList<TokenIntPair>();
+        //now we reverse the queue
+        TokenIntPair term = queue.pop();
+        while (term != null) {
+            tokenCounts.add(0, term);
+            term = queue.pop();
+        }
+
         int i = 0;
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, Integer> e : sorted.entrySet()) {
-            if (i > 0) {
+        for (TokenIntPair p : tokenCounts) {
+            if (i++ > 0) {
                 sb.append(" | ");
             }
-            sb.append(e.getKey()).append(": ").append(e.getValue());
-            i++;
-            if (i >= 10) {
-                break;
-            }
+            sb.append(p.getToken()).append(": ").append(p.getValue());
         }
         data.put(COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + extension, sb.toString());
     }
 
-    class DescendingValSorter implements Comparator<String> {
+    class MutableValueAbsIntPriorityQueue extends PriorityQueue<TokenIntPair> {
 
-        Map<String, Integer> map;
-
-        private DescendingValSorter(Map<String, Integer> base) {
-            this.map = base;
+        MutableValueAbsIntPriorityQueue(int maxSize) {
+            super(maxSize);
         }
 
-        public int compare(String a, String b) {
-            if (map.get(a) > map.get(b)) {
-                return -1;
-            } else if (map.get(a) == map.get(b)) {
-                return a.compareTo(b);
-            } else {
-                return 1;
-
+        @Override
+        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
+            int v1 = Math.abs(arg0.getValue());
+            int v2 = Math.abs(arg1.getValue());
+            if (v1 < v2){
+                return true;
+            } else if (v1 == v2) {
+                if (arg0.getValue() < arg1.getValue()) {
+                    return true;
+                } else if(arg0.getToken().compareTo(arg1.getToken()) > 0) {
+                    return true;
+                }
             }
+            return false;
+        }
+
+    }
+    class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
+
+        MutableValueIntPriorityQueue(int maxSize) {
+            super(maxSize);
+        }
+
+        @Override
+        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
+            if (arg0.getValue() < arg1.getValue()){
+                return true;
+            } else if (arg0.getValue() == arg1.getValue() &&
+                    arg0.getToken().compareTo(arg1.getToken()) < 0) {
+                return true;
+            }
+            return false;
         }
     }
 
 
-    class DescendingAbsValSorter implements Comparator<String> {
+    class CounterA extends TokenCounter {
+        private final Map<String, PairCount> m;
 
-        Map<String, Integer> map;
-
-        private DescendingAbsValSorter(Map<String, Integer> base) {
-            this.map = base;
+        CounterA(Map<String, PairCount> m) {
+            this.m = m;
         }
 
-        public int compare(String a, String b) {
-            if (Math.abs(map.get(a)) > Math.abs(map.get(b))) {
-                return -1;
-            } else if (Math.abs(map.get(a)) == Math.abs(map.get(b))){
-                return a.compareTo(b);
-            } else {
-                return 1;
+        @Override
+        public void increment (String s){
+            PairCount p = m.get(s);
+            if (p == null) {
+                p = new PairCount();
             }
+            incrementOverallCounts(p.a);
+            p.a++;
+            m.put(s, p);
+        }
+
+        @Override
+        public Collection<String> getTokens() {
+            return m.keySet();
+        }
+
+        @Override
+        public int getCount(String token) {
+            PairCount p = m.get(token);
+            if (p == null) {
+                return 0;
+            }
+            return p.a;
         }
     }
+
+    class CounterB extends TokenCounter {
+
+        private final Map<String, PairCount> m;
+        CounterB(Map<String, PairCount> m) {
+            this.m = m;
+        }
+
+        @Override
+        public void increment(String s){
+            PairCount p = m.get(s);
+            if (p == null) {
+                p = new PairCount();
+            }
+            incrementOverallCounts(p.b);
+            p.b++;
+            m.put(s, p);
+        }
+
+        @Override
+        public Collection<String> getTokens() {
+            return m.keySet();
+        }
+
+        @Override
+        public int getCount(String token) {
+            PairCount p = m.get(token);
+            if (p == null) {
+                return 0;
+            }
+            return p.b;
+        }
+    }
+
+    class PairCount {
+        int a = 0;
+        int b = 0;
+    }
+
+
 }

@@ -1,5 +1,4 @@
-package org.apache.tika.eval;
-
+package org.apache.tika.eval.tokens;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,31 +16,22 @@ package org.apache.tika.eval;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.util.Map;
+public class TokenIntPair {
 
-/**
- * Common interface for writing output.  Currently relying on ThreadSafeCSVWrapper,
- * but it would be better to be able to specify a db.
- */
-public interface TableWriter {
-    /**
-     * if the writer needs to write headers, call this
-     */
-    public void writeHeaders() throws IOException;
+    final String token;
+    final int value;
 
-    public void init() throws IOException;
+    public TokenIntPair(String token, int value) {
+        this.token = token;
+        this.value = value;
+    }
 
-    public void writeRow(Map<String, String> data) throws IOException;
+    public int getValue() {
+        return value;
+    }
 
-    /**
-     * give hint to stop processing, no more input available
-     */
-    public void shutdown();
+    public String getToken() {
+        return token;
+    }
 
-    /**
-     * now actually close all resources
-     * @throws IOException
-     */
-    public void close() throws IOException;
 }

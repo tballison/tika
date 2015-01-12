@@ -101,6 +101,11 @@ public class DerbyTableWriter implements TableWriter {
     }
 
     @Override
+    public void init() throws IOException {
+        //no-op for now
+    }
+
+    @Override
     public void writeRow(Map<String, String> data) throws IOException {
         try {
             DBUtil.insert(preparedInsert, sortedHeaders, data);

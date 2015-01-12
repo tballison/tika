@@ -20,6 +20,7 @@ package org.apache.tika.eval;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
+import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 
@@ -56,17 +58,16 @@ public class SingleFileProfiler extends AbstractProfiler {
             output.put(HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
         }
 
-        String content = getContent(metadataList);
         output.put(HEADERS.FILE_EXTENSION.name(), getOriginalFileExtension(thisFile.getName()));
         output.put(HEADERS.ELAPSED_TIME_MILLIS.name(), getTime(metadataList));
         output.put(HEADERS.NUM_METADATA_VALUES.name(),
                 Integer.toString(countMetadataValues(metadataList)));
         output.put(HEADERS.NUM_ATTACHMENTS.name(), Integer.toString(metadataList.size()-1));
         getExceptionStrings(metadataList, "", output);
-        langid(content, "", output);
-        Map<String, MutableValueInt> tokens = null;
+        langid(metadataList, "", output);
+        SingleFileTokenCounter tokens = new SingleFileTokenCounter();
         try {
-            tokens = getTokens(content);
+            countTokens(metadataList, tokens);
             handleWordCounts(output, tokens, "");
         } catch (IOException e) {
             //should log
@@ -79,4 +80,36 @@ public class SingleFileProfiler extends AbstractProfiler {
         }
         return true;
     }
+
+    class SingleFileTokenCounter extends TokenCounter {
+        private final Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();
+
+
+        @Override
+        public void increment (String s){
+            MutableValueInt i = m.get(s);
+            if (i == null) {
+                i = new MutableValueInt();
+                i.value = 0;
+            }
+            incrementOverallCounts(i.value);
+            i.value++;
+            m.put(s, i);
+        }
+
+        @Override
+        public Collection<String> getTokens() {
+            return m.keySet();
+        }
+
+        @Override
+        public int getCount(String token) {
+            MutableValueInt i = m.get(token);
+            if (i == null) {
+                return 0;
+            }
+            return i.value;
+        }
+    }
+
 }

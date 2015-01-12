@@ -38,6 +38,7 @@ public class BasicFileComparerManager extends ConsumersManager {
     public void init() {
         try {
             writer.writeHeaders();
+            writer.init();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

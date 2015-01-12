@@ -16,9 +16,10 @@ public class CSVTableWriter implements TableWriter {
         wrapper = new ThreadSafeCSVWrapper(printer, queueSize, colInfos);
     }
 
+    @Override
     public void init() {
         wrapperThread = new Thread(wrapper);
-        wrapperThread.run();
+        wrapperThread.start();
     }
 
     @Override
@@ -44,13 +45,6 @@ public class CSVTableWriter implements TableWriter {
         }
         wrapper.shutdown();
         wrapperThread.interrupt();
-        if (wrapper != null) {
-            try {
-                wrapper.close();
-            } catch (IOException e) {
-                //log it
-            }
-        }
     }
 
     @Override

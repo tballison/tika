@@ -98,6 +98,7 @@ public class BatchProcessBuilder {
                 incomingRuntimeAttributes, docElement);
         int maxAliveTimeSeconds = XMLDOMUtil.getInt("maxAliveTimeSeconds",
                 incomingRuntimeAttributes, docElement);
+
         FileResourceCrawler crawler = null;
         ConsumersManager consumersManager = null;
         IStatusReporter reporter = null;

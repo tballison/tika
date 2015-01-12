@@ -46,7 +46,7 @@ class ThreadSafeCSVWrapper implements Runnable, TableWriter {
         for (ColInfo colInfo : colInfos.values()) {
             max = (max > colInfo.getJavaColOffset()) ? max : colInfo.getJavaColOffset();
         }
-        String[] headers = new String[max];
+        String[] headers = new String[max+1];
 
         for (Map.Entry<String, ColInfo> info : colInfos.entrySet()) {
             if (info.getValue().getDBColOffset() < 1) {
@@ -58,11 +58,14 @@ class ThreadSafeCSVWrapper implements Runnable, TableWriter {
     }
 
 
+    @Override
     public void init() {
-
+        //no-op
     }
+
     @Override
     public void run() {
+
         while (keepGoing) {
             try {
                 Iterable<String> row = queue.poll(100, TimeUnit.MILLISECONDS);
@@ -89,7 +92,7 @@ class ThreadSafeCSVWrapper implements Runnable, TableWriter {
 
     @Override
     public void writeHeaders() {
-        boolean headersWritten = headerWritten.compareAndSet(false, true);
+        boolean headersWritten = headerWritten.getAndSet(true);
         if (!headersWritten) {
             List<String> list = new ArrayList<String>();
             for (String h : headers) {
@@ -140,6 +143,7 @@ class ThreadSafeCSVWrapper implements Runnable, TableWriter {
 
 
     public void close() throws IOException {
+        printer.flush();
         printer.close();
     }
 }

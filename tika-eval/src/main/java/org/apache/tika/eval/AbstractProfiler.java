@@ -56,6 +56,8 @@ import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.tokens.TokenCounter;
+import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
@@ -99,8 +101,21 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     };
 
     private static AtomicInteger threadNum = new AtomicInteger(0);
+    private static final Version LUCENE_VERSION = Version.LUCENE_4_10_3;
+    private static final String LUCENE_FIELD = "f";
 
-    final static int MAX_STRING_LENGTH = 2000000;
+
+    //maximum tokens to extract when counting words
+    //for memory purposes, beware! In BasicFileComparer in a worst case scenario
+    //where two very long files are entirely different,
+    //the number of tokens stored is multiplied by 6:
+    // 1) tokens in this,
+    // 2) tokens in that
+    // 3) unique tokens in this
+    // 4) unique tokens in that
+    // 5) 2xdiff token counts
+    final static int MAX_TOKENS = 100000;
+    final static int MAX_STRING_LENGTH = 1000000;
     final static int MAX_LEN_FOR_LANG_ID = 20000;
     final static int TOP_N_WORDS = 10;
 
@@ -157,25 +172,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    String getContent(List<Metadata> metadataList) {
-        if (metadataList == null) {
-            return "";
-        }
 
-        StringBuilder sb = new StringBuilder();
-        for (Metadata m : metadataList) {
-            String c = m.get(RecursiveParserWrapper.TIKA_CONTENT);
-            if (c != null) {
-                sb.append(c);
-                sb.append("\n\n");
-                if (sb.length() > MAX_STRING_LENGTH) {
-                    sb.setLength(MAX_STRING_LENGTH);
-                    break;
-                }
-            }
-        }
-        return sb.toString();
-    }
 
 
     String getOriginalFileExtension(String fName) {
@@ -236,9 +233,40 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                 }
                 matcher = CAUSED_BY_SNIPPER.matcher(exc);
                 exc = matcher.replaceAll("$1");
-                data.put(HEADERS.SORT_STACK_TRACE+extension, exc);
+                data.put(HEADERS.SORT_STACK_TRACE + extension, exc);
             }
         }
+    }
+
+    protected static String getContent(List<Metadata> metadataList, int maxLength) {
+        StringBuilder content = new StringBuilder();
+        if (metadataList == null) {
+            return "";
+        }
+        for (Metadata m : metadataList) {
+            String c = m.get(RecursiveParserWrapper.TIKA_CONTENT);
+            if (c == null) {
+                continue;
+            }
+            int localLen = c.length();
+            if (content.length()+localLen > maxLength) {
+                int allowedAmount = maxLength-content.length();
+                if (allowedAmount <= 0) {
+                    return content.toString();
+                }
+                String substr = c.substring(0,allowedAmount);
+                content.append(substr);
+                return content.toString();
+            } else {
+                content.append(c);
+            }
+        }
+        return content.toString();
+    }
+
+    void langid(List<Metadata> metadataList, String extension, Map<String, String> data) {
+        String content = getContent(metadataList, MAX_LEN_FOR_LANG_ID);
+        langid(content, extension, data);
     }
 
     void langid(String content, String extension, Map<String, String> data) {
@@ -277,25 +305,29 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                         Double.toString(probabilities.get(2).prob));
             }
 
-
         } catch (LangDetectException e) {
-            //log
+            //TODO: log
         }
     }
 
     void handleWordCounts(Map<String, String> data,
-                                  Map<String, MutableValueInt> tokens, String extension) {
+                                  TokenCounter tokens, String extension) {
         MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
-        for (Map.Entry<String, MutableValueInt> e : tokens.entrySet()) {
+        for (String t : tokens.getTokens()) {
+            int count = tokens.getCount(t);
+            if (count == 0) {
+                continue;
+            }
             if (queue.top() == null || queue.size() < TOP_N_WORDS ||
-                    e.getValue().value >= queue.top().value){
-                queue.insertWithOverflow(new TermIntPair(e.getKey(), e.getValue().value));
+                    count >= queue.top().getValue()){
+                queue.insertWithOverflow(new TokenIntPair(t, count));
             }
         }
 
         StringBuilder sb = new StringBuilder();
-        TermIntPair term = queue.pop();
-        List<TermIntPair> terms = new ArrayList<TermIntPair>();
+        List<TokenIntPair> terms = new ArrayList<TokenIntPair>();
+        //now we reverse the queue
+        TokenIntPair term = queue.pop();
         while (term != null) {
             terms.add(0, term);
             term = queue.pop();
@@ -303,12 +335,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
         int stops = 0;
         int i = 0;
-        for (TermIntPair t : terms) {
+        for (TokenIntPair t : terms) {
             if (i++ > 0) {
                 sb.append(" | ");
             }
-            sb.append(t.term + ": " + t.value);
-            if (en_stops.contains(t.term)){
+            sb.append(t.getToken() + ": " + t.getValue());
+            if (en_stops.contains(t.getToken())){
                 stops++;
             }
         }
@@ -317,33 +349,59 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         data.put(HEADERS.NUM_EN_STOPS_TOP_N+extension, Integer.toString(stops));
     }
 
-    Map<String, MutableValueInt> getTokens(String s) throws IOException {
+    void countTokens(final List<Metadata> metadataList, final TokenCounter counter) throws IOException {
+        Analyzer analyzer = new ICUAnalyzer(LUCENE_VERSION, CharArraySet.EMPTY_SET);
+        TokenCounter tokens;
+        if (metadataList == null){
+            return;
+        }
+        int contentLength = 0;
+        for (Metadata m : metadataList) {
+            String content = m.get(RecursiveParserWrapper.TIKA_CONTENT);
+            if (content == null) {
+                continue;
+            }
+            contentLength += content.length();
+            addTokens(content, analyzer, counter);
+            if (contentLength > MAX_STRING_LENGTH || counter.getUniqueTokenCount() > MAX_TOKENS) {
+                //log this
+                return;
+            }
+        }
+        return;
+    }
+
+    void addTokens(String s, Analyzer analyzer,
+                                           final TokenCounter counter) throws IOException {
         if (s == null || s.equals("")) {
-            return new HashMap<String, MutableValueInt>();
+            return;
         }
 
-        Analyzer analyzer = new ICUAnalyzer(Version.LUCENE_4_9, CharArraySet.EMPTY_SET);
-        Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();
         TokenStream stream = analyzer.tokenStream("", s);
         stream.reset();
         CharTermAttribute attr = stream.getAttribute(CharTermAttribute.class);
         while (stream.incrementToken()) {
             String t = attr.toString();
-
-            MutableValueInt i = m.get(t);
-            if (i == null) {
-                i = new MutableValueInt();
-                i.value = 0;
-            }
-            i.value++;
-            m.put(t, i);
+            counter.increment(t);
         }
         stream.end();
         stream.close();
-        return m;
+        return;
     }
 
 
+/*    protected IndexReader index(List<Metadata> metadataList) {
+        IndexReader reader = null;
+        MemoryIndex index = new MemoryIndex();
+        Analyzer analyzer = new ICUAnalyzer(LUCENE_VERSION, CharArraySet.EMPTY_SET);
+        for (Metadata m : metadataList) {
+            String content = m.get(RecursiveParserWrapper.TIKA_CONTENT);
+            if (content != null) {
+                index.addField(LUCENE_FIELD, content, analyzer);
+            }
+        }
+        return index.createSearcher().getIndexReader();
+    }*/
 
     private class ICUAnalyzer extends Analyzer {
 
@@ -372,7 +430,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    class MutableValueIntPriorityQueue extends PriorityQueue<TermIntPair> {
+    class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
 
         MutableValueIntPriorityQueue(int maxSize) {
             super(maxSize);
@@ -380,22 +438,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
 
         @Override
-        protected boolean lessThan(TermIntPair arg0, TermIntPair arg1) {
-            if (arg0.value < arg1.value){
+        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
+            if (arg0.getValue() < arg1.getValue()){
                 return true;
             }
             return false;
         }
     }
 
-    class TermIntPair {
-        final String term;
-        final int value;
-
-        TermIntPair(String term, int value) {
-            this.term = term;
-            this.value = value;
-        }
-    }
 
 }
