@@ -19,6 +19,7 @@ package org.apache.tika.parser.pkg;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Date;
 import java.util.Set;
 
 import org.apache.commons.compress.archivers.ArchiveEntry;
@@ -32,7 +33,10 @@ import org.apache.commons.compress.archivers.dump.DumpArchiveInputStream;
 import org.apache.commons.compress.archivers.jar.JarArchiveInputStream;
 import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException;
+import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException.Feature;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
@@ -44,6 +48,7 @@ import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -127,9 +132,22 @@ public class PackageParser extends AbstractParser {
                 stream.reset();
                 TikaInputStream tstream = TikaInputStream.get(stream, tmp);
                 
-                // Pending a fix for COMPRESS-269, this bit is a little nasty
-                ais = new SevenZWrapper(new SevenZFile(tstream.getFile()));
+                // Seven Zip suports passwords, was one given?
+                String password = null;
+                PasswordProvider provider = context.get(PasswordProvider.class);
+                if (provider != null) {
+                    password = provider.getPassword(metadata);
+                }
                 
+                SevenZFile sevenz;
+                if (password == null) {
+                    sevenz = new SevenZFile(tstream.getFile());
+                } else {
+                    sevenz = new SevenZFile(tstream.getFile(), password.getBytes("UnicodeLittleUnmarked"));
+                }
+                
+                // Pending a fix for COMPRESS-269 / TIKA-1525, this bit is a little nasty
+                ais = new SevenZWrapper(sevenz);
             } else {
                 tmp.close();
                 throw new TikaException("Unknown non-streaming format " + sne.getFormat(), sne);
@@ -160,6 +178,19 @@ public class PackageParser extends AbstractParser {
                 }
                 entry = ais.getNextEntry();
             }
+        } catch (UnsupportedZipFeatureException zfe) {
+            // If it's an encrypted document of unknown password, report as such
+            if (zfe.getFeature() == Feature.ENCRYPTION) {
+                throw new EncryptedDocumentException(zfe);
+            }
+            // Otherwise fall through to raise the exception as normal
+        } catch (IOException ie) {
+            // Is this a password protection error? 
+            // (COMPRESS-298 should give a nicer way when implemented, see TIKA-1525)
+            if ("Cannot read encrypted files without a password".equals(ie.getMessage())) {
+                throw new EncryptedDocumentException();
+            }
+            // Otherwise fall through to raise the exception as normal
         } finally {
             ais.close();
             tmp.close();
@@ -175,20 +206,10 @@ public class PackageParser extends AbstractParser {
         String name = entry.getName();
         if (archive.canReadEntryData(entry)) {
             // Fetch the metadata on the entry contained in the archive
-            Metadata entrydata = new Metadata();
-            entrydata.set(TikaCoreProperties.MODIFIED, entry.getLastModifiedDate());
-            entrydata.set(Metadata.CONTENT_LENGTH, Long.toString(entry.getSize()));
-            if (name != null && name.length() > 0) {
-                entrydata.set(Metadata.RESOURCE_NAME_KEY, name);
-                AttributesImpl attributes = new AttributesImpl();
-                attributes.addAttribute("", "class", "class", "CDATA", "embedded");
-                attributes.addAttribute("", "id", "id", "CDATA", name);
-                xhtml.startElement("div", attributes);
-                xhtml.endElement("div");
-
-                entrydata.set(Metadata.EMBEDDED_RELATIONSHIP_ID, name);
-            }
+            Metadata entrydata = handleEntryMetadata(name, null, 
+                    entry.getLastModifiedDate(), entry.getSize(), xhtml);
             
+            // Recurse into the entry if desired
             if (extractor.shouldParseEmbedded(entrydata)) {
                 // For detectors to work, we need a mark/reset supporting
                 // InputStream, which ArchiveInputStream isn't, so wrap
@@ -203,6 +224,34 @@ public class PackageParser extends AbstractParser {
         } else if (name != null && name.length() > 0) {
             xhtml.element("p", name);
         }
+    }
+    
+    protected static Metadata handleEntryMetadata(
+            String name, Date createAt, Date modifiedAt,
+            Long size, XHTMLContentHandler xhtml)
+            throws SAXException, IOException, TikaException {
+        Metadata entrydata = new Metadata();
+        if (createAt != null) {
+            entrydata.set(TikaCoreProperties.CREATED, createAt);
+        }
+        if (modifiedAt != null) {
+            entrydata.set(TikaCoreProperties.MODIFIED, modifiedAt);
+        }
+        if (size != null) {
+            entrydata.set(Metadata.CONTENT_LENGTH, Long.toString(size));
+        }
+        if (name != null && name.length() > 0) {
+            name = name.replace("\\", "/");
+            entrydata.set(Metadata.RESOURCE_NAME_KEY, name);
+            AttributesImpl attributes = new AttributesImpl();
+            attributes.addAttribute("", "class", "class", "CDATA", "embedded");
+            attributes.addAttribute("", "id", "id", "CDATA", name);
+            xhtml.startElement("div", attributes);
+            xhtml.endElement("div");
+
+            entrydata.set(Metadata.EMBEDDED_RELATIONSHIP_ID, name);
+        }
+        return entrydata;
     }
 
     // Pending a fix for COMPRESS-269, we have to wrap ourselves

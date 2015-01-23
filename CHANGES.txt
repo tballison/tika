@@ -1,4 +1,11 @@
-Release 1.7 - 1/5/2015
+Release 1.8 - Current Development
+
+  * Support password protected 7zip files (using a PasswordProvider,
+    in keeping with the other password supporting formats) (TIKA-1521)
+
+  * Password protected Zip files should not trigger an exception (TIKA-1028)
+
+Release 1.7 - 1/9/2015
 
   * Fixed resource leak in OutlookPSTParser that caused TikaException 
     when invoked via AutoDetectParser on Windows (TIKA-1506).
