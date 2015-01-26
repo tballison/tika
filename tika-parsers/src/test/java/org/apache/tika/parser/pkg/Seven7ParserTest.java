@@ -31,6 +31,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.PasswordProvider;
 import org.apache.tika.sax.BodyContentHandler;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 
@@ -125,6 +126,7 @@ public class Seven7ParserTest extends AbstractPkgTest {
        }
     }
 
+    @Ignore
     @Test
     public void testPasswordProtected() throws Exception {
         Parser parser = new AutoDetectParser();

@@ -22,6 +22,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -112,9 +113,9 @@ public class CommandLineParserBuilder {
             return defaultValue;
         }
 
-        if (n.getNodeValue().toLowerCase().equals("true")) {
+        if (n.getNodeValue().toLowerCase(Locale.ROOT).equals("true")) {
             return true;
-        } else if (n.getNodeValue().toLowerCase().equals("false")) {
+        } else if (n.getNodeValue().toLowerCase(Locale.ROOT).equals("false")) {
             return false;
         }
         return defaultValue;

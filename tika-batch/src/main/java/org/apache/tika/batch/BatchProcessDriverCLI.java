@@ -203,7 +203,7 @@ public class BatchProcessDriverCLI {
         private BufferedReader reader;
 
         private InterruptWatcher(InputStream is) {
-            reader = new BufferedReader(new InputStreamReader(is));
+            reader = new BufferedReader(new InputStreamReader(is, IOUtils.UTF_8));
         }
 
         @Override

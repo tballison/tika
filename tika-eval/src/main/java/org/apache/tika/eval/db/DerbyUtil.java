@@ -24,6 +24,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Locale;
 
 public class DerbyUtil {
 
@@ -44,7 +45,7 @@ public class DerbyUtil {
         DatabaseMetaData dbmeta = conn.getMetaData();
         int numRows = 0;
 
-        ResultSet rs = dbmeta.getTables( null, "APP", tableName.toUpperCase(), null);
+        ResultSet rs = dbmeta.getTables( null, "APP", tableName.toUpperCase(Locale.ROOT), null);
         while( rs.next() ) ++numRows;
         rs.close();
         st.close();

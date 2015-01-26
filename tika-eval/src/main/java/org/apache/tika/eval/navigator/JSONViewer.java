@@ -7,6 +7,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.io.Reader;
 import java.util.List;
 
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 
@@ -41,7 +43,7 @@ public class JSONViewer {
 
         Reader reader;
         try {
-            reader = new InputStreamReader(new FileInputStream(file));
+            reader = new InputStreamReader(new FileInputStream(file), IOUtils.UTF_8);
         } catch (IOException e) {
             throw new WebApplicationException(javax.ws.rs.core.Response.Status.NOT_FOUND);
         }

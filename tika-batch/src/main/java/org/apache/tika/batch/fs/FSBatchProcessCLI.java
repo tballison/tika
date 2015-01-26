@@ -19,7 +19,7 @@ package org.apache.tika.batch.fs;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -135,7 +135,7 @@ public class FSBatchProcessCLI {
         if (log4jFile == null || log4jFile.trim().length()==0) {
             ConsoleAppender appender = new ConsoleAppender();
             appender.setLayout(new PatternLayout("%m%n"));
-            appender.setWriter(new PrintWriter(System.out));
+            appender.setWriter(new OutputStreamWriter(System.out, IOUtils.UTF_8.name()));
             BasicConfigurator.configure(appender);
             Logger.getRootLogger().setLevel(Level.INFO);
         }
