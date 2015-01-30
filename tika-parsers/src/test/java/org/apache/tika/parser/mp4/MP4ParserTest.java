@@ -90,6 +90,7 @@ public class MP4ParserTest {
         assertEquals("44100", metadata.get(XMPDM.AUDIO_SAMPLE_RATE));
         assertEquals("Stereo", metadata.get(XMPDM.AUDIO_CHANNEL_TYPE));
         assertEquals("M4A", metadata.get(XMPDM.AUDIO_COMPRESSOR));
+        assertEquals("0.07", metadata.get(XMPDM.DURATION));
         
         assertEquals("iTunes 10.5.3.3", metadata.get(XMP.CREATOR_TOOL));
         

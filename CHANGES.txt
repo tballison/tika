@@ -1,4 +1,9 @@
 Release 1.8 - Current Development
+  * Build a parser to extract data from GRIB formats (TIKA-1423)
+
+  * Upgrade to Commons Compress 1.9 (TIKA-1534).
+
+  * Include media duration in metadata parsed by MP4Parser (TIKA-1530).
 
   * Support password protected 7zip files (using a PasswordProvider,
     in keeping with the other password supporting formats) (TIKA-1521)
