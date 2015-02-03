@@ -67,6 +67,8 @@ public class ColInfo {
                 return "BLOB";
             case Types.INTEGER :
                 return "INTEGER";
+            case Types.BIGINT :
+                return "BIGINT";
         }
         throw new UnsupportedOperationException("Don't yet recognize a type for: "+type);
     }

@@ -29,6 +29,10 @@ import org.apache.tika.metadata.Metadata;
 
 public abstract class FileResourceCrawler implements Callable<IFileProcessorFutureResult> {
 
+    protected final static int SKIPPED = 0;
+    protected final static int ADDED = 1;
+    protected final static int STOP_NOW = 2;
+
     private volatile boolean hasCompletedCrawling = false;
     private volatile boolean isActive = true;
     private volatile boolean timedOut = false;
@@ -85,10 +89,14 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
         return new FileResourceCrawlerFutureResult(considered, added);
     }
 
-    protected boolean tryToAdd(FileResource fileResource) throws InterruptedException {
+    protected int tryToAdd(FileResource fileResource) throws InterruptedException {
 
         if (maxFilesToAdd > -1 && added >= maxFilesToAdd) {
-            shutdown();
+            return STOP_NOW;
+        }
+
+        if (maxFilesToConsider > -1 && considered > maxFilesToConsider) {
+            return STOP_NOW;
         }
 
         boolean isAdded = false;
@@ -115,7 +123,7 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
             logger.debug("crawler did not select: "+fileResource.getResourceId());
         }
         considered++;
-        return isAdded;
+        return (isAdded)?ADDED:SKIPPED;
     }
 
     private void shutdown() throws InterruptedException {

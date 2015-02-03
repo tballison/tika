@@ -62,17 +62,91 @@ public class FileComparerResultDumper {
         String dirNameB = dirNames[1];
         createTempTables(st);
         try {
-/*            dumpLangs(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Metadata values");
+            dumpMetadata(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Detected langs");
+            dumpLangs(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Stack traces");
             dumpStackTraces(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Exceptions");
             dumpExceptions(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Attachments");
             dumpAttachments(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Mime types");
             dumpMimes(dirNameA, dirNameB, outputDir, st);
-            dumpDiffContents(dirNameA, dirNameB, outputDir, st);*/
+            System.out.println("File contents");
+            dumpDiffContents(dirNameA, dirNameB, outputDir, st);
+            System.out.println("Processing times");
             dumpTimes(dirNameA, dirNameB, outputDir, st);
+
         } finally {
             st.close();
             connection.close();
         }
+    }
+
+    private void dumpMetadata(String dirNameA, String dirNameB, File outputDir, Statement st)
+            throws SQLException, IOException, SAXException {
+        File metadataDir = new File(outputDir, "metadata");
+        metadataDir.mkdirs();
+        String sql = "SELECT DETECTED_FILE_EXTENSION_B, count(1) as COUNT "+
+                " from comparisons "+
+                "where JSON_EX_A is null and JSON_EX_B is null and "+
+                "SORT_STACK_TRACE_A is null and SORT_STACK_TRACE_B is null and "+
+                "DIFF_NUM_ATTACHMENTS = 0 and "+
+                "DIFF_NUM_METADATA_VALUES < 0 "+
+                "group by DETECTED_FILE_EXTENSION_B";
+
+        dumpTable(metadataDir, "fewer_metadata_values_in_B_by_detected_extension.html",
+                "Files with fewer metadata values in \"" + dirNameB + "\" than in \""+dirNameA+
+                        "\" by detected file extension",
+                sql, st);
+
+        sql = "SELECT DETECTED_FILE_EXTENSION_A, count(1) as COUNT "+
+                " from comparisons "+
+                "where JSON_EX_A is null and JSON_EX_B is null and "+
+                "SORT_STACK_TRACE_A is null and SORT_STACK_TRACE_B is null and "+
+                "DIFF_NUM_ATTACHMENTS = 0 and "+
+                "DIFF_NUM_METADATA_VALUES > 0 "+
+                "group by DETECTED_FILE_EXTENSION_A";
+
+        dumpTable(metadataDir, "fewer_metadata_values_in_A_by_detected_extension.html",
+                "Files with fewer metadata values in \"" + dirNameA + "\" than in \""+dirNameB+
+                        "\" by detected file extension",
+                sql, st);
+
+        sql = "SELECT comparisons.detected_content_type_A, " +
+                "sum(ifnull(NUM_METADATA_VALUES_A, 0)) as NUM_METADATA_VALUES_TOTAL, " +
+                detected_types_A_table +".NUM_FILES as TOTAL_FILES, "+
+                "printf(\"%.2f \", (1.0*sum(ifnull(NUM_METADATA_VALUES_A, 0))/"+detected_types_A_table+".NUM_FILES)) as "+
+                "'Average number of metadata values per file' "+
+                "from comparisons " +
+                "left outer join "+detected_types_A_table+" on comparisons.detected_content_type_A="
+                +detected_types_A_table+".DETECTED_CONTENT_TYPE_A "+
+                "group by comparisons.DETECTED_CONTENT_TYPE_A " +
+                "order by NUM_METADATA_VALUES_TOTAL desc;";
+
+
+        dumpTable(metadataDir, "metadata_values_in_A_by_content_type.html",
+                "Number of metadata values per content type in \"" + dirNameA+"\"",
+                sql, st);
+
+        sql = "SELECT comparisons.detected_content_type_B, " +
+                "sum(ifnull(NUM_METADATA_VALUES_B, 0)) as NUM_METADATA_VALUES_TOTAL, " +
+                detected_types_B_table +".NUM_FILES as TOTAL_FILES, "+
+                "printf(\"%.2f \", (1.0*sum(ifnull(NUM_METADATA_VALUES_B, 0))/"+detected_types_B_table+".NUM_FILES)) as "+
+                "'Average number of metadata values per file' "+
+                "from comparisons " +
+                "left outer join "+detected_types_B_table+" on comparisons.detected_content_type_B="
+                +detected_types_B_table+".DETECTED_CONTENT_TYPE_B "+
+                "group by comparisons.DETECTED_CONTENT_TYPE_B " +
+                "order by NUM_METADATA_VALUES_TOTAL desc;";
+
+
+        dumpTable(metadataDir, "metadata_values_in_B_by_content_type.html",
+                "Number of metadata values per content type in \"" + dirNameA+"\"",
+                sql, st);
+
     }
 
 
@@ -328,7 +402,7 @@ public class FileComparerResultDumper {
                 "group by SORT_STACK_TRACE_A "+
                 "order by COUNT desc "+
                 "LIMIT 50;";
-        dumpTable(exceptionsDir, "stack_traces_in_B_overall.html",
+        dumpTable(exceptionsDir, "stack_traces_in_A_overall.html",
                 "Top 50 most common stacktraces in " + dirNameA,
                 sql, st);
 
@@ -478,7 +552,7 @@ public class FileComparerResultDumper {
                 "order by COUNT desc ";
 
         dumpTable(mimesDir, "extension_diff_from_A.html",
-                "\"Detected extensions\" vs. actual file extensions with \"" + dirNameA+"\"",
+                "Actual file extensions vs. \"Detected extensions\" in \"" + dirNameA+"\"",
                 sql, st);
 
         sql = "select FILE_EXTENSION || '->' || DETECTED_FILE_EXTENSION_B as 'Actual file extension->Detected file extension'," +
@@ -491,7 +565,7 @@ public class FileComparerResultDumper {
                 "order by COUNT desc ";
 
         dumpTable(mimesDir, "extension_diff_from_B.html",
-                "\"Detected extensions\" vs. actual file extensions with \"" + dirNameB+"\"",
+                "Actual file extensions vs. \"Detected extensions\" in \"" + dirNameB+"\"",
                 sql, st);
 
         //now for the diffs
@@ -629,7 +703,7 @@ public class FileComparerResultDumper {
         //now caught exceptions
         sql = "SELECT comparisons.File_Extension, " +
                 extensions_total_table +".NUM_FILES as 'Number of files', "+
-                "count(1) as 'Number of files with caught exceptions', " +
+                "count(1) as 'Number of files with exceptions', " +
                 "printf(\"%.2f%% \", (100.0*ifNull(count(1), 0)/"+extensions_total_table+".NUM_FILES))"+
                 " as 'Percentage of files with exceptions' "+
                 "from comparisons " +
@@ -638,13 +712,13 @@ public class FileComparerResultDumper {
                 "group by comparisons.FILE_EXTENSION " +
                         "order by (1.0*ifNull(count(1), 0)/"+extensions_total_table+".NUM_FILES) desc;";
 
-        dumpTable(exceptionsDir, "caught_exceptions_in_A_by_extension.html",
-                "Caught exceptions in \"" + dirNameA + "\"",
+        dumpTable(exceptionsDir, "exceptions_in_A_by_extension.html",
+                "Exceptions in \"" + dirNameA + "\"",
                 sql, st);
 
         sql = "SELECT comparisons.File_Extension, " +
                 extensions_total_table +".NUM_FILES as 'Number of files', "+
-                "count(1) as 'Number of files with caught exceptions', " +
+                "count(1) as 'Number of files with exceptions', " +
                 "printf(\"%.2f%% \", (100.0*ifNull(count(1), 0)/"+extensions_total_table+".NUM_FILES))"+
                 " as 'Percentage of files with exceptions' "+
                 "from comparisons " +
@@ -652,14 +726,14 @@ public class FileComparerResultDumper {
                 "where SORT_STACK_TRACE_B is not null " +
                 "group by comparisons.FILE_EXTENSION " +
                 "order by (1.0*ifNull(count(1), 0)/"+extensions_total_table+".NUM_FILES) desc;";
-        dumpTable(exceptionsDir, "caught_exceptions_in_B_by_extension.html",
-                "Caught exceptions in \"" + dirNameB + "\"",
+        dumpTable(exceptionsDir, "exceptions_in_B_by_extension.html",
+                "Exceptions in \"" + dirNameB + "\"",
                 sql, st);
 
 
         sql = "SELECT comparisons.DETECTED_CONTENT_TYPE_A as 'Detected content type', " +
                 detected_types_A_table +".NUM_FILES as 'Number of files', "+
-                "count(1) as 'Number of files with caught exceptions', " +
+                "count(1) as 'Number of files with exceptions', " +
                 "printf(\"%.2f%% \", (100.0*ifNull(count(1), 0)/"+detected_types_A_table+".NUM_FILES))"+
                 " as 'Percentage of files with exceptions' "+
                 "from comparisons " +
@@ -669,14 +743,14 @@ public class FileComparerResultDumper {
                 "group by comparisons.DETECTED_CONTENT_TYPE_A " +
                 "order by (1.0*ifNull(count(1), 0)/"+detected_types_A_table+".NUM_FILES) desc;";
 
-        dumpTable(exceptionsDir, "caught_exceptions_in_A_by_detected_type.html",
-                "Caught exceptions in \"" + dirNameA + "\"",
+        dumpTable(exceptionsDir, "exceptions_in_A_by_detected_type.html",
+                "Exceptions in \"" + dirNameA + "\"",
                 sql, st);
 
 
         sql = "SELECT comparisons.DETECTED_CONTENT_TYPE_B as 'Detected content type', " +
                 detected_types_B_table +".NUM_FILES as 'Number of files', "+
-                "count(1) as 'Number of files with caught exceptions', " +
+                "count(1) as 'Number of files with exceptions', " +
                 "printf(\"%.2f%% \", (100.0*ifNull(count(1), 0)/"+detected_types_B_table+".NUM_FILES))"+
                 " as 'Percentage of files with exceptions' "+
                 "from comparisons " +
@@ -686,8 +760,8 @@ public class FileComparerResultDumper {
                 "group by comparisons.DETECTED_CONTENT_TYPE_B " +
                 "order by (1.0*ifNull(count(1), 0)/"+detected_types_B_table+".NUM_FILES) desc;";
 
-        dumpTable(exceptionsDir, "caught_exceptions_in_B_by_detected_type.html",
-                "Caught exceptions in \"" + dirNameB + "\"",
+        dumpTable(exceptionsDir, "exceptions_in_B_by_detected_type.html",
+                "Exceptions in \"" + dirNameB + "\"",
                 sql, st);
 
         //now for the comparisons
@@ -718,8 +792,8 @@ public class FileComparerResultDumper {
                 "JSON_EX_A is null and JSON_EX_B is null " +
                 "group by FILE_EXTENSION " +
                 "order by COUNT desc";
-        dumpTable(exceptionsDir, "caught_exceptions_in_B_not_A.html",
-                "Caught Exceptions in \"" + dirNameB + "\" but not in \"" + dirNameA+"\"",
+        dumpTable(exceptionsDir, "exceptions_in_B_not_A.html",
+                "Exceptions in \"" + dirNameB + "\" but not in \"" + dirNameA+"\"",
                 sql, st);
 
         sql = "SELECT File_Extension, count(1) as COUNT " +
@@ -729,8 +803,8 @@ public class FileComparerResultDumper {
                 "group by FILE_EXTENSION " +
                 "order by COUNT desc";
 
-        dumpTable(exceptionsDir, "caught_exceptions_in_A_not_B.html",
-                "Caught Exceptions in \"" + dirNameA + "\" but not in \"" + dirNameB+"\"",
+        dumpTable(exceptionsDir, "exceptions_in_A_not_B.html",
+                "Exceptions in \"" + dirNameA + "\" but not in \"" + dirNameB+"\"",
                 sql, st);
 
         dumpExceptionComparisonTable(dirNameA, dirNameB, exceptionsDir, st);
@@ -741,20 +815,20 @@ public class FileComparerResultDumper {
             throws SQLException, IOException, SAXException {
 
         String sql = "select "+extensions_total_table+".FILE_EXTENSION as 'File Extension', NUM_FILES as 'Number of Files', " +
-                "ifNull(NUM_CAUGHT_EXCEPTIONS_A, 0) as 'Number of Caught Exceptions in A', " +
-                "ifNull(NUM_CAUGHT_EXCEPTIONS_B, 0) as 'Number of Caught Exceptions in B', " +
+                "ifNull(NUM_CAUGHT_EXCEPTIONS_A, 0) as 'Number of Exceptions in A', " +
+                "ifNull(NUM_CAUGHT_EXCEPTIONS_B, 0) as 'Number of Exceptions in B', " +
                 "(ifNull(NUM_CAUGHT_EXCEPTIONS_B, 0) - ifNull(NUM_CAUGHT_EXCEPTIONS_A, 0)) as 'Number of Differences A to B', " +
                 "printf(\"%.2f %%\", (100.0*ifNull("+exceptions_A_table+".NUM_CAUGHT_EXCEPTIONS_A, 0)/NUM_FILES)) as " +
-                    "'Percent Caught Exceptions in A', " +
+                    "'Percent Exceptions in A', " +
                 "printf(\"%.2f %% \", (100.0*ifNull("+exceptions_B_table+".NUM_CAUGHT_EXCEPTIONS_B, 0)/NUM_FILES)) as " +
-                "   'Percent Caught Exceptions in B' " +
+                "   'Percent Exceptions in B' " +
                 "from " +extensions_total_table+" "+
                 "left join " + exceptions_A_table +" on "+extensions_total_table+".file_extension ="+exceptions_A_table+".file_extension " +
                 "left join " + exceptions_B_table + " on "+extensions_total_table+".[file_extension] ="+exceptions_B_table+".file_extension " +
                 "where (ifNull(NUM_CAUGHT_EXCEPTIONS_B, 0) - ifNull(NUM_CAUGHT_EXCEPTIONS_A, 0)) <> 0 "+
                 "order by abs(ifNull(NUM_CAUGHT_EXCEPTIONS_B, 0) - ifNull(NUM_CAUGHT_EXCEPTIONS_A, 0)) desc;";
         dumpTable(exceptionsDir, "differences_in_exception_counts.html",
-                "Differences in caught exceptions in \"" + dirNameA + "\" vs. \"" + dirNameB+"\"",
+                "Differences in exceptions in \"" + dirNameA + "\" vs. \"" + dirNameB+"\"",
                 sql,
                 st);
     }

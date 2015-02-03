@@ -271,8 +271,6 @@ public class BatchProcess {
             restartMsg = BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString();
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.CRAWLER_TIMED_OUT) {
             restartMsg = "Crawler timed out.";
-        } else if (crawlerRemoved == 0) {
-            restartMsg = "Crawler did not complete.";
         } else if (fileResourceCrawler.wasTimedOut()) {
             restartMsg = "Crawler was timed out.";
         } else if (fileResourceCrawler.isActive()) {
@@ -294,7 +292,7 @@ public class BatchProcess {
         //Now we try to shutdown the ConsumersManager
         //TODO: put this in a separate thread and time it out if necessary.
         //a ConsumersManager shutdown hang would cause entire BatchProcess to hang.
-        logger.info("ConsumersManager is shutting down");
+        logger.info("ConsumersManager is about to shut down");
         consumersManager.shutdown();
         logger.info("ConsumersManager has shut down");
 

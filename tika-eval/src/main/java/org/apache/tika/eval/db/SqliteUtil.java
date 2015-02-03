@@ -48,6 +48,7 @@ public class SqliteUtil extends DBUtil {
 
     @Override
     public void shutDownDB(Connection conn) throws IOException {
+        System.out.println("SHUTTING DOWN DB in SQLITE UTIL");
         try {
             conn.close();
         } catch (SQLException e) {

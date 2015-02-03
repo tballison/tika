@@ -140,7 +140,12 @@ public class FSBatchProcessCLI {
             Logger.getRootLogger().setLevel(Level.INFO);
         }
         FSBatchProcessCLI cli = new FSBatchProcessCLI(args);
-        cli.execute(args);
+        try{
+            cli.execute(args);
+        } catch (Throwable t) {
+            logger.fatal("Fatal exception from FSBatchProcessCLI: "+t.getMessage(), t);
+            System.exit(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE);
+        }
     }
 
 }

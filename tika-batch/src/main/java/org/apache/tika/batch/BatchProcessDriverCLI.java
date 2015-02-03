@@ -93,6 +93,7 @@ public class BatchProcessDriverCLI {
             } catch (IllegalThreadStateException e) {
                 //hasn't exited
             }
+            logger.trace("BatchProcessDriverCLI sees an exit value: "+hasExited + " : " + exit);
             //Even if the process has exited,
             //wait just a little bit to make sure that
             //mustRestart hasn't been set to true
@@ -163,6 +164,7 @@ public class BatchProcessDriverCLI {
 
     private void stop() {
         if (process != null) {
+            logger.trace("destroying a non-null process");
             process.destroy();
         }
 
@@ -275,6 +277,7 @@ public class BatchProcessDriverCLI {
             String line = null;
             try {
                 while ((line = reader.readLine()) != null && this.running) {
+//                    System.out.println("BatchProcess: "+line);
                     if (line.startsWith(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString())) {
                         mustRestartProcess = true;
                     }

@@ -79,6 +79,7 @@ public class BasicFileComparer extends AbstractProfiler {
         thisDirLen = thsRootDir.getAbsolutePath().length() + 1;
         headers = new HashMap<String, ColInfo>();
         addHeader(headers, HEADERS.FILE_PATH);
+        addHeader(headers, HEADERS.FILE_LENGTH);
         addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.ORIG_STACK_TRACE, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.SORT_STACK_TRACE, thisExtension, thatExtension);
@@ -141,6 +142,7 @@ public class BasicFileComparer extends AbstractProfiler {
 
         File thisFile = new File(thisRootDir, relativePath);
         File thatFile = new File(thatRootDir, relativePath);
+        System.out.println("comparing "+thisFile + " : " + thatFile );
 
         try {
             Map<String, String> output = compareFiles(relativePath, thisFile, thatFile);
@@ -160,6 +162,15 @@ public class BasicFileComparer extends AbstractProfiler {
         List<Metadata> thatMetadata = getMetadata(thatFile);
         Map<String, String> output = new HashMap<String, String>();
         output.put(HEADERS.FILE_PATH.name(), relativePath);
+        String lenString = null;
+        if (thisMetadata.size() > 0) {
+            lenString = thisMetadata.get(0).get(Metadata.CONTENT_LENGTH);
+        } else if (thatMetadata.size() > 0) {
+            lenString = thatMetadata.get(0).get(Metadata.CONTENT_LENGTH);
+        }
+        if (lenString != null) {
+            output.put(HEADERS.FILE_LENGTH.name(), lenString);
+        }
 
         if (thisMetadata == null) {
             output.put(HEADERS.JSON_EX + thisExtension,

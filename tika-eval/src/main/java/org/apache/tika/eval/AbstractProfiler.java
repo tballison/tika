@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,17 +39,11 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.core.StopFilter;
-import org.apache.lucene.analysis.icu.ICUFoldingFilter;
-import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.util.PriorityQueue;
-import org.apache.lucene.util.Version;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -64,15 +57,17 @@ import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
-import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypeException;
-import org.apache.tika.mime.MimeTypes;
+import org.apache.tika.eval.util.MimeUtil;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
+    private final static String UNKNOWN_EXTENSION = "unk";
+
     public enum HEADERS {
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
         JSON_EX(new ColInfo(-1, Types.VARCHAR, 1024)),
         ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
@@ -104,20 +99,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     };
 
-    private static AtomicInteger threadNum = new AtomicInteger(0);
-    private static final Version LUCENE_VERSION = Version.LUCENE_4_10_3;
-    private static final String LUCENE_FIELD = "f";
 
-
-    //maximum tokens to extract when counting words
-    //for memory purposes, beware! In BasicFileComparer in a worst case scenario
-    //where two very long files are entirely different,
-    //the number of tokens stored is multiplied by 6:
-    // 1) tokens in this,
-    // 2) tokens in that
-    // 3) unique tokens in this
-    // 4) unique tokens in that
-    // 5) 2xdiff token counts
     final static int MAX_TOKENS = 100000;
     final static int MAX_STRING_LENGTH = 1000000;
     final static int MAX_LEN_FOR_LANG_ID = 20000;
@@ -141,7 +123,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     List<Metadata> getMetadata(File thisFile) {
         Reader reader = null;
-        List<Metadata> metadataList = null;
+        List<Metadata> metadataList = new ArrayList<Metadata>();
         try {
             InputStream is = new FileInputStream(thisFile);
             if (thisFile.getName().endsWith("bz2")) {
@@ -287,8 +269,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
 
         detector.append(s);
-        String lang = null;
-        double prob = -1.0;
         try {
             List<Language> probabilities = detector.getProbabilities();
             if (probabilities.size() > 0) {
@@ -323,11 +303,9 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         output.put(HEADERS.DETECTED_CONTENT_TYPE + extension, type);
 
         try {
-            MimeTypes types = config.getMimeRepository();
-            MimeType mime = types.forName(type);
-            String ext = mime.getExtension();
-            if (ext.startsWith(".")) {
-                ext = ext.substring(1);
+            String ext = MimeUtil.getExtension(type, config);
+            if (ext == null || ext.length() == 0) {
+                ext = UNKNOWN_EXTENSION;
             }
             output.put(HEADERS.DETECTED_FILE_EXTENSION + extension, ext);
         } catch (MimeTypeException e) {
@@ -335,7 +313,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
 
     }
-
 
     void handleWordCounts(Map<String, String> data,
                                   TokenCounter tokens, String extension) {
@@ -377,7 +354,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     void countTokens(final List<Metadata> metadataList, final TokenCounter counter) throws IOException {
-        Analyzer analyzer = new ICUAnalyzer(LUCENE_VERSION, CharArraySet.EMPTY_SET);
+        Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
         TokenCounter tokens;
         if (metadataList == null){
             return;
@@ -429,7 +406,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
         return index.createSearcher().getIndexReader();
     }*/
-
+/*
+//if ICU is desired
     private class ICUAnalyzer extends Analyzer {
 
         private CharArraySet stopWords = null;
@@ -456,7 +434,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         }
     }
-
+*/
     class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
 
         MutableValueIntPriorityQueue(int maxSize) {

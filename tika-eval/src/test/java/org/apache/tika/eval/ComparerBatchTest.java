@@ -32,6 +32,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         String[] args = getDefaultCommandLineArgsArr("testA", null, m);
 
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-comparison-eval-config.xml", args);
+
         driver.execute();
         int rows = 0;
 

@@ -35,8 +35,10 @@ import org.apache.tika.io.IOExceptionWithCause;
 
 /**
  * This is still in its early stages.  The idea is to
- * get something working with sqlite/derby and then add to that
+ * get something working with sqlite and then add to that
  * as necessary.
+ *
+ * Beware, this deletes the db file with each initialization.
  */
 public class JDBCTableWriter implements TableWriter {
 
@@ -86,6 +88,10 @@ public class JDBCTableWriter implements TableWriter {
 
     private Connection createDB(File dbFile, String tableName) throws Exception {
         Class.forName(dbUtil.getJDBCDriverClass());
+
+        if (dbFile.exists() && !dbFile.isDirectory()) {
+            dbFile.delete();
+        }
         Connection c = dbUtil.getConnection(dbFile);
         dbUtil.dropTableIfExists(c, tableName);
 

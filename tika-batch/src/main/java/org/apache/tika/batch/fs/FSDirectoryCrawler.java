@@ -113,9 +113,12 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
                 directories.add(f);
                 continue;
             }
-            boolean added = tryToAdd(new FSFileResource(root, f));
+            int added = tryToAdd(new FSFileResource(root, f));
+            if (added == FileResourceCrawler.STOP_NOW) {
+                logger.debug("crawler has hit a limit: "+f.getAbsolutePath() + " : " + added);
+                return;
+            }
             logger.debug("trying to add: "+f.getAbsolutePath() + " : " + added);
-
         }
 
         for (File f : directories) {

@@ -66,7 +66,14 @@ public abstract class DBUtil {
         //clear parameters before setting
         insertStatement.clearParameters();
         for (Map.Entry<String, ColInfo> e : columns.entrySet()) {
-            updateInsertStatement(insertStatement, e.getKey(), e.getValue(), data.get(e.getKey()));
+            //this catches exceptions per cell
+            try {
+                updateInsertStatement(insertStatement, e.getKey(), e.getValue(), data.get(e.getKey()));
+            } catch (NumberFormatException ex) {
+                logger.warn("Problem parsing a number: "+e.getKey() + " : " + e.getValue());
+            } catch (SQLException sqlex) {
+                logger.warn("Sql problem during insert statement this: " + e.getKey() + " : " + e.getValue());
+            }
         }
         return insertStatement.executeUpdate();
     }
