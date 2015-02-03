@@ -15,6 +15,7 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,7 +25,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -51,11 +51,12 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.lucene.util.Version;
-import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.io.TableWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.exception.TikaException;
@@ -63,6 +64,9 @@ import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
@@ -73,7 +77,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         JSON_EX(new ColInfo(-1, Types.VARCHAR, 1024)),
         ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
         SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
-        DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 32)),
+        DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 128)),
         DETECTED_FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 32)),
         ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
         NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
@@ -127,6 +131,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
 
     private JsonMetadataList serializer = new JsonMetadataList();
+    private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     protected TableWriter writer;
 
 
@@ -171,9 +176,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             throw new BatchNoRestartError(e);
         }
     }
-
-
-
 
     String getOriginalFileExtension(String fName) {
         Matcher m = Pattern.compile("\\.([^\\.]+)\\.json(?:\\.(?:bz2|gz(?:ip)?|zip))?$").matcher(fName);
@@ -310,6 +312,31 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
+    void getFileTypes(List<Metadata> metadata, String extension, Map<String, String> output) {
+        if (metadata == null || metadata.size() == 0) {
+            return;
+        }
+        String type = metadata.get(0).get(Metadata.CONTENT_TYPE);
+        if (type == null) {
+            return;
+        }
+        output.put(HEADERS.DETECTED_CONTENT_TYPE + extension, type);
+
+        try {
+            MimeTypes types = config.getMimeRepository();
+            MimeType mime = types.forName(type);
+            String ext = mime.getExtension();
+            if (ext.startsWith(".")) {
+                ext = ext.substring(1);
+            }
+            output.put(HEADERS.DETECTED_FILE_EXTENSION + extension, ext);
+        } catch (MimeTypeException e) {
+            //swallow
+        }
+
+    }
+
+
     void handleWordCounts(Map<String, String> data,
                                   TokenCounter tokens, String extension) {
         MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
@@ -445,6 +472,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return false;
         }
     }
+
+    protected static void addHeader(Map<String, ColInfo> headers, HEADERS header) {
+        headers.put(header.name(), new ColInfo(headers.size() + 1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
 
 
 }

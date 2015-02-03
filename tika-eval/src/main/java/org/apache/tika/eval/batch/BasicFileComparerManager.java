@@ -22,7 +22,7 @@ import java.util.List;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.TableWriter;
+import org.apache.tika.eval.io.TableWriter;
 
 
 public class BasicFileComparerManager extends ConsumersManager {

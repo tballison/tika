@@ -17,6 +17,7 @@ package org.apache.tika.eval.db;
  * limitations under the License.
  */
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -26,11 +27,26 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Locale;
 
-public class DerbyUtil {
+/**
+ * Built during development.  This will likely go away soon.
+ */
+public class DerbyUtil extends DBUtil {
 
-    public static void dropTableIfExists(Connection conn, String tableName) throws SQLException {
+    @Override
+    public String getJDBCDriverClass() {
+        return "org.apache.derby.jdbc.EmbeddedDriver";
+
+    }
+
+    @Override
+    public String getConnectionString(File dbFile) {
+        return "jdbc:derby:"+dbFile.getPath()+";create=true";
+    }
+
+    @Override
+    public boolean dropTableIfExists(Connection conn, String tableName) throws SQLException {
         if (!tableExists(conn, tableName)) {
-            return;
+            return false;
         }
         StringBuilder sql = new StringBuilder();
         sql.append("DROP TABLE ").append(tableName);
@@ -38,9 +54,11 @@ public class DerbyUtil {
         st.execute(sql.toString());
         st.close();
         conn.commit();
+        return true;
     }
 
-    public static boolean tableExists(Connection conn, String tableName) throws SQLException {
+
+    private boolean tableExists(Connection conn, String tableName) throws SQLException {
         Statement st = conn.createStatement();
         DatabaseMetaData dbmeta = conn.getMetaData();
         int numRows = 0;
@@ -53,7 +71,8 @@ public class DerbyUtil {
 
     }
 
-    public static void shutDownDB(Connection conn) throws IOException {
+    @Override
+    public void shutDownDB(Connection conn) throws IOException {
         try {
             conn.close();
             DriverManager.getConnection("jdbc:derby:;shutdown=true");
@@ -64,10 +83,8 @@ public class DerbyUtil {
                     return;
                 }
                 cause = cause.getCause();
-
             }
             throw new IOException(e);
-
         }
 
     }

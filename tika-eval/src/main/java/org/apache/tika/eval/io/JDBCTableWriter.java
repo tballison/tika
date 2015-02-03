@@ -1,13 +1,26 @@
-package org.apache.tika.eval;
+package org.apache.tika.eval.io;
 
-import org.apache.tika.eval.db.ColInfo;
-import org.apache.tika.eval.db.DBUtil;
-import org.apache.tika.eval.db.DerbyUtil;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -16,22 +29,36 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class DerbyTableWriter implements TableWriter {
+import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.io.IOExceptionWithCause;
+
+/**
+ * This is still in its early stages.  The idea is to
+ * get something working with sqlite/derby and then add to that
+ * as necessary.
+ */
+public class JDBCTableWriter implements TableWriter {
+
+    public static final String PAIR_NAMES_TABLE = "pair_names";
+
     private final AtomicLong insertedRows = new AtomicLong();
+    private final DBUtil dbUtil;
     private final Long commitEveryX = 1000L;
     private final Connection conn;
-    private final PreparedStatement preparedInsert;
     private final Map<String, ColInfo> sortedHeaders;
+    private final String tableName;
 
-    public DerbyTableWriter(Map<String, ColInfo> headers, File dbFile, String tableName) throws Exception {
+    public JDBCTableWriter(Map<String, ColInfo> headers, DBUtil dbUtil,
+                           File dbFile, String tableName) throws Exception {
         this.sortedHeaders = new TreeMap<String, ColInfo>(new ValueComparator(headers));
         sortedHeaders.putAll(headers);
-
+        this.dbUtil = dbUtil;
         conn = createDB(dbFile, tableName);
-        preparedInsert = createPreparedInsert(tableName);
+        this.tableName = tableName;
     }
 
-    private PreparedStatement createPreparedInsert(String tableName) throws Exception {
+    private PreparedStatement createPreparedInsert(String tableName) throws SQLException {
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO ").append(tableName);
         sb.append("(");
@@ -58,11 +85,9 @@ public class DerbyTableWriter implements TableWriter {
     }
 
     private Connection createDB(File dbFile, String tableName) throws Exception {
-        String driver = "org.apache.derby.jdbc.EmbeddedDriver";
-        Class.forName(driver);
-        String url = "jdbc:derby:"+dbFile.getPath()+";create=true";
-        Connection c = DriverManager.getConnection(url);
-        DerbyUtil.dropTableIfExists(c, tableName);
+        Class.forName(dbUtil.getJDBCDriverClass());
+        Connection c = dbUtil.getConnection(dbFile);
+        dbUtil.dropTableIfExists(c, tableName);
 
 
         StringBuilder createSql = new StringBuilder();
@@ -85,12 +110,10 @@ public class DerbyTableWriter implements TableWriter {
         }
         createSql.append(")");
 
-        System.out.println(createSql);
         Statement st = c.createStatement();
         st.execute(createSql.toString());
         st.close();
         c.commit();
-
         return c;
 
     }
@@ -108,10 +131,11 @@ public class DerbyTableWriter implements TableWriter {
     @Override
     public void writeRow(Map<String, String> data) throws IOException {
         try {
-            DBUtil.insert(preparedInsert, sortedHeaders, data);
+            PreparedStatement p = createPreparedInsert(tableName);
+            DBUtil.insert(p, sortedHeaders, data);
             long rows = insertedRows.incrementAndGet();
             if (rows % commitEveryX == 0) {
-                System.out.println("Committing: "+rows);
+                //System.out.println("Committing: "+rows);
                 conn.commit();
             }
         } catch (SQLException e) {
@@ -121,12 +145,41 @@ public class DerbyTableWriter implements TableWriter {
 
     @Override
     public void close() throws IOException {
-        DerbyUtil.shutDownDB(conn);
+        if (conn != null) {
+            try {
+                conn.commit();
+            } catch (SQLException e) {
+                throw new IOExceptionWithCause(e);
+            }
+            dbUtil.shutDownDB(conn);
+        }
     }
 
     @Override
     public void shutdown() {
         //no-op
+    }
+
+    public void addPairTable(String thisDir, String thatDir) throws IOException {
+        String sql = "DROP TABLE IF EXISTS "+PAIR_NAMES_TABLE;
+
+        try {
+            Statement st = conn.createStatement();
+            st.execute(sql);
+            sql = "CREATE table " +PAIR_NAMES_TABLE +" (" +
+                    "DIR_NAME_A VARCHAR(128)," +
+                    "DIR_NAME_B VARCHAR(128));";
+
+            st.execute(sql);
+            conn.commit();
+            sql = "INSERT INTO "+PAIR_NAMES_TABLE+
+                    " VALUES ('"+thisDir+"', '"+thatDir+"');";
+            st.execute(sql);
+            conn.commit();
+            st.close();
+        } catch (SQLException e) {
+            throw new IOExceptionWithCause(e);
+        }
     }
 
     class ValueComparator implements Comparator<String> {

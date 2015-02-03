@@ -43,7 +43,7 @@ import org.junit.BeforeClass;
  *     cannot be deleted from within the same jvm.  A thread is still actively writing to an
  *     OutputStream when tearDown() is called.  The current solution is to create
  *     the temp dir within the target/tika-batch/test-classes so that they will at least
- *     be removed during each &quot;clean&quot;</li>
+ *     be removed during each maven &quot;clean&quot;</li>
  *     <li>The &quot;evil&quot; tests are time-based.  This is not
  *     extremely reliable across different machines with different number/power of cpus.
  *     </li>
@@ -101,7 +101,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         return args;
     }
 
-    String[] getDefaultCommandLineArgsArr(String srcSubDir, File targDir, Map<String, String> commandLine) throws Exception {
+    public String[] getDefaultCommandLineArgsArr(String srcSubDir, File targDir, Map<String, String> commandLine) throws Exception {
         List<String> args = new ArrayList<String>();
         //need to include "-" because these are going to the commandline!
         if (srcSubDir != null) {
@@ -122,7 +122,7 @@ public abstract class FSBatchTestBase extends TikaTest {
     }
 
 
-    File getInputRoot(String subdir) throws Exception {
+    public File getInputRoot(String subdir) throws Exception {
         String path = (subdir == null || subdir.length() == 0) ? "/test-input" : "/test-input/"+subdir;
         File inputRoot = new File(this.getClass().getResource(path).toURI());
         return inputRoot;
@@ -177,8 +177,8 @@ public abstract class FSBatchTestBase extends TikaTest {
         return commandLine.toArray(new String[commandLine.size()]);
     }
 
-    BatchProcessDriverCLI getNewDriver(String testConfig,
-                                      String[] args) throws Exception {
+    public BatchProcessDriverCLI getNewDriver(String testConfig,
+                                              String[] args) throws Exception {
         List<String> commandLine = new ArrayList<String>();
         commandLine.add("java");
         commandLine.add("-Xmx128m");
@@ -200,7 +200,6 @@ public abstract class FSBatchTestBase extends TikaTest {
         for (String s : args) {
             commandLine.add(s);
         }
-
 
         BatchProcessDriverCLI driver = new BatchProcessDriverCLI(
                 commandLine.toArray(new String[commandLine.size()]));

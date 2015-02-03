@@ -19,6 +19,7 @@ package org.apache.tika.batch.fs.builders;
 
 
 import java.io.File;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Pattern;
@@ -103,9 +104,9 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
     private FSDirectoryCrawler.CRAWL_ORDER getCrawlOrder(String s) {
         if (s == null || s.trim().length() == 0) {
             return FSDirectoryCrawler.CRAWL_ORDER.OS_ORDER;
-        } else if (s.toLowerCase().contains("rand")) {
+        } else if (s.toLowerCase(Locale.ROOT).contains("rand")) {
             return FSDirectoryCrawler.CRAWL_ORDER.RANDOM;
-        } else if (s.toLowerCase().contains("sort")) {
+        } else if (s.toLowerCase(Locale.ROOT).contains("sort")) {
             return FSDirectoryCrawler.CRAWL_ORDER.SORTED;
         } else {
             return FSDirectoryCrawler.CRAWL_ORDER.OS_ORDER;

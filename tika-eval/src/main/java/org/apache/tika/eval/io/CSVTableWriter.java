@@ -1,4 +1,4 @@
-package org.apache.tika.eval;
+package org.apache.tika.eval.io;
 
 
 import org.apache.commons.csv.CSVPrinter;

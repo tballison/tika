@@ -16,12 +16,48 @@ package org.apache.tika.eval.db;
  * limitations under the License.
  */
 
+import java.io.File;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Map;
 
-public class DBUtil {
+import org.apache.log4j.Logger;
+import org.apache.tika.io.IOExceptionWithCause;
+
+public abstract class DBUtil {
+
+    public static Logger logger = Logger.getLogger(DBUtil.class);
+    public abstract String getJDBCDriverClass();
+    public abstract boolean dropTableIfExists(Connection conn, String tableName) throws SQLException;
+    public abstract void shutDownDB(Connection conn) throws IOException;
+
+    /**
+     * This is intended for a file/directory based db.
+     * <p>
+     * Override this any optimizations you want to do on the db
+     * before writing/reading.
+     *
+     * @param dbFile
+     * @return
+     * @throws IOException
+     */
+    public Connection getConnection(File dbFile) throws IOException {
+        String connectionString = getConnectionString(dbFile);
+        Connection conn = null;
+        try {
+            conn = DriverManager.getConnection(connectionString);
+            conn.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new IOExceptionWithCause(e);
+        }
+        return conn;
+    }
+
+    public abstract String getConnectionString(File dbFile);
 
     public static int insert(PreparedStatement insertStatement,
                               Map<String, ColInfo> columns,
@@ -30,19 +66,22 @@ public class DBUtil {
         //clear parameters before setting
         insertStatement.clearParameters();
         for (Map.Entry<String, ColInfo> e : columns.entrySet()) {
-            updateInsertStatement(insertStatement, e.getValue(), data.get(e.getKey()));
+            updateInsertStatement(insertStatement, e.getKey(), e.getValue(), data.get(e.getKey()));
         }
         return insertStatement.executeUpdate();
     }
 
-    public static void updateInsertStatement(PreparedStatement st,
+    public static void updateInsertStatement(PreparedStatement st, String colName,
                                                 ColInfo colInfo, String value ) throws SQLException {
         if (value == null) {
             return;
         }
-        System.out.println("DBCOL OFFSET: " + colInfo.getDBColOffset() + " : " + colInfo.getType() + " : " + colInfo.getSqlDef() + " : " + value + " = "+Types.VARCHAR);
         switch(colInfo.getType()) {
             case Types.VARCHAR :
+                if (value != null && value.length() > colInfo.getPrecision()) {
+                    value = value.substring(0, colInfo.getPrecision());
+                    logger.info("truncated varchar value in " + colName);
+                }
                 st.setString(colInfo.getDBColOffset(), value);
                 break;
             case Types.DOUBLE :

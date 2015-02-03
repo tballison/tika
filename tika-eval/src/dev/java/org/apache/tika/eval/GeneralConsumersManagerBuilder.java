@@ -18,8 +18,11 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.eval.BasicFileComparer;
 import org.apache.tika.eval.batch.BasicFileComparerManager;
+import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.eval.io.CSVTableWriter;
+import org.apache.tika.eval.io.JDBCTableWriter;
+import org.apache.tika.eval.io.TableWriter;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
@@ -86,7 +89,7 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
     private TableWriter buildDBWriter(File dbDir, String tableName) {
         TableWriter writer;
         try {
-            writer = new DerbyTableWriter(BasicFileComparer.getHeaders(), dbDir, tableName);
+            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), new SqliteUtil(), dbDir, tableName);
         } catch (Exception e){
             throw new RuntimeException(e);
         }

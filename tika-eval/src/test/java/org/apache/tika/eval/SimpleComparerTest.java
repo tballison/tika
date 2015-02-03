@@ -1,21 +1,17 @@
 package org.apache.tika.eval;
 
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
+
 import java.io.File;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Test;
-
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.fail;
 
 public class SimpleComparerTest extends TikaTest {
 
@@ -26,18 +22,18 @@ public class SimpleComparerTest extends TikaTest {
         Map<String, String> data = comparer.compareFiles("relPath",
                 getResourceAsFile("/test-documents/testA/file1.json"),
                 getResourceAsFile("/test-documents/testB/file1.json"));
-        for (Map.Entry<String, String> e : data.entrySet()) {
-            System.out.println(e.getKey() + " : " + e.getValue());
-        }
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_testA").startsWith("over: 1"));
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_testB").startsWith("aardvark: 3 | bear: 2"));
+        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_A").startsWith("over: 1"));
+        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_B").startsWith("aardvark: 3 | bear: 2"));
         assertEquals("aardvark: 3 | bear: 2 | fox: -2 | lazy: -1 | over: -1",
                 data.get("TOP_10_TOKEN_DIFFS"));
-        assertEquals("13", data.get("TOKEN_COUNT_testB"));
-        assertEquals("12", data.get("TOKEN_COUNT_testA"));
-        assertEquals("8", data.get("NUM_UNIQUE_TOKENS_testA"));
-        assertEquals("9", data.get("NUM_UNIQUE_TOKENS_testB"));
-        //TODO: test for dice and overlap
+        assertEquals("13", data.get("TOKEN_COUNT_B"));
+        assertEquals("12", data.get("TOKEN_COUNT_A"));
+        assertEquals("8", data.get("NUM_UNIQUE_TOKENS_A"));
+        assertEquals("9", data.get("NUM_UNIQUE_TOKENS_B"));
+
+        assertEquals("OVERLAP", 0.64f, Float.parseFloat(data.get("OVERLAP")), 0.0001f);
+        assertEquals("DICE_COEFFICIENT", 0.8235294f, Float.parseFloat(data.get("DICE_COEFFICIENT")), 0.0001f);
+
     }
     @Test
 
@@ -47,8 +43,7 @@ public class SimpleComparerTest extends TikaTest {
         Map<String, String> data = comparer.compareFiles("relPath",
                 getResourceAsFile("/test-documents/testA/file1.json"),
                 getResourceAsFile("/test-documents/testB/empty.json"));
-
-        assertTrue(data.get("JSON_EX_testB").startsWith("Error with json parsing"));
+        assertTrue(data.get("JSON_EX_B").startsWith("Error with json parsing"));
    }
 
     @Test

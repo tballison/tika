@@ -19,7 +19,6 @@ package org.apache.tika.eval;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -29,16 +28,22 @@ import java.util.concurrent.ArrayBlockingQueue;
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 
 public class SingleFileProfiler extends AbstractProfiler {
+    static Map<String, ColInfo> headers = new HashMap<String, ColInfo>();
 
     private final File rootDir;
     private final JsonMetadataList serializer = new JsonMetadataList();
-    TableWriter writer = null;
-    private List<String> localHeaders = null;
+
+    static {
+        for (HEADERS header : AbstractProfiler.HEADERS.values()) {
+            addHeader(headers, header);
+        }
+    }
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue, File rootDir) {
         super(queue);
@@ -49,11 +54,12 @@ public class SingleFileProfiler extends AbstractProfiler {
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
         String relativePath = metadata.get(FSProperties.FS_REL_PATH);
-
         File thisFile = new File(rootDir, relativePath);
 
         List<Metadata> metadataList = getMetadata(thisFile);
         Map<String, String> output = new HashMap<String, String>();
+        output.put(HEADERS.FILE_PATH.name(), relativePath);
+
         if (metadataList == null) {
             output.put(HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
         }
@@ -63,12 +69,20 @@ public class SingleFileProfiler extends AbstractProfiler {
         output.put(HEADERS.NUM_METADATA_VALUES.name(),
                 Integer.toString(countMetadataValues(metadataList)));
         output.put(HEADERS.NUM_ATTACHMENTS.name(), Integer.toString(metadataList.size()-1));
+        getFileTypes(metadataList, "", output);
+
         getExceptionStrings(metadataList, "", output);
         langid(metadataList, "", output);
-        SingleFileTokenCounter tokens = new SingleFileTokenCounter();
+        SingleFileTokenCounter counter = new SingleFileTokenCounter();
         try {
-            countTokens(metadataList, tokens);
-            handleWordCounts(output, tokens, "");
+            countTokens(metadataList, counter);
+            handleWordCounts(output, counter, "");
+            output.put(HEADERS.NUM_UNIQUE_TOKENS.name(),
+                    Integer.toString(counter.getUniqueTokenCount()));
+            output.put(HEADERS.TOKEN_COUNT.name(),
+                    Integer.toString(counter.getTokenCount()));
+
+
         } catch (IOException e) {
             //should log
             e.printStackTrace();
@@ -79,6 +93,10 @@ public class SingleFileProfiler extends AbstractProfiler {
             throw new RuntimeException(e);
         }
         return true;
+    }
+
+    public static Map<String, ColInfo> getHeaders() {
+        return headers;
     }
 
     class SingleFileTokenCounter extends TokenCounter {

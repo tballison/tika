@@ -36,13 +36,16 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
-import org.apache.tika.eval.CSVTableWriter;
-import org.apache.tika.eval.DerbyTableWriter;
-import org.apache.tika.eval.TableWriter;
+import org.apache.tika.eval.io.CSVTableWriter;
+import org.apache.tika.eval.io.JDBCTableWriter;
+import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.SqliteUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
 public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
+    private final static String WHICH_DB = "sqlite";//TODO: allow flexibility
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
@@ -60,7 +63,8 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.setLangModelDir(langModelDir);
-        TableWriter writer = buildTableWriter(outputFile, dbDir, tableName);
+        TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName,
+                thisRootDir, thatRootDir);
 
 
         for (int i = 0; i < numConsumers; i++) {
@@ -71,19 +75,26 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         return new BasicFileComparerManager(consumers, writer);
     }
 
-    private TableWriter buildTableWriter(File outputFile, File dbDir, String tableName) {
+    private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
+                                         String tableName, File thisRootDir, File thatRootDir) {
         if (outputFile != null) {
             return buildCSVWriter(outputFile);
         } else if (dbDir != null && tableName != null) {
-            return buildDBWriter(dbDir, tableName);
+            return buildDBWriter(whichDB, dbDir, tableName, thisRootDir, thatRootDir);
         }
         throw new RuntimeException("Must specify either an outputFile (csv) or a database directory and table name.");
     }
 
-    private TableWriter buildDBWriter(File dbDir, String tableName) {
-        TableWriter writer;
+    private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName,
+                                      File thisRootDir, File thatRootDir) {
+        TableWriter writer = null;
         try {
-            writer = new DerbyTableWriter(BasicFileComparer.getHeaders(), dbDir, tableName);
+            DBUtil util = null;
+            if (whichDB.equals("sqlite")) {
+                util = new SqliteUtil();
+            }
+            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), util, dbDir, tableName);
+            ((JDBCTableWriter)writer).addPairTable(thisRootDir.getName(), thatRootDir.getName());
         } catch (Exception e){
             throw new RuntimeException(e);
         }

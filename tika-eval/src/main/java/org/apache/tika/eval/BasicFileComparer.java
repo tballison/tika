@@ -38,9 +38,6 @@ import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MimeType;
-import org.apache.tika.mime.MimeTypeException;
-import org.apache.tika.mime.MimeTypes;
 
 public class BasicFileComparer extends AbstractProfiler {
 
@@ -72,16 +69,14 @@ public class BasicFileComparer extends AbstractProfiler {
 
     private static File thisRootDir;
     private static File thatRootDir;
-    private static String thisExtension;
-    private static String thatExtension;
+    private final static String thisExtension = "_A";
+    private final static String thatExtension = "_B";
     private static int thisDirLen;
 
     public static void init(File thsRootDir, File thtRootDir) {
         thisRootDir = thsRootDir;
         thatRootDir = thtRootDir;
         thisDirLen = thsRootDir.getAbsolutePath().length() + 1;
-        thisExtension = "_" + thsRootDir.getName();
-        thatExtension = "_" + thtRootDir.getName();
         headers = new HashMap<String, ColInfo>();
         addHeader(headers, HEADERS.FILE_PATH);
         addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
@@ -130,12 +125,6 @@ public class BasicFileComparer extends AbstractProfiler {
         headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
-
-    private static void addHeader(Map<String, ColInfo> headers, HEADERS header) {
-        headers.put(header.name(), new ColInfo(headers.size() + 1,
-                header.getColInfo().getType(), header.getColInfo().getPrecision()));
-    }
-
 
     public static void setLangModelDir(File langModelDir) {
         try {
@@ -220,29 +209,6 @@ public class BasicFileComparer extends AbstractProfiler {
         return output;
     }
 
-    private void getFileTypes(List<Metadata> metadata, String extension, Map<String, String> output) {
-        if (metadata == null || metadata.size() == 0) {
-            return;
-        }
-        String type = metadata.get(0).get(Metadata.CONTENT_TYPE);
-        if (type == null) {
-            return;
-        }
-        output.put(HEADERS.DETECTED_CONTENT_TYPE + extension, type);
-
-        try {
-            MimeTypes types = config.getMimeRepository();
-            MimeType mime = types.forName(type);
-            String ext = mime.getExtension();
-            if (ext.startsWith(".")) {
-                ext = ext.substring(1);
-            }
-            output.put(HEADERS.DETECTED_FILE_EXTENSION + extension, ext);
-        } catch (MimeTypeException e) {
-            //swallow
-        }
-
-    }
 
     private void compareUnigramOverlap(List<Metadata> thisMetadata,
                                        List<Metadata> thatMetadata,
@@ -269,7 +235,7 @@ public class BasicFileComparer extends AbstractProfiler {
         }
 
         float dice = (float) diceNum / (float) diceDenom;
-        float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + theseTokens.getTokenCount());
+        float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + thoseTokens.getTokenCount());
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thisExtension,
                 Integer.toString(theseTokens.getUniqueTokenCount()));
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thatExtension,
