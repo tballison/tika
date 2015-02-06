@@ -25,10 +25,13 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.log4j.Logger;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.io.IOExceptionWithCause;
@@ -42,8 +45,9 @@ import org.apache.tika.io.IOExceptionWithCause;
  */
 public class JDBCTableWriter implements TableWriter {
 
-    public static final String PAIR_NAMES_TABLE = "pair_names";
 
+    public static final String PAIR_NAMES_TABLE = "pair_names";
+    private static Logger logger = Logger.getLogger(TableWriter.class);
     private final AtomicLong insertedRows = new AtomicLong();
     private final DBUtil dbUtil;
     private final Long commitEveryX = 1000L;
@@ -52,12 +56,12 @@ public class JDBCTableWriter implements TableWriter {
     private final String tableName;
 
     public JDBCTableWriter(Map<String, ColInfo> headers, DBUtil dbUtil,
-                           File dbFile, String tableName) throws Exception {
+                           File dbFile, String tableName, boolean append) throws Exception {
         this.sortedHeaders = new TreeMap<String, ColInfo>(new ValueComparator(headers));
         sortedHeaders.putAll(headers);
         this.dbUtil = dbUtil;
-        conn = createDB(dbFile, tableName);
         this.tableName = tableName;
+        conn = createDB(dbFile, tableName, append);
     }
 
     private PreparedStatement createPreparedInsert(String tableName) throws SQLException {
@@ -86,15 +90,24 @@ public class JDBCTableWriter implements TableWriter {
         return conn.prepareStatement(sb.toString());
     }
 
-    private Connection createDB(File dbFile, String tableName) throws Exception {
+    private Connection createDB(File dbFile, String tableName, boolean append) throws Exception {
         Class.forName(dbUtil.getJDBCDriverClass());
 
-        if (dbFile.exists() && !dbFile.isDirectory()) {
+        //if this is a single file type db, first
+        //try to delete the actual file.
+        if (! append && dbFile.exists() && ! dbFile.isDirectory()) {
             dbFile.delete();
         }
         Connection c = dbUtil.getConnection(dbFile);
-        dbUtil.dropTableIfExists(c, tableName);
 
+        Set<String> tables = dbUtil.getTables(c);
+        if (append && tables.contains(tableName.toUpperCase(Locale.ROOT))){
+            return c;
+        }
+
+        if (! append) {
+            dbUtil.dropTableIfExists(c, tableName);
+        }
 
         StringBuilder createSql = new StringBuilder();
         createSql.append("CREATE TABLE "+tableName);
@@ -141,7 +154,7 @@ public class JDBCTableWriter implements TableWriter {
             DBUtil.insert(p, sortedHeaders, data);
             long rows = insertedRows.incrementAndGet();
             if (rows % commitEveryX == 0) {
-                //System.out.println("Committing: "+rows);
+                logger.info("writer is committing after "+ rows + " rows");
                 conn.commit();
             }
         } catch (SQLException e) {
@@ -151,13 +164,16 @@ public class JDBCTableWriter implements TableWriter {
 
     @Override
     public void close() throws IOException {
+        System.out.println("about to close in JDBCTableWriter");
         if (conn != null) {
             try {
                 conn.commit();
             } catch (SQLException e) {
                 throw new IOExceptionWithCause(e);
             }
+            System.out.println("about to shutdown db");
             dbUtil.shutDownDB(conn);
+            System.out.println("successfully shutdown db");
         }
     }
 

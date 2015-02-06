@@ -20,8 +20,12 @@ package org.apache.tika.eval.db;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 import org.apache.tika.io.IOExceptionWithCause;
 
@@ -54,10 +58,26 @@ public class SqliteUtil extends DBUtil {
         } catch (SQLException e) {
             throw new IOExceptionWithCause(e);
         }
+        System.out.println("DB is closed in SQLITE UTIL");
     }
 
     @Override
     public String getConnectionString(File dbFile) {
         return "jdbc:sqlite:"+dbFile.getAbsolutePath();
+    }
+
+    @Override
+    public Set<String> getTables(Connection conn) throws SQLException {
+        String sql = "SELECT name FROM sqlite_master WHERE type='table'";
+        Statement st = conn.createStatement();
+        Set<String> tables = new HashSet<String>();
+        ResultSet rs = st.executeQuery(sql);
+        while (rs.next()) {
+            String t = rs.getString(1);
+            if (t != null) {
+                tables.add(t.toUpperCase(Locale.ROOT));
+            }
+        }
+        return tables;
     }
 }

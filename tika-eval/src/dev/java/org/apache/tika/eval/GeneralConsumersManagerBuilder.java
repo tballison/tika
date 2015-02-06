@@ -70,7 +70,7 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
         TableWriter writer = buildTableWriter(outputFile, dbDir, tableName);
 
         for (int i = 0; i < numConsumers; i++) {
-            FileResourceConsumer consumer = new BasicFileComparer(queue);
+            FileResourceConsumer consumer = new BasicFileComparer(queue, -1, -1);
             consumers.add(consumer);
         }
         return new BasicFileComparerManager(consumers, writer);
@@ -89,7 +89,7 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
     private TableWriter buildDBWriter(File dbDir, String tableName) {
         TableWriter writer;
         try {
-            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), new SqliteUtil(), dbDir, tableName);
+            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), new SqliteUtil(), dbDir, tableName, false);
         } catch (Exception e){
             throw new RuntimeException(e);
         }

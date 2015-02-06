@@ -27,8 +27,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.tika.eval.db.DBUtil;
-import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.eval.io.JDBCTableWriter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.ToHTMLContentHandler;
@@ -43,6 +42,11 @@ import org.xml.sax.SAXException;
  */
 public class FileComparerResultDumper {
 
+    /**
+     * This relies on java aliases that are h2 specific:
+     * TWO_DEC converts decimal to string with 2 decimal places
+     */
+
     //temp table names
     String extensions_total_table = "extensions_total";
     String detected_types_A_table = "detected_types_A";
@@ -54,9 +58,12 @@ public class FileComparerResultDumper {
 
 
     private void execute(File dbFile, File outputDir) throws IOException, SQLException, SAXException {
-        DBUtil util = new SqliteUtil();
+        H2Util util = new H2Util();
+
+        System.out.println(util.getJDBCDriverClass());
         Connection connection = util.getConnection(dbFile);
         Statement st = connection.createStatement();
+        setAliases(st);
         String[] dirNames = getDirNames(connection);
         String dirNameA = dirNames[0];
         String dirNameB = dirNames[1];
@@ -83,6 +90,15 @@ public class FileComparerResultDumper {
             st.close();
             connection.close();
         }
+    }
+
+    private void setAliases(Statement st) throws SQLException {
+        String sql = "drop alias if exists TWO_DEC;\n" +
+                "create alias TWO_DEC as $$\n" +
+                "String toChar(BigDecimal x, String pattern) throws Exception {\n" +
+                "     return new java.text.DecimalFormat(pattern).format(x);}\n" +
+                " $$;";
+        st.executeQuery(sql);
     }
 
     private void dumpMetadata(String dirNameA, String dirNameB, File outputDir, Statement st)
@@ -118,7 +134,7 @@ public class FileComparerResultDumper {
         sql = "SELECT comparisons.detected_content_type_A, " +
                 "sum(ifnull(NUM_METADATA_VALUES_A, 0)) as NUM_METADATA_VALUES_TOTAL, " +
                 detected_types_A_table +".NUM_FILES as TOTAL_FILES, "+
-                "printf(\"%.2f \", (1.0*sum(ifnull(NUM_METADATA_VALUES_A, 0))/"+detected_types_A_table+".NUM_FILES)) as "+
+                "TWO_DEC(1.0*sum(ifnull(NUM_METADATA_VALUES_A, 0))/"+detected_types_A_table+".NUM_FILES)) as "+
                 "'Average number of metadata values per file' "+
                 "from comparisons " +
                 "left outer join "+detected_types_A_table+" on comparisons.detected_content_type_A="
@@ -281,7 +297,7 @@ public class FileComparerResultDumper {
                 "group by comparisons.FILE_EXTENSION " +
                 "order by (1.0*sum(ifnull(ELAPSED_TIME_MILLIS_B, 0))/"+extensions_total_table+".NUM_FILES) desc;";
         dumpTable(timesDir, "time_millis_in_B_by_extension.html",
-                "Total number of milliseconds for \"" + dirNameA + "\" by file extension",
+                "Total number of milliseconds for \"" + dirNameB + "\" by file extension",
                 sql, st);
 
         sql = "select "+millis_A_table+".DETECTED_CONTENT_TYPE_A, "+millis_A_table+".ELAPSED_TIME_MILLIS_A, "+
@@ -520,7 +536,7 @@ public class FileComparerResultDumper {
                 "order by COUNT desc ";
 
         dumpTable(mimesDir, "mime_types_in_B.html",
-                "Mime types in \"" + dirNameA+"\"",
+                "Mime types in \"" + dirNameB+"\"",
                 sql, st);
 
         sql = "select DETECTED_FILE_EXTENSION_A, count(1) as COUNT " +
@@ -934,9 +950,8 @@ public class FileComparerResultDumper {
     public static void main(String[] args) throws IOException, SQLException, SAXException {
         File dbFile = new File(args[0]);
         File outputDir = new File(args[1]);
-        if (! dbFile.exists()) {
-            throw new RuntimeException("database file must exist!");
-        }
+
+
         if (! outputDir.isDirectory()) {
             outputDir.mkdirs();
         }

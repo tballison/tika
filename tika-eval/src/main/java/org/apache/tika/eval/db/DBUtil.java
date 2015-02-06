@@ -24,6 +24,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.apache.tika.io.IOExceptionWithCause;
@@ -49,6 +50,11 @@ public abstract class DBUtil {
         String connectionString = getConnectionString(dbFile);
         Connection conn = null;
         try {
+            try {
+                Class.forName("org.h2.Driver");
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
             conn = DriverManager.getConnection(connectionString);
             conn.setAutoCommit(false);
         } catch (SQLException e) {
@@ -57,7 +63,15 @@ public abstract class DBUtil {
         return conn;
     }
 
-    public abstract String getConnectionString(File dbFile);
+    abstract public String getConnectionString(File dbFile);
+
+    /**
+     *
+     * @param connection
+     * @return a list of uppercased table names
+     * @throws SQLException
+     */
+    abstract public Set<String> getTables(Connection connection) throws SQLException;
 
     public static int insert(PreparedStatement insertStatement,
                               Map<String, ColInfo> columns,
@@ -65,43 +79,55 @@ public abstract class DBUtil {
 
         //clear parameters before setting
         insertStatement.clearParameters();
-        for (Map.Entry<String, ColInfo> e : columns.entrySet()) {
-            //this catches exceptions per cell
-            try {
+        try {
+            for (Map.Entry<String, ColInfo> e : columns.entrySet()) {
+
                 updateInsertStatement(insertStatement, e.getKey(), e.getValue(), data.get(e.getKey()));
-            } catch (NumberFormatException ex) {
-                logger.warn("Problem parsing a number: "+e.getKey() + " : " + e.getValue());
-            } catch (SQLException sqlex) {
-                logger.warn("Sql problem during insert statement this: " + e.getKey() + " : " + e.getValue());
             }
+            return insertStatement.executeUpdate();
+        } catch (SQLException e) {
+            logger.warn("couldn't insert data for this row: "+e.getMessage());
+            return -1;
         }
-        return insertStatement.executeUpdate();
     }
 
     public static void updateInsertStatement(PreparedStatement st, String colName,
                                                 ColInfo colInfo, String value ) throws SQLException {
         if (value == null) {
+            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
             return;
         }
-        switch(colInfo.getType()) {
-            case Types.VARCHAR :
-                if (value != null && value.length() > colInfo.getPrecision()) {
-                    value = value.substring(0, colInfo.getPrecision());
-                    logger.info("truncated varchar value in " + colName);
-                }
-                st.setString(colInfo.getDBColOffset(), value);
-                break;
-            case Types.DOUBLE :
-                st.setDouble(colInfo.getDBColOffset(), Double.parseDouble(value));
-                break;
-            case Types.FLOAT :
-                st.setDouble(colInfo.getDBColOffset(), Float.parseFloat(value));
-                break;
-            case Types.INTEGER :
-                st.setDouble(colInfo.getDBColOffset(), Integer.parseInt(value));
-                break;
-            default:
-                throw new UnsupportedOperationException("Don't yet support type: "+colInfo.getType());
+        try {
+            switch (colInfo.getType()) {
+                case Types.VARCHAR:
+                    if (value != null && value.length() > colInfo.getPrecision()) {
+                        value = value.substring(0, colInfo.getPrecision());
+                        logger.info("truncated varchar value in " + colName);
+                    }
+                    st.setString(colInfo.getDBColOffset(), value);
+                    break;
+                case Types.DOUBLE:
+                    st.setDouble(colInfo.getDBColOffset(), Double.parseDouble(value));
+                    break;
+                case Types.FLOAT:
+                    st.setDouble(colInfo.getDBColOffset(), Float.parseFloat(value));
+                    break;
+                case Types.INTEGER:
+                    st.setDouble(colInfo.getDBColOffset(), Integer.parseInt(value));
+                    break;
+                case Types.BIGINT:
+                    st.setLong(colInfo.getDBColOffset(), Long.parseLong(value));
+                    break;
+                default:
+                    throw new UnsupportedOperationException("Don't yet support type: " + colInfo.getType());
+            }
+        } catch (NumberFormatException e) {
+            logger.warn("number format exception: "+colName+ " : " + value);
+            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
+        } catch (SQLException e) {
+            logger.warn("sqlexception: "+colName+ " : " + value);
+            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
         }
     }
+
 }

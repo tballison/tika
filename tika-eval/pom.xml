@@ -43,6 +43,11 @@
             <version>3.8.7</version>
         </dependency>
         <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.185</version>
+        </dependency>
+        <dependency>
             <groupId>com.cybozu.labs</groupId>
             <artifactId>langdetect</artifactId>
             <version>1.1-20120112</version>

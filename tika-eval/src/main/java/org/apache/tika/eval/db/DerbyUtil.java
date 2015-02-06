@@ -26,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Built during development.  This will likely go away soon.
@@ -41,6 +42,13 @@ public class DerbyUtil extends DBUtil {
     @Override
     public String getConnectionString(File dbFile) {
         return "jdbc:derby:"+dbFile.getPath()+";create=true";
+    }
+
+    @Override
+    public Set<String> getTables(Connection connection) throws SQLException {
+        //todo
+        throw new UnsupportedOperationException("need to implement this");
+
     }
 
     @Override

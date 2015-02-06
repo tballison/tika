@@ -52,13 +52,13 @@ import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.io.TableWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
+import org.apache.tika.eval.util.MimeUtil;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.mime.MimeTypeException;
-import org.apache.tika.eval.util.MimeUtil;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
@@ -68,6 +68,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public enum HEADERS {
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
         FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
+        JSON_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
         JSON_EX(new ColInfo(-1, Types.VARCHAR, 1024)),
         ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
@@ -112,7 +113,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     private final static Pattern OBJECT_ID_SNIPPER =
             Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
 
-    private JsonMetadataList serializer = new JsonMetadataList();
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     protected TableWriter writer;
 
@@ -120,6 +120,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue) {
         super(fileQueue);
     }
+
+
 
     List<Metadata> getMetadata(File thisFile) {
         Reader reader = null;
@@ -134,7 +136,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                 is = new ZCompressorInputStream(is);
             }
             reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-            metadataList = serializer.fromJson(reader);
+            metadataList = JsonMetadataList.fromJson(reader);
         } catch (IOException e) {
             //log
             e.printStackTrace();
@@ -383,7 +385,10 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         TokenStream stream = analyzer.tokenStream("", s);
         stream.reset();
+        //look into: http://lucene.apache.org/core/4_10_3/core/index.html
+        //TermToBytesRefAttribute
         CharTermAttribute attr = stream.getAttribute(CharTermAttribute.class);
+
         while (stream.incrementToken()) {
             String t = attr.toString();
             counter.increment(t);

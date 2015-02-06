@@ -16,6 +16,8 @@
                 description="file crawler crawls directories randomly"/>
         <option opt="numConsumers" hasArg="true"
                 description="number of fileConsumers threads"/>
+        <option opt="minFileSizeBytes" hasArg="true"
+                description="minimum file size to process; do not process files smaller than this"/>
         <option opt="maxFileSizeBytes" hasArg="true"
                 description="maximum file size to process; do not process files larger than this"/>
         <option opt="maxTimedOutConsumers" hasArg="true"

@@ -17,8 +17,10 @@
                 description="file crawler crawls directories randomly"/>
         <option opt="numConsumers" hasArg="true"
                 description="number of fileConsumers threads"/>
+        <option opt="minFileSizeBytes" hasArg="true"
+                description="minimum file size (in bytes) to process; do not process files smaller than this"/>
         <option opt="maxFileSizeBytes" hasArg="true"
-                description="maximum file size to process; do not process files larger than this"/>
+                description="maximum file size (in bytes) to process; do not process files larger than this"/>
         <option opt="maxTimedOutConsumers" hasArg="true"
                 description="maximum number of allowed timed out consumers"/>
         <option opt="maxQueueSize" hasArg="true"
@@ -60,6 +62,7 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
+        minFileSizeBytes="-1"
         srcDir="tika-batch/src/test/resources/test-input"
         />
 

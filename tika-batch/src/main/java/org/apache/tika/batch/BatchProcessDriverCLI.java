@@ -277,7 +277,7 @@ public class BatchProcessDriverCLI {
             String line = null;
             try {
                 while ((line = reader.readLine()) != null && this.running) {
-//                    System.out.println("BatchProcess: "+line);
+                    System.out.println("BatchProcess: "+line);
                     if (line.startsWith(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString())) {
                         mustRestartProcess = true;
                     }

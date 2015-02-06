@@ -49,6 +49,7 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
     private final static String SRC_DIR_ATTR = "srcDir";
     private final static String SRC_START_DIR_ATTR = "startDir";
     private final static String MAX_FILE_SIZE_BYTES_ATTR = "maxFileSizeBytes";
+    private final static String MIN_FILE_SIZE_BYTES_ATTR = "minFileSizeBytes";
 
 
     private final static String INCLUDE_FILE_PAT_ATTR = "includeFilePat";
@@ -117,11 +118,11 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
         String includeString = attributes.get(INCLUDE_FILE_PAT_ATTR);
         String excludeString = attributes.get(EXCLUDE_FILE_PAT_ATTR);
         long maxFileSize = PropsUtil.getLong(attributes.get(MAX_FILE_SIZE_BYTES_ATTR), -1);
+        long minFileSize = PropsUtil.getLong(attributes.get(MIN_FILE_SIZE_BYTES_ATTR), -1);
         Pattern includePat = (includeString != null && includeString.length() > 0) ? Pattern.compile(includeString) : null;
         Pattern excludePat = (excludeString != null && excludeString.length() > 0) ? Pattern.compile(excludeString) : null;
 
-        return new FSDocumentSelector(includePat, excludePat, maxFileSize);
-
+        return new FSDocumentSelector(includePat, excludePat, minFileSize, maxFileSize);
     }
 
 

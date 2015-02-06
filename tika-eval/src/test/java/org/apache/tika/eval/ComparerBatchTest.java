@@ -1,17 +1,20 @@
 package org.apache.tika.eval;
 
 import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
 
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.batch.fs.FSBatchTestBase;
-import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.eval.db.H2Util;
 import org.junit.Test;
 
 public class ComparerBatchTest extends FSBatchTestBase {
@@ -26,7 +29,10 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     @Test
     public void testSimpleDBWriteAndRead() throws Exception {
-        File dbFile = new File(getInputRoot(""), "comparisons2.db");
+        File dbFile = new File(getInputRoot(""), "comparisons2");
+        if (dbFile.exists()) {
+            dbFile.delete();
+        }
         Map<String, String> m = new HashMap<String, String>();
         m.put("-dbDir", dbFile.getAbsolutePath());
         String[] args = getDefaultCommandLineArgsArr("testA", null, m);
@@ -34,19 +40,24 @@ public class ComparerBatchTest extends FSBatchTestBase {
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-comparison-eval-config.xml", args);
 
         driver.execute();
-        int rows = 0;
 
-        SqliteUtil dbUtil = new SqliteUtil();
+//        SqliteUtil dbUtil = new SqliteUtil();
+        H2Util dbUtil = new H2Util();
         Connection conn = null;
         Statement st = null;
+        Set<String> fileNames = new HashSet<String>();
         try {
             conn = dbUtil.getConnection(dbFile);
+            Set<String> tables = dbUtil.getTables(conn);
+            for (String t : tables) {
+                System.out.println(t);
+            }
             String sql = "select * from comparisons";
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
 
             while (rs.next()) {
-                rows++;
+                fileNames.add(rs.getString(1));
             }
         } finally {
             if (st != null) {
@@ -56,6 +67,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
                 dbUtil.shutDownDB(conn);
             }
         }
-        assertEquals(2, rows);
+        assertEquals(2, fileNames.size());
+        assertTrue(fileNames.contains("file1.json"));
     }
 }

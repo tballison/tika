@@ -36,16 +36,18 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
+import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.eval.db.SqliteUtil;
 import org.apache.tika.eval.io.CSVTableWriter;
 import org.apache.tika.eval.io.JDBCTableWriter;
 import org.apache.tika.eval.io.TableWriter;
-import org.apache.tika.eval.db.DBUtil;
-import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
 public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
-    private final static String WHICH_DB = "sqlite";//TODO: allow flexibility
+    private final static String WHICH_DB = "h2";//TODO: allow flexibility
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
@@ -55,6 +57,7 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
         File thisRootDir = getNonNullFile(localAttrs, "thisDir");
         File thatRootDir = getNonNullFile(localAttrs, "thatDir");
+        boolean append = PropsUtil.getBoolean(localAttrs.get("append"), false);
 
         //make sure to init BasicFileComparer _before_ building writer!
         BasicFileComparer.init(thisRootDir, thatRootDir);
@@ -63,12 +66,16 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.setLangModelDir(langModelDir);
+        long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1);
+        long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1);
+
+
         TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName,
-                thisRootDir, thatRootDir);
+                thisRootDir, thatRootDir, append);
 
 
         for (int i = 0; i < numConsumers; i++) {
-            BasicFileComparer consumer = new BasicFileComparer(queue);
+            BasicFileComparer consumer = new BasicFileComparer(queue, minJsonLength, maxJsonLength);
             consumer.setTableWriter(writer);
             consumers.add(consumer);
         }
@@ -76,24 +83,26 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
     }
 
     private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
-                                         String tableName, File thisRootDir, File thatRootDir) {
+                                         String tableName, File thisRootDir, File thatRootDir, boolean append) {
         if (outputFile != null) {
             return buildCSVWriter(outputFile);
         } else if (dbDir != null && tableName != null) {
-            return buildDBWriter(whichDB, dbDir, tableName, thisRootDir, thatRootDir);
+            return buildDBWriter(whichDB, dbDir, tableName, thisRootDir, thatRootDir, append);
         }
         throw new RuntimeException("Must specify either an outputFile (csv) or a database directory and table name.");
     }
 
     private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName,
-                                      File thisRootDir, File thatRootDir) {
+                                      File thisRootDir, File thatRootDir, boolean append) {
         TableWriter writer = null;
         try {
             DBUtil util = null;
             if (whichDB.equals("sqlite")) {
                 util = new SqliteUtil();
+            } else if (whichDB.equals("h2")) {
+                util = new H2Util();
             }
-            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), util, dbDir, tableName);
+            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), util, dbDir, tableName, append);
             ((JDBCTableWriter)writer).addPairTable(thisRootDir.getName(), thatRootDir.getName());
         } catch (Exception e){
             throw new RuntimeException(e);
@@ -133,5 +142,18 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
             return null;
         }
         return new File(filePath);
+    }
+
+    private Boolean getBoolean(String string, boolean def) {
+        if (string == null) {
+            return def;
+        }
+
+        if (string.equalsIgnoreCase("false")) {
+            return false;
+        } else if (string.equalsIgnoreCase("true")) {
+            return true;
+        }
+        return def;
     }
 }

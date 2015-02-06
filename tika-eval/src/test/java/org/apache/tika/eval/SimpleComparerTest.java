@@ -15,10 +15,11 @@ import org.junit.Test;
 
 public class SimpleComparerTest extends TikaTest {
 
+
     @Test
     public void testBasic() throws Exception {
         BasicFileComparer.init(new File("testA"), new File("testB"));
-        BasicFileComparer comparer = new BasicFileComparer(null);
+        BasicFileComparer comparer = new BasicFileComparer(null, -1, -1);
         Map<String, String> data = comparer.compareFiles("relPath",
                 getResourceAsFile("/test-documents/testA/file1.json"),
                 getResourceAsFile("/test-documents/testB/file1.json"));
@@ -35,11 +36,11 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("DICE_COEFFICIENT", 0.8235294f, Float.parseFloat(data.get("DICE_COEFFICIENT")), 0.0001f);
 
     }
-    @Test
 
+    @Test
     public void testEmpty() throws Exception {
         BasicFileComparer.init(new File("testA"), new File("testB"));
-        BasicFileComparer comparer = new BasicFileComparer(null);
+        BasicFileComparer comparer = new BasicFileComparer(null, -1, -1);
         Map<String, String> data = comparer.compareFiles("relPath",
                 getResourceAsFile("/test-documents/testA/file1.json"),
                 getResourceAsFile("/test-documents/testB/empty.json"));
@@ -87,6 +88,5 @@ public class SimpleComparerTest extends TikaTest {
         content = AbstractProfiler.getContent(list, 15);
         assertEquals(15, content.length());
     }
-
 
 }

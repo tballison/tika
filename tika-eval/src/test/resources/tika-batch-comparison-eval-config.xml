@@ -50,8 +50,12 @@
                thisDir="src/test/resources/test-documents/testA"
                thatDir="src/test/resources/test-documents/testB"
                dbDir="target/test-classes/test-output/comparisons.db"
+               dbAppend="false"
                tableName="comparisons"
-               langModelDir="src/test/resources/langmodels"/>
+               langModelDir="src/test/resources/langmodels"
+               minJsonFileSizeBytes="-1"
+               maxJsonFileSizeBytes="2000000"
+            />
 
 
 	<!-- reporter and interrupter are optional -->

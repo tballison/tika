@@ -16,28 +16,27 @@
  */
 package org.apache.tika.parser.font;
 
-import static org.junit.Assert.assertEquals;
 import static org.apache.tika.TikaTest.assertContains;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_FAMILY_NAME;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_FULL_NAME;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_NAME;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_SUB_FAMILY_NAME;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_VERSION;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_WEIGHT;
+import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_PS_NAME;
+import static org.junit.Assert.assertEquals;
 
 import java.util.TimeZone;
 
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.xml.sax.ContentHandler;
-import org.apache.tika.io.TikaInputStream;
 import org.junit.Test;
-
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_NAME;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_FULL_NAME;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_FAMILY_NAME;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_WEIGHT;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_VERSION;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_SUB_FAMILY_NAME;
-import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_PS_NAME;
+import org.xml.sax.ContentHandler;
 
 /**
  * Test case for parsing various different font files.

@@ -36,12 +36,13 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
-import org.apache.tika.eval.io.CSVTableWriter;
-import org.apache.tika.eval.io.JDBCTableWriter;
 import org.apache.tika.eval.SingleFileProfiler;
-import org.apache.tika.eval.io.TableWriter;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.eval.io.CSVTableWriter;
+import org.apache.tika.eval.io.JDBCTableWriter;
+import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
@@ -61,7 +62,8 @@ public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.setLangModelDir(langModelDir);
-        TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName);
+        boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
+        TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName, append);
 
         for (int i = 0; i < numConsumers; i++) {
             SingleFileProfiler consumer = new SingleFileProfiler(queue, thisRootDir);
@@ -71,23 +73,24 @@ public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
         return new SingleFileProfilerManager(consumers, writer);
     }
 
-    private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir, String tableName) {
+    private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
+                                         String tableName, boolean append) {
         if (outputFile != null) {
             return buildCSVWriter(outputFile);
         } else if (dbDir != null && tableName != null) {
-            return buildDBWriter(whichDB, dbDir, tableName);
+            return buildDBWriter(whichDB, dbDir, tableName, append);
         }
         throw new RuntimeException("Must specify either an outputFile (csv) or a database directory and table name.");
     }
 
-    private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName) {
+    private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName, boolean append) {
         TableWriter writer = null;
         try {
             DBUtil util = null;
             if (whichDB.equals("sqlite")) {
                 util = new SqliteUtil();
             }
-            writer = new JDBCTableWriter(SingleFileProfiler.getHeaders(), util, dbDir, tableName);
+            writer = new JDBCTableWriter(SingleFileProfiler.getHeaders(), util, dbDir, tableName, append);
         } catch (Exception e){
             throw new RuntimeException(e);
         }

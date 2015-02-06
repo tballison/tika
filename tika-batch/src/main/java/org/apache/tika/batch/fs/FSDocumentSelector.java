@@ -40,10 +40,13 @@ public class FSDocumentSelector implements DocumentSelector {
     //can be null!
     private final Pattern excludeFileName;
     private final long maxFileSizeBytes;
+    private final long minFileSizeBytes;
 
-    public FSDocumentSelector(Pattern includeFileName, Pattern excludeFileName, long maxFileSizeBytes) {
+    public FSDocumentSelector(Pattern includeFileName, Pattern excludeFileName, long minFileSizeBytes,
+                              long maxFileSizeBytes) {
         this.includeFileName = includeFileName;
         this.excludeFileName = excludeFileName;
+        this.minFileSizeBytes = minFileSizeBytes;
         this.maxFileSizeBytes = maxFileSizeBytes;
     }
 
@@ -51,6 +54,17 @@ public class FSDocumentSelector implements DocumentSelector {
     public boolean select(Metadata metadata) {
         String fName = metadata.get(Metadata.RESOURCE_NAME_KEY);
         long sz = PropsUtil.getLong(metadata.get(Metadata.CONTENT_LENGTH), -1);
+        if (maxFileSizeBytes > -1 && sz > 0) {
+            if (sz > maxFileSizeBytes) {
+                return false;
+            }
+        }
+
+        if (minFileSizeBytes > -1 && sz > 0) {
+            if (sz < minFileSizeBytes) {
+                return false;
+            }
+        }
 
         if (excludeFileName != null && fName != null) {
             Matcher m = excludeFileName.matcher(fName);
@@ -62,11 +76,6 @@ public class FSDocumentSelector implements DocumentSelector {
         if (includeFileName != null && fName != null) {
             Matcher m = includeFileName.matcher(fName);
             return m.find();
-        }
-        if (maxFileSizeBytes > 0 && sz > 0) {
-            if (sz > maxFileSizeBytes) {
-                return false;
-            }
         }
         return true;
     }

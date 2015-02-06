@@ -32,8 +32,8 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
     public enum CRAWL_ORDER
     {
         SORTED, //alphabetical order; necessary for cross-platform unit tests
-        RANDOM, //Shuffle
-        OS_ORDER //OS chooses
+        RANDOM, //shuffle
+        OS_ORDER //operating system chooses
     }
 
     private final File root;
