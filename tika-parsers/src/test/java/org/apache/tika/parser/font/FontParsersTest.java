@@ -26,8 +26,6 @@ import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_FONT_WEIGHT;
 import static org.apache.tika.parser.font.AdobeFontMetricParser.MET_PS_NAME;
 import static org.junit.Assert.assertEquals;
 
-import java.util.TimeZone;
-
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -83,40 +81,33 @@ public class FontParsersTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
         ParseContext context = new ParseContext();
+        //Open Sans font is ASL 2.0 according to 
+        //http://www.google.com/fonts/specimen/Open+Sans
+        //...despite the copyright in the file's metadata.
         TikaInputStream stream = TikaInputStream.get(
                 FontParsersTest.class.getResource(
-                        "/test-documents/testTrueType.ttf"));
-
-        //Pending PDFBOX-2122's integration (PDFBox 1.8.6)
-        //we must set the default timezone to something
-        //standard for this test.
-        //TODO: once we upgrade to PDFBox 1.8.6, remove
-        //this timezone code.
-        TimeZone defaultTimeZone = TimeZone.getDefault();
-        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-
+                        "/test-documents/testTrueType3.ttf"));
+        
         try {
             parser.parse(stream, handler, metadata, context);
         } finally {
-            //make sure to reset default timezone
-            TimeZone.setDefault(defaultTimeZone);
             stream.close();
         }
 
         assertEquals("application/x-font-ttf", metadata.get(Metadata.CONTENT_TYPE));
-        assertEquals("NewBaskervilleEF-Roman", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("Open Sans Bold", metadata.get(TikaCoreProperties.TITLE));
 
-        assertEquals("1904-01-01T00:00:00Z",   metadata.get(Metadata.CREATION_DATE));
-        assertEquals("1904-01-01T00:00:00Z",   metadata.get(TikaCoreProperties.CREATED));
-        assertEquals("1904-01-01T00:00:00Z",   metadata.get(TikaCoreProperties.MODIFIED));
+        assertEquals("2010-12-30T11:04:00Z", metadata.get(Metadata.CREATION_DATE));
+        assertEquals("2010-12-30T11:04:00Z", metadata.get(TikaCoreProperties.CREATED));
+        assertEquals("2011-05-05T12:37:53Z", metadata.get(TikaCoreProperties.MODIFIED));
         
-        assertEquals("NewBaskervilleEF-Roman", metadata.get(MET_FONT_NAME));
-        assertEquals("NewBaskerville",         metadata.get(MET_FONT_FAMILY_NAME));
-        assertEquals("Regular",                metadata.get(MET_FONT_SUB_FAMILY_NAME));
-        assertEquals("NewBaskervilleEF-Roman", metadata.get(MET_PS_NAME));
+        assertEquals("Open Sans Bold", metadata.get(MET_FONT_NAME));
+        assertEquals("Open Sans", metadata.get(MET_FONT_FAMILY_NAME));
+        assertEquals("Bold", metadata.get(MET_FONT_SUB_FAMILY_NAME));
+        assertEquals("OpenSans-Bold", metadata.get(MET_PS_NAME));
         
-        assertEquals("Copyright",           metadata.get("Copyright").substring(0, 9));
-        assertEquals("ITC New Baskerville", metadata.get("Trademark").substring(0, 19));
+        assertEquals("Digitized", metadata.get("Copyright").substring(0, 9));
+        assertEquals("Open Sans", metadata.get("Trademark").substring(0, 9));
         
         // Not extracted
         assertEquals(null, metadata.get(MET_FONT_FULL_NAME));

@@ -1,5 +1,18 @@
 Release 1.8 - Current Development
 
+  * Use POST instead of PUT for tika-server form methods.
+    (TIKA-1547)
+
+  * A basic wrapper around the UNIX file command was 
+    added to extract Strings. (TIKA-1541)
+
+  * Add test files and detection mechanism for Gridded
+    Binary (GRIB) files. (TIKA-1539)
+
+  * The RAR parser was updated to handle Chinese characters 
+    using the functionality provided by allowing encoding to
+    be used within ZipArchiveInputStream. (TIKA-936)
+
   * Fix out of memory error in surefire plugin. (TIKA-1537)
 
   * Build a parser to extract data from GRIB formats (TIKA-1423).
