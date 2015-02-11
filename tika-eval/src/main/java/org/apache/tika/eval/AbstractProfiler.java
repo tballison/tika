@@ -219,6 +219,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                 }
                 matcher = CAUSED_BY_SNIPPER.matcher(exc);
                 exc = matcher.replaceAll("$1");
+                exc = exc.replaceAll("org.apache.tika.", "o.a.t.");
                 data.put(HEADERS.SORT_STACK_TRACE + extension, exc);
             }
         }

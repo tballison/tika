@@ -38,6 +38,7 @@ import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
 import org.apache.tika.eval.SingleFileProfiler;
 import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.eval.db.SqliteUtil;
 import org.apache.tika.eval.io.CSVTableWriter;
 import org.apache.tika.eval.io.JDBCTableWriter;
@@ -47,7 +48,7 @@ import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
 public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
-    private final static String WHICH_DB = "sqlite";//TODO: allow flexibility
+    private final static String WHICH_DB = "h2";//TODO: allow parameterization
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
@@ -89,6 +90,8 @@ public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
             DBUtil util = null;
             if (whichDB.equals("sqlite")) {
                 util = new SqliteUtil();
+            } else if (whichDB.equals("h2")) {
+                util = new H2Util();
             }
             writer = new JDBCTableWriter(SingleFileProfiler.getHeaders(), util, dbDir, tableName, append);
         } catch (Exception e){

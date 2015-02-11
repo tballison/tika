@@ -14,7 +14,7 @@ import java.util.Set;
 
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.batch.fs.FSBatchTestBase;
-import org.apache.tika.eval.db.SqliteUtil;
+import org.apache.tika.eval.db.H2Util;
 import org.junit.Test;
 
 public class ProfilerBatchTest extends FSBatchTestBase {
@@ -37,7 +37,7 @@ public class ProfilerBatchTest extends FSBatchTestBase {
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-single-file-profiler-config.xml", args);
         driver.execute();
 
-        SqliteUtil dbUtil = new SqliteUtil();
+        H2Util dbUtil = new H2Util();
         Connection conn = null;
         Statement st = null;
         Set<String> fNames = new HashSet<String>();
