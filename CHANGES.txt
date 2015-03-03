@@ -1,10 +1,42 @@
 Release 1.8 - Current Development
 
+  * TikaCLI option --compare-file-magic to report mime types known to
+    the file(1) tool but not known / fully known to Tika
+
+  * MediaTypeRegistry support for returning known child types
+
+  * Support for excluding (blacklisting) certain Parsers from being
+    used by DefaultParser via the Tika Config file, using the new
+    parser-exclude tag (TIKA-1558)
+
+  * Detect Global Change Master Directory (GCMD) Directory
+    Interchange Format (DIF) files (TIKA-1561).
+
+  * Parsers and other services can now be disabled with a
+    blacklist META-INF file (TIKA-1558).
+
+  * Tika's JAX-RS server can now return stacktraces for
+    parse exceptions. (TIKA-1323)
+
+  * Added EvilParser for testing handling of exceptions, errors
+    and hangs in code that uses parsers. (TIKA-1533)
+
+  * The ForkParser service removed from Activator. Rollback of (TIKA-1354).
+
+  * Increased the speed of language identification by 
+    a factor of two. (TIKA-1549)
+
+  * Added parser for Sqlite3 db files. Users need to add
+    org.xerial's sqlite-jdbc to their classpath!!!  Tika is not
+    currently bundling that dependency. (TIKA-1511)
+
   * Use POST instead of PUT for tika-server form methods.
     (TIKA-1547)
 
   * A basic wrapper around the UNIX file command was 
-    added to extract Strings. (TIKA-1541)
+    added to extract Strings. In addition a parse to 
+    handle Strings parsing from octet-streams using Latin1
+    charsets as added. (TIKA-1541, TIKA-1483)
 
   * Add test files and detection mechanism for Gridded
     Binary (GRIB) files. (TIKA-1539)

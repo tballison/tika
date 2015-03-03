@@ -16,18 +16,6 @@
  */
 package org.apache.tika;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import org.apache.tika.extractor.EmbeddedResourceHandler;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
@@ -39,6 +27,17 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ToXMLContentHandler;
 import org.xml.sax.ContentHandler;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -85,6 +84,9 @@ public abstract class TikaTest {
     public static void assertContains(String needle, String haystack) {
        assertTrue(needle + " not found in:\n" + haystack, haystack.contains(needle));
     }
+    public static <T> void assertContains(T needle, Collection<? extends T> haystack) {
+        assertTrue(needle + " not found in:\n" + haystack, haystack.contains(needle));
+    }
 
     public static void assertContains(File f, String encoding, String needle) throws Exception {
         String haystack = getStringFromFile(f, encoding);
@@ -93,7 +95,10 @@ public abstract class TikaTest {
 
     public static void assertNotContained(String needle, String haystack) {
         assertFalse(needle + " unexpectedly found in:\n" + haystack, haystack.contains(needle));
-     }
+    }
+    public static <T> void assertNotContained(T needle, Collection<? extends T> haystack) {
+        assertFalse(needle + " unexpectedly found in:\n" + haystack, haystack.contains(needle));
+    }
 
     protected static class XMLResult {
         public final String xml;
@@ -103,6 +108,10 @@ public abstract class TikaTest {
             this.xml = xml;
             this.metadata = metadata;
         }
+    }
+
+    protected XMLResult getXML(String filePath, Metadata metadata) throws Exception {
+        return getXML(getResourceAsStream("/test-documents/" + filePath), new AutoDetectParser(), metadata);
     }
 
     protected XMLResult getXML(String filePath) throws Exception {

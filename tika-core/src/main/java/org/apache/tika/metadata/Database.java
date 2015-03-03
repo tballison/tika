@@ -1,3 +1,5 @@
+package org.apache.tika.metadata;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -14,23 +16,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+public interface Database {
+    final static String PREFIX = "database"+Metadata.NAMESPACE_PREFIX_DELIMITER;
 
-package org.apache.tika.server;
-
-import org.apache.tika.exception.TikaException;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
-
-@Provider
-public class TikaExceptionMapper implements ExceptionMapper<TikaException> {
-  public Response toResponse(TikaException e) {
-    if (e.getCause() !=null && e.getCause() instanceof WebApplicationException) {
-      return ((WebApplicationException) e.getCause()).getResponse();
-    } else {
-      return Response.serverError().build();
-    }
-  }
+    Property TABLE_NAME = Property.externalTextBag(PREFIX+"table_name");
+    Property COLUMN_COUNT = Property.externalText(PREFIX+"column_count");
+    Property COLUMN_NAME = Property.externalTextBag(PREFIX+"column_name");
 }
