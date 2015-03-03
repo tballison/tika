@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.TikaTest;
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.BatchProcessDriverCLI;
@@ -67,11 +68,11 @@ public abstract class FSBatchTestBase extends TikaTest {
     public static void tearDown() throws Exception {
         //not ideal, but should be ok for testing
         //see caveat in TikaCLITest's textExtract
-        /*try {
-          // FileUtils.deleteDirectory(outputRoot);
+        try {
+            FileUtils.deleteDirectory(outputRoot);
         } catch (IOException e) {
             e.printStackTrace();
-        }*/
+        }
     }
 
     protected void destroyProcess(Process p) {
@@ -84,7 +85,7 @@ public abstract class FSBatchTestBase extends TikaTest {
             p.destroy();
         }
     }
-    
+
     File getNewOutputDir(String subdirPrefix) throws IOException {
         File outputDir = File.createTempFile(subdirPrefix, "", outputRoot);
         outputDir.delete();

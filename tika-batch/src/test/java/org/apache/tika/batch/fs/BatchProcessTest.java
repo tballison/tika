@@ -189,9 +189,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
 
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
-        System.out.println(outputDir.getAbsolutePath());
         StreamStrings streamStrings = ex.execute();
-        System.out.println("OUT>>"+streamStrings.getOutString());
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
         assertEquals(0, files[0].length());
