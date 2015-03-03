@@ -131,7 +131,7 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
      * Override this if you have any special handling
      * for the first actual file that the crawler comes across
      * in a directory.  For example, it might be handy to call
-     * mkdirs() on a target directory if your FileResourceConsumers
+     * mkdirs() on an output directory if your FileResourceConsumers
      * are writing to a file.
      *
      * @param f

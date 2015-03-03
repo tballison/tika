@@ -149,8 +149,8 @@ public abstract class TikaTest {
         return getText(is, parser, new ParseContext(), new Metadata());
     }
 
-    public static String getStringFromFile(File targFile, String encoding) throws Exception {
-        InputStream is = new FileInputStream(targFile);
+    public static String getStringFromFile(File outputFile, String encoding) throws Exception {
+        InputStream is = new FileInputStream(outputFile);
         String string = IOUtils.toString(is, encoding);
         IOUtils.closeQuietly(is);
         return string;

@@ -10,7 +10,7 @@
 
     <!--
         Can also add startDir: this tells the crawler to start indexing a
-        child directory of the srcDir directory.
+        child directory of the inputDir directory.
     -->
     <crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
              crawlOrder="random"
@@ -22,7 +22,7 @@
 
     <!--
         This is an example of a crawler that reads a list of files to be processed from a
-        file.  This assumes that the files in the list are relative to srcDir.
+        file.  This assumes that the files in the list are relative to inputDir.
         <crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
                  fileList="files.txt"
                  fileListEncoding="UTF-8"
@@ -31,7 +31,7 @@
                  includeFilePat="(?i).pdf$"
                  excludeFilePat="(?i).msg$"
                  maxFileSizeBytes="-1"
-                 srcDir="input"
+                 inputDir="input"
         />
     -->
     <consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
@@ -40,9 +40,9 @@
         <contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
                         basicHandlerType="text" writeLimit="-1"/>
 
-        <!-- overwritePolicy: "skip" a file if target file exists, "rename" a target file, "overwrite" -->
-        <outputstream class="FSOutputStreamFactory" handleExisting="skip" targDir="output"
-                      encoding="UTF-8" targetSuffix="json"/>
+        <!-- overwritePolicy: "skip" a file if output file exists, "rename" a output file, "overwrite" -->
+        <outputstream class="FSOutputStreamFactory" handleExisting="skip" outputDir="output"
+                      encoding="UTF-8" outputSuffix="json"/>
     </consumers>
 
     <!-- reporter and interrupter are optional -->

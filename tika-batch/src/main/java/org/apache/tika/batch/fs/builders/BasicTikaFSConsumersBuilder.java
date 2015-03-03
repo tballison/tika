@@ -128,7 +128,7 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
     private OutputStreamFactory getOutputStreamFactory(Node node, Map<String, String> runtimeAttributes) {
         Map<String, String> attrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
-        File targDir = PropsUtil.getFile(attrs.get("targDir"), null);
+        File outputDir = PropsUtil.getFile(attrs.get("outputDir"), null);
         FSUtil.HANDLE_EXISTING handleExisting = null;
         String handleExistingString = attrs.get("handleExisting");
         if (handleExistingString == null) {
@@ -154,9 +154,9 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         } else if (compressionString.contains("zip")) {
             compression = FSOutputStreamFactory.COMPRESSION.ZIP;
         }
-        String suffix = attrs.get("targetSuffix");
+        String suffix = attrs.get("outputSuffix");
 
-        return new FSOutputStreamFactory(targDir, handleExisting,
+        return new FSOutputStreamFactory(outputDir, handleExisting,
                 compression, suffix);
     }
 

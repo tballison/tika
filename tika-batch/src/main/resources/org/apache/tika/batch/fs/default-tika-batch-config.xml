@@ -24,23 +24,23 @@
         <option opt="maxQueueSize" hasArg="true"
                 description="maximum queue size for FileResources"/>
         <option opt="fileList" hasArg="true"
-                description="file that contains a list of files (relative to srcDir) to process"/>
+                description="file that contains a list of files (relative to inputDir) to process"/>
         <option opt="fileListEncoding" hasArg="true"
                 description="encoding for fileList"/>
-        <option opt="srcDir" hasArg="true"
+        <option opt="inputDir" hasArg="true"
                 description="root directory for the files to be processed"/>
         <option opt="startDir" hasArg="true"
-                description="directory (under srcDir) at which to start crawling"/>
-        <option opt="targDir" hasArg="true"
-                description="target directory for output"/> <!-- do we want to make this mandatory -->
+                description="directory (under inputDir) at which to start crawling"/>
+        <option opt="outputDir" hasArg="true"
+                description="output directory for output"/> <!-- do we want to make this mandatory -->
         <option opt="recursiveParserWrapper"
                 description="use the RecursiveParserWrapper or not (default = false)"/>
         <option opt="handleExisting" hasArg="true"
-                description="if a target file already exists, do you want to: overwrite, rename or skip"/>
+                description="if an output file already exists, do you want to: overwrite, rename or skip"/>
         <option opt="basicHandlerType" hasArg="true"
                 description="what type of content handler: xml, text, html, body"/>
-        <option opt="targetSuffix" hasArg="true"
-                description="suffix to add to the end of the target file name"/>
+        <option opt="outputSuffix" hasArg="true"
+                description="suffix to add to the end of the output file name"/>
         <option opt="staleThresholdMillis" hasArg="true"
                 description="how long to wait before determining that a consumer is stale"/>
     </commandline>
@@ -52,11 +52,11 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        srcDir="input"
+        inputDir="input"
         />
 <!--
     This is an example of a crawler that reads a list of files to be processed from a
-    file.  This assumes that the files in the list are relative to srcDir.
+    file.  This assumes that the files in the list are relative to inputDir.
     <crawler class="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
              fileList="files.txt"
              fileListEncoding="UTF-8"
@@ -65,7 +65,7 @@
              includeFilePat="(?i).pdf$"
              excludeFilePat="(?i).msg$"
              maxFileSizeBytes="-1"
-             srcDir="input"
+             inputDir="input"
     />
 -->
     <consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
@@ -74,9 +74,9 @@
         <contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
                         basicHandlerType="xml" writeLimit="-1"/>
 
-        <!-- overwritePolicy: "skip" a file if target file exists, "rename" a target file, "overwrite" -->
-        <outputstream class="FSOutputStreamFactory" handleExisting="skip" targDir="output"
-                      encoding="UTF-8" targetSuffix="xml"/>
+        <!-- overwritePolicy: "skip" a file if output file exists, "rename" a output file, "overwrite" -->
+        <outputstream class="FSOutputStreamFactory" handleExisting="skip" outputDir="output"
+                      encoding="UTF-8" outputSuffix="xml"/>
     </consumers>
 
     <!-- reporter and interrupter are optional -->

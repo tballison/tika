@@ -17,6 +17,11 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.TestCase.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,57 +30,52 @@ import java.util.Map;
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.junit.Test;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.TestCase.assertNotNull;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 
 public class BatchDriverTest extends FSBatchTestBase {
 
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
         //batch runner hits one heavy hang file, keep going
-        File targDir = getNewTargDir("daemon-");
-        assertNotNull(targDir.listFiles());
-        //make sure target directory is empty!
-        assertEquals(0, targDir.listFiles().length);
+        File outputDir = getNewOutputDir("daemon-");
+        assertNotNull(outputDir.listFiles());
+        //make sure output directory is empty!
+        assertEquals(0, outputDir.listFiles().length);
 
-        String[] args = getDefaultCommandLineArgsArr("one_heavy_hang", targDir, null);
+        String[] args = getDefaultCommandLineArgsArr("one_heavy_hang", outputDir, null);
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", args);
         driver.execute();
         assertEquals(0, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
-        assertEquals(5, targDir.listFiles().length);
-        assertContains(new File(targDir, "test1.txt.xml"), "UTF-8", "first test file");
+        assertEquals(5, outputDir.listFiles().length);
+        assertContains(new File(outputDir, "test1.txt.xml"), "UTF-8", "first test file");
     }
 
     @Test(timeout = 15000)
     public void restartOnFullHangTest() throws Exception {
         //batch runner hits more heavy hangs than threads; needs to restart
-        File targDir = getNewTargDir("daemon-");
+        File outputDir = getNewOutputDir("daemon-");
 
-        //make sure target directory is empty!
-        assertEquals(0, targDir.listFiles().length);
+        //make sure output directory is empty!
+        assertEquals(0, outputDir.listFiles().length);
 
-        String[] args = getDefaultCommandLineArgsArr("heavy_heavy_hangs", targDir, null);
+        String[] args = getDefaultCommandLineArgsArr("heavy_heavy_hangs", outputDir, null);
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", args);
         driver.execute();
         //could be one or two depending on timing
         assertTrue(driver.getNumRestarts() > 0);
         assertFalse(driver.getUserInterrupted());
-        assertContains(new File(targDir, "test1.txt.xml"), "UTF-8",
+        assertContains(new File(outputDir, "test1.txt.xml"), "UTF-8",
                 "first test file");
     }
 
     @Test(timeout = 15000)
     public void noRestartTest() throws Exception {
-        File targDir = getNewTargDir("daemon-");
+        File outputDir = getNewOutputDir("daemon-");
 
-        //make sure target directory is empty!
-        assertEquals(0, targDir.listFiles().length);
+        //make sure output directory is empty!
+        assertEquals(0, outputDir.listFiles().length);
 
-        String[] args = getDefaultCommandLineArgsArr("no_restart", targDir, null);
+        String[] args = getDefaultCommandLineArgsArr("no_restart", outputDir, null);
         String[] mod = Arrays.copyOf(args, args.length + 2);
         mod[args.length] = "-numConsumers";
         mod[args.length+1] = "1";
@@ -84,7 +84,7 @@ public class BatchDriverTest extends FSBatchTestBase {
         driver.execute();
         assertEquals(0, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
-        File[] files = targDir.listFiles();
+        File[] files = outputDir.listFiles();
         assertEquals(2, files.length);
         assertEquals(0, files[1].length());
     }
@@ -92,17 +92,17 @@ public class BatchDriverTest extends FSBatchTestBase {
     @Test(timeout = 15000)
     public void restartOnOOMTest() throws Exception {
         //batch runner hits more heavy hangs than threads; needs to restart
-        File targDir = getNewTargDir("daemon-");
+        File outputDir = getNewOutputDir("daemon-");
 
-        //make sure target directory is empty!
-        assertEquals(0, targDir.listFiles().length);
+        //make sure output directory is empty!
+        assertEquals(0, outputDir.listFiles().length);
 
-        String[] args = getDefaultCommandLineArgsArr("oom", targDir, null);
+        String[] args = getDefaultCommandLineArgsArr("oom", outputDir, null);
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", args);
         driver.execute();
         assertEquals(1, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
-        assertContains(new File(targDir, "test4.txt.xml"),
+        assertContains(new File(outputDir, "test4.txt.xml"),
                 "UTF-8", "first test file");
     }
 
@@ -111,17 +111,17 @@ public class BatchDriverTest extends FSBatchTestBase {
         //this tests that if all consumers are hung and the crawler is
         //waiting to add to the queue, there isn't deadlock.  The BatchProcess should
         //just shutdown, and the driver should restart
-        File targDir = getNewTargDir("allHeavyHangsStarvedCrawler-");
+        File outputDir = getNewOutputDir("allHeavyHangsStarvedCrawler-");
         Map<String, String> args = new HashMap<String,String>();
         args.put("-numConsumers", "2");
         args.put("-maxQueueSize", "50");
         args.put("-maxTimedOutConsumers", "100");
-        String[] commandLine = getDefaultCommandLineArgsArr("heavy_heavy_hangs", targDir, args);
+        String[] commandLine = getDefaultCommandLineArgsArr("heavy_heavy_hangs", outputDir, args);
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-config-evil-test.xml", commandLine);
         driver.execute();
         assertEquals(2, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
-        assertContains(new File(targDir, "test1.txt.xml"), "UTF-8",
+        assertContains(new File(outputDir, "test1.txt.xml"), "UTF-8",
                 "first test file");
     }
 }

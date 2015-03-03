@@ -1,1 +1,1 @@
-run time exception
+<throwable message="runtime exception">java.lang.RuntimeException</throwable>

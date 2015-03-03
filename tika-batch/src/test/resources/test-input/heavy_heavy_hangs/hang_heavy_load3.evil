@@ -1,1 +1,1 @@
-hang heavy load
+<hang type="heavy" max_millis="60000" pulse_check_millis="10000"/>

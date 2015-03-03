@@ -17,6 +17,9 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
+import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.util.Map;
 
@@ -24,19 +27,16 @@ import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.ParallelFileProcessingResult;
 import org.junit.Test;
 
-import static junit.framework.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-
 public class OutputStreamFactoryTest extends FSBatchTestBase {
 
 
     @Test
     public void testIllegalState() throws Exception {
-        File targDir = getNewTargDir("os-factory-illegal-state-");
-        Map<String, String> args = getDefaultArgs("basic", targDir);
+        File outputDir = getNewOutputDir("os-factory-illegal-state-");
+        Map<String, String> args = getDefaultArgs("basic", outputDir);
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         runner.execute();
-        assertEquals(1, targDir.listFiles().length);
+        assertEquals(1, outputDir.listFiles().length);
 
         boolean illegalState = false;
         try{
@@ -49,38 +49,38 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
 
     @Test
     public void testSkip() throws Exception {
-        File targDir = getNewTargDir("os-factory-skip-");
-        Map<String, String> args = getDefaultArgs("basic", targDir);
+        File outputDir = getNewOutputDir("os-factory-skip-");
+        Map<String, String> args = getDefaultArgs("basic", outputDir);
         args.put("handleExisting", "skip");
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         ParallelFileProcessingResult result = runner.execute();
-        assertEquals(1, targDir.listFiles().length);
+        assertEquals(1, outputDir.listFiles().length);
 
         runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         result = runner.execute();
-        assertEquals(1, targDir.listFiles().length);
+        assertEquals(1, outputDir.listFiles().length);
     }
 
     @Test
     public void testRename() throws Exception {
-        File targDir = getNewTargDir("os-factory-rename-");
-        Map<String, String> args = getDefaultArgs("basic", targDir);
+        File outputDir = getNewOutputDir("os-factory-rename-");
+        Map<String, String> args = getDefaultArgs("basic", outputDir);
 
         args.put("handleExisting", "rename");
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         ParallelFileProcessingResult result = runner.execute();
-        assertEquals(1, targDir.listFiles().length);
+        assertEquals(1, outputDir.listFiles().length);
 
         runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         result = runner.execute();
-        assertEquals(2, targDir.listFiles().length);
+        assertEquals(2, outputDir.listFiles().length);
 
         runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
         result = runner.execute();
-        assertEquals(3, targDir.listFiles().length);
+        assertEquals(3, outputDir.listFiles().length);
 
         int hits = 0;
-        for (File f : targDir.listFiles()){
+        for (File f : outputDir.listFiles()){
             String name = f.getName();
             if (name.equals("test1.txt.xml")) {
                 hits++;

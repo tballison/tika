@@ -46,8 +46,8 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
 
 
     private final static String CRAWL_ORDER = "crawlOrder";
-    private final static String SRC_DIR_ATTR = "srcDir";
-    private final static String SRC_START_DIR_ATTR = "startDir";
+    private final static String INPUT_DIR_ATTR = "inputDir";
+    private final static String INPUT_START_DIR_ATTR = "startDir";
     private final static String MAX_FILE_SIZE_BYTES_ATTR = "maxFileSizeBytes";
     private final static String MIN_FILE_SIZE_BYTES_ATTR = "minFileSizeBytes";
 
@@ -62,7 +62,7 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
         Map<String, String> attributes = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
         int numConsumers = BatchProcessBuilder.getNumConsumers(runtimeAttributes);
-        File srcDir = PropsUtil.getFile(attributes.get(SRC_DIR_ATTR), new File("input"));
+        File inputDir = PropsUtil.getFile(attributes.get(INPUT_DIR_ATTR), new File("input"));
         FileResourceCrawler crawler = null;
         if (attributes.containsKey("fileList")) {
             String randomCrawlString = attributes.get(CRAWL_ORDER);
@@ -74,7 +74,7 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
             File fileList = PropsUtil.getFile(attributes.get("fileList"), null);
             String encoding = PropsUtil.getString(attributes.get("fileListEncoding"), "UTF-8");
             try {
-                crawler = new org.apache.tika.batch.fs.FSListCrawler(queue, numConsumers, srcDir, fileList, encoding);
+                crawler = new org.apache.tika.batch.fs.FSListCrawler(queue, numConsumers, inputDir, fileList, encoding);
             } catch (java.io.FileNotFoundException e) {
                 throw new RuntimeException("fileList file not found for FSListCrawler: " + fileList.getAbsolutePath());
             } catch (java.io.UnsupportedEncodingException e) {
@@ -82,11 +82,11 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
             }
         } else {
             FSDirectoryCrawler.CRAWL_ORDER crawlOrder = getCrawlOrder(attributes.get(CRAWL_ORDER));
-            File startDir = PropsUtil.getFile(attributes.get(SRC_START_DIR_ATTR), null);
+            File startDir = PropsUtil.getFile(attributes.get(INPUT_START_DIR_ATTR), null);
             if (startDir == null) {
-                crawler = new FSDirectoryCrawler(queue, numConsumers, srcDir, crawlOrder);
+                crawler = new FSDirectoryCrawler(queue, numConsumers, inputDir, crawlOrder);
             } else {
-                crawler = new FSDirectoryCrawler(queue, numConsumers, srcDir, startDir, crawlOrder);
+                crawler = new FSDirectoryCrawler(queue, numConsumers, inputDir, startDir, crawlOrder);
             }
         }
 

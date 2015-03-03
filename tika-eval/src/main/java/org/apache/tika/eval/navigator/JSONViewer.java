@@ -22,10 +22,10 @@ import org.apache.tika.metadata.serialization.JsonMetadataList;
 
 @Path("view")
 public class JSONViewer {
-    private final File targetDocumentRoot;
+    private final File outputDocumentRoot;
 
-    public JSONViewer(File targetDocumentRoot) {
-        this.targetDocumentRoot = targetDocumentRoot;
+    public JSONViewer(File outputDocumentRoot) {
+        this.outputDocumentRoot = outputDocumentRoot;
     }
 
     @GET
@@ -36,7 +36,7 @@ public class JSONViewer {
         if (fileName.contains("..") || fileName.contains("`"))
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
 
-        File file = new File(targetDocumentRoot, fileName);
+        File file = new File(outputDocumentRoot, fileName);
 
         if(file == null || !file.exists())
             throw new WebApplicationException(javax.ws.rs.core.Response.Status.NOT_FOUND);

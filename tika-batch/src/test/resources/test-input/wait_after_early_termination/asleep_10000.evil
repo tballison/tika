@@ -1,1 +1,1 @@
-sleep 10000
+<hang type="sleep" max_millis="10000"/>

@@ -316,7 +316,7 @@ public class TikaCLITest {
         TikaCLI.main(params);
         String content = outContent.toString(IOUtils.UTF_8.name());
         assertTrue(content.contains("Extracting 'subdir/foo.txt'"));
-        // clean up. TODO: These should be in target.
+        // clean up. TODO: These should be in output.
         new File("target/subdir/foo.txt").delete();
         new File("target/subdir").delete();
     }

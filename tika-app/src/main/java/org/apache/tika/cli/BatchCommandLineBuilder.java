@@ -80,15 +80,15 @@ class BatchCommandLineBuilder {
         if (args.length == 0) {
             return;
         }
-        //need special handling in case last element in args is the src directory
+        //need special handling in case last element in args is the input directory
         //if it is, then don't look for args in the last place of the args[].
 
         int end = args.length;
-        String srcDirString = "";
-        File srcDir = new File(args[args.length-1]);
-        if (srcDir.isDirectory()) {
+        String inputDirString = "";
+        File inputDir = new File(args[args.length-1]);
+        if (inputDir.isDirectory()) {
             end = args.length-1;
-            srcDirString = args[args.length-1];
+            inputDirString = args[args.length-1];
         }
         Matcher matcher = JVM_OPTS_PATTERN.matcher("");
         for (int i = 0; i < end; i++) {
@@ -111,20 +111,20 @@ class BatchCommandLineBuilder {
             }
         }
         //if we defined this above, now overwrite whatever may have been
-        //parsed as -srcDir earlier
-        if (srcDirString.length() > 0) {
-            commandLine.put("-srcDir", srcDirString);
+        //parsed as -inputDir earlier
+        if (inputDirString.length() > 0) {
+            commandLine.put("-inputDir", inputDirString);
         }
     }
 
 
     private static List<String> translateCommandLine(String[] args, Map<String, String> map) throws IOException {
-        //if no -srcDir is specified, but the last
-        //item in the list is a directory, treat that as srcDir
-        if (! map.containsKey("-srcDir")) {
+        //if no -inputDir is specified, but the last
+        //item in the list is a directory, treat that as inputDir
+        if (! map.containsKey("-inputDir")) {
             File tmpFile = new File(args[args.length-1]);
             if (tmpFile.isDirectory()) {
-                map.put("-srcDir", args[args.length-1]);
+                map.put("-inputDir", args[args.length-1]);
             }
         }
 
@@ -133,35 +133,35 @@ class BatchCommandLineBuilder {
             map.remove("-h");
             map.remove("--html");
             map.put("-basicHandlerType", "html");
-            map.put("-targetSuffix", "html");
+            map.put("-outputSuffix", "html");
         } else if (map.containsKey("-x") || map.containsKey("--xml")) {
             map.remove("-x");
             map.remove("--xml");
             map.put("-basicHandlerType", "xml");
-            map.put("-targetSuffix", "xml");
+            map.put("-outputSuffix", "xml");
         } else if (map.containsKey("-t") || map.containsKey("--text")) {
             map.remove("-t");
             map.remove("--text");
             map.put("-basicHandlerType", "text");
-            map.put("-targetSuffix", "txt");
+            map.put("-outputSuffix", "txt");
         } else if (map.containsKey("-m") || map.containsKey("--metadata")) {
             map.remove("-m");
             map.remove("--metadata");
             map.put("-basicHandlerType", "ignore");
-            map.put("-targetSuffix", "json");
+            map.put("-outputSuffix", "json");
         } else if (map.containsKey("-T") || map.containsKey("--text-main")) {
             map.remove("-T");
             map.remove("--text-main");
             map.put("-basicHandlerType", "body");
-            map.put("-targetSuffix", "txt");
+            map.put("-outputSuffix", "txt");
         }
 
         if (map.containsKey("-J") || map.containsKey("--jsonRecursive")) {
             map.remove("-J");
             map.remove("--jsonRecursive");
             map.put("-recursiveParserWrapper", "true");
-            //overwrite targetSuffix
-            map.put("-targetSuffix", "json");
+            //overwrite outputSuffix
+            map.put("-outputSuffix", "json");
         }
         //package
         List<String> translated = new ArrayList<String>();

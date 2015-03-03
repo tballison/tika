@@ -58,14 +58,14 @@ public class FSUtil {
             Pattern.compile("\\A(.*?)(?:\\((\\d+)\\))?\\.([^\\.]+)\\Z");
 
     /**
-     * Given a target root and an initial relative path,
-     * return the target file according to the HANDLE_EXISTING strategy
+     * Given an output root and an initial relative path,
+     * return the output file according to the HANDLE_EXISTING strategy
      * <p/>
      * In the most basic use case, given a root directory "input",
-     * a file's relative path "dir1/dir2/fileA.docx", and a target directory
-     * "output", the target file would be "output/dir1/dir2/fileA.docx."
+     * a file's relative path "dir1/dir2/fileA.docx", and an output directory
+     * "output", the output file would be "output/dir1/dir2/fileA.docx."
      * <p/>
-     * If HANDLE_EXISTING is set to OVERWRITE, this will not check to see if the target already exists,
+     * If HANDLE_EXISTING is set to OVERWRITE, this will not check to see if the output already exists,
      * and the returned file could overwrite an existing file!!!
      * <p/>
      * If HANDLE_EXISTING is set to RENAME, this will try to increment a counter at the end of
@@ -75,21 +75,21 @@ public class FSUtil {
      * the candidate file already exists.
      * <p/>
      * This will throw an IOException if HANDLE_EXISTING is set to
-     * RENAME, and a candidate cannot target file cannot be found
+     * RENAME, and a candidate cannot output file cannot be found
      * after trying to increment the file count (e.g. fileA(2).docx) 10000 times
      * and then after trying 20,000 UUIDs.
      *
-     * @param targetRoot directory root for target
+     * @param outputRoot directory root for output
      * @param initialRelativePath initial relative path (including file name, which may be renamed)
-     * @param handleExisting what to do if the target file exists
+     * @param handleExisting what to do if the output file exists
      * @param suffix suffix to add to files, can be null
-     * @return target file or null if no target file should be created
+     * @return output file or null if no output file should be created
      * @throws java.io.IOException
      */
-    public static File getTargetFile(File targetRoot, String initialRelativePath,
+    public static File getOutputFile(File outputRoot, String initialRelativePath,
                                      HANDLE_EXISTING handleExisting, String suffix) throws IOException {
         String localSuffix = (suffix == null) ? "" : suffix;
-        File cand = new File(targetRoot, initialRelativePath+"."+localSuffix);
+        File cand = new File(outputRoot, initialRelativePath+"."+localSuffix);
         if (cand.isFile()) {
             if (handleExisting.equals(HANDLE_EXISTING.OVERWRITE)) {
                 return cand;
@@ -98,7 +98,7 @@ public class FSUtil {
             }
         }
 
-        //if we're here, the target file exists, and
+        //if we're here, the output file exists, and
         //we must find a new name for it.
 
         //groups for "testfile(1).txt":
@@ -110,7 +110,7 @@ public class FSUtil {
         String fNameBase = null;
         String fNameExt = "";
         //this doesn't include the addition of the localSuffix
-        File candOnly = new File(targetRoot, initialRelativePath);
+        File candOnly = new File(outputRoot, initialRelativePath);
         Matcher m = FILE_NAME_PATTERN.matcher(candOnly.getName());
         if (m.find()) {
             fNameBase = m.group(1);
@@ -127,20 +127,20 @@ public class FSUtil {
             }
         }
 
-        File targetParent = cand.getParentFile();
+        File outputParent = cand.getParentFile();
         while (fNameBase != null && cand.isFile() && ++cnt < 10000) {
             String candFileName = fNameBase + "(" + cnt + ")." + fNameExt+"."+localSuffix;
-            cand = new File(targetParent, candFileName);
+            cand = new File(outputParent, candFileName);
         }
         //reset count to 0 and try 20000 times
         cnt = 0;
         while (cand.isFile() && cnt++ < 20000) {
             UUID uid = UUID.randomUUID();
-            cand = new File(targetParent, uid.toString() + fNameExt+"."+localSuffix);
+            cand = new File(outputParent, uid.toString() + fNameExt+"."+localSuffix);
         }
 
         if (cand.isFile()) {
-            throw new IOException("Couldn't find candidate target file after trying " +
+            throw new IOException("Couldn't find candidate output file after trying " +
                     "very, very hard");
         }
         return cand;

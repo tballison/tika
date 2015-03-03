@@ -1,1 +1,1 @@
-no restart
+<throwable message="batch no restart">org.apache.tika.batch.BatchNoRestartError</throwable>

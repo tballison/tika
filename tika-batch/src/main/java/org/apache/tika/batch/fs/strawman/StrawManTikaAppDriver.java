@@ -35,28 +35,28 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
     private final int totalThreads;
     private final int threadNum;
     private int rootLen = -1;
-    private File srcDir = null;
-    private File targDir = null;
+    private File inputDir = null;
+    private File outputDir = null;
     private String[] args = null;
     private Logger logger = Logger.getLogger(StrawManTikaAppDriver.class);
 
 
-    public StrawManTikaAppDriver(File srcDir, File targDir, int totalThreads, String[] args) {
-        rootLen = srcDir.getAbsolutePath().length()+1;
-        this.srcDir = srcDir;
-        this.targDir = targDir;
+    public StrawManTikaAppDriver(File inputDir, File outputDir, int totalThreads, String[] args) {
+        rootLen = inputDir.getAbsolutePath().length()+1;
+        this.inputDir = inputDir;
+        this.outputDir = outputDir;
         this.args = args;
         threadNum = threadCount.getAndIncrement();
         this.totalThreads = totalThreads;
     }
 
 
-    private int processDirectory(File srcDir) {
+    private int processDirectory(File inputDir) {
         int processed = 0;
-        if (srcDir == null || srcDir.listFiles() == null) {
+        if (inputDir == null || inputDir.listFiles() == null) {
             return processed;
         }
-        for (File f : srcDir.listFiles()) {
+        for (File f : inputDir.listFiles()) {
             List<File> childDirs = new ArrayList<File>();
             if (f.isDirectory()) {
                 childDirs.add(f);
@@ -78,11 +78,11 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
                 return 0;
             }
         }
-        File targFile = new File(targDir, f.getAbsolutePath().substring(rootLen)+".txt");
-        targFile.getAbsoluteFile().getParentFile().mkdirs();
-        if (! targFile.getParentFile().exists()) {
-            logger.fatal("parent directory for "+ targFile + " was not made!");
-            throw new RuntimeException("couldn't make parent file for " + targFile);
+        File outputFile = new File(outputDir, f.getAbsolutePath().substring(rootLen)+".txt");
+        outputFile.getAbsoluteFile().getParentFile().mkdirs();
+        if (! outputFile.getParentFile().exists()) {
+            logger.fatal("parent directory for "+ outputFile + " was not made!");
+            throw new RuntimeException("couldn't make parent file for " + outputFile);
         }
         List<String> commandLine = new ArrayList<String>();
         for (int i = 0; i < args.length; i++) {
@@ -96,7 +96,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         RedirectGobbler gobbler = null;
         Thread gobblerThread = null;
         try {
-            OutputStream os = new FileOutputStream(targFile);
+            OutputStream os = new FileOutputStream(outputFile);
             proc = builder.start();
             gobbler = new RedirectGobbler(proc.getInputStream(), os);
             gobblerThread = new Thread(gobbler);
@@ -137,7 +137,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
     public Integer call() throws Exception {
         long start = new Date().getTime();
 
-        int processed = processDirectory(srcDir);
+        int processed = processDirectory(inputDir);
         double elapsedSecs = ((double)new Date().getTime()-(double)start)/(double)1000;
         logger.info("Finished processing " + processed + " files in " + elapsedSecs + " seconds.");
         return new Integer(processed);
@@ -183,7 +183,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         StringBuilder sb = new StringBuilder();
         sb.append("Example usage:\n");
         sb.append("java -cp <CP> org.apache.batch.fs.strawman.StrawManTikaAppDriver ");
-        sb.append("<srcDir> <targDir> <numThreads> ");
+        sb.append("<inputDir> <outputDir> <numThreads> ");
         sb.append("java -jar tika-app-X.Xjar <...commandline arguments for tika-app>\n\n");
         return sb.toString();
     }
@@ -193,8 +193,8 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         if (args.length < 6) {
             System.err.println(StrawManTikaAppDriver.usage());
         }
-        File srcDir = new File(args[0]);
-        File targDir = new File(args[1]);
+        File inputDir = new File(args[0]);
+        File outputDir = new File(args[1]);
         int totalThreads = Integer.parseInt(args[2]);
 
         List<String> commandLine = new ArrayList<String>();
@@ -208,7 +208,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
 
         for (int i = 0; i < totalThreads; i++) {
             StrawManTikaAppDriver driver =
-                    new StrawManTikaAppDriver(srcDir, targDir, totalThreads, commandLine.toArray(new String[commandLine.size()]));
+                    new StrawManTikaAppDriver(inputDir, outputDir, totalThreads, commandLine.toArray(new String[commandLine.size()]));
             completionService.submit(driver);
         }
 

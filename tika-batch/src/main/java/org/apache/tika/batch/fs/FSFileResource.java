@@ -17,14 +17,14 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.util.BatchLocalization;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * FileSystem(FS)Resource wraps a file name.
@@ -42,18 +42,17 @@ public class FSFileResource implements FileResource {
     private final File fullPath;
     private final Metadata metadata;
 
-    public FSFileResource(File srcRoot, File fullPath) {
+    public FSFileResource(File inputRoot, File fullPath) {
         this.fullPath = fullPath;
         this.metadata = new Metadata();
         //child path must actually be a child
-        assert(FSUtil.checkThisIsAncestorOfThat(srcRoot, fullPath));
-        String relativePath = fullPath.getAbsolutePath().substring(srcRoot.getAbsolutePath().length()+1);
+        assert(FSUtil.checkThisIsAncestorOfThat(inputRoot, fullPath));
+        String relativePath = fullPath.getAbsolutePath().substring(inputRoot.getAbsolutePath().length()+1);
 
         //need to set these now so that the filter can determine
         //whether or not to crawl this file
         metadata.set(Metadata.RESOURCE_NAME_KEY, fullPath.getName());
         metadata.set(Metadata.CONTENT_LENGTH, Long.toString(fullPath.length()));
-        metadata.set(FSProperties.FS_ABSOLUTE_PATH, fullPath.getAbsolutePath());
         metadata.set(FSProperties.FS_REL_PATH, relativePath);
         metadata.set(FileResource.FILE_EXTENSION, getExtension(fullPath));
     }

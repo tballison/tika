@@ -16,6 +16,9 @@
  */
 package org.apache.tika.cli;
 
+import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -26,9 +29,6 @@ import org.apache.tika.io.TemporaryResources;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
 
 public class TikaCLIBatchCommandLineTest {
 
@@ -70,15 +70,15 @@ public class TikaCLIBatchCommandLineTest {
             String s = sb.toString();
             int classInd = s.indexOf("org.apache.tika.batch.fs.FSBatchProcessCLI");
             int xmx = s.indexOf("-Xmx1g");
-            int srcDir = s.indexOf("-srcDir");
+            int inputDir = s.indexOf("-inputDir");
             int log = s.indexOf("-Dlog4j.configuration");
             assertTrue(classInd > -1);
             assertTrue(xmx > -1);
-            assertTrue(srcDir > -1);
+            assertTrue(inputDir > -1);
             assertTrue(log > -1);
             assertTrue(xmx < classInd);
             assertTrue(log < classInd);
-            assertTrue(srcDir > classInd);
+            assertTrue(inputDir > classInd);
         } finally {
             tmp.close();
         }
@@ -101,7 +101,7 @@ public class TikaCLIBatchCommandLineTest {
             Map<String, String> attrs = mapify(commandLine);
             assertEquals("true", attrs.get("-recursiveParserWrapper"));
             assertEquals("html", attrs.get("-basicHandlerType"));
-            assertEquals("json", attrs.get("-targetSuffix"));
+            assertEquals("json", attrs.get("-outputSuffix"));
             assertEquals("batch-config.xml", attrs.get("-bc"));
 
         } finally {

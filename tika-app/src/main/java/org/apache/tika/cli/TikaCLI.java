@@ -546,8 +546,8 @@ public class TikaCLI {
         out.println("    -d  or --detect        Detect document type");
         out.println("    -eX or --encoding=X    Use output encoding X");
         out.println("    -pX or --password=X    Use document password X");
-        out.println("    -z  or --extract       Extract all attachements into current directory");
-        out.println("    --extract-dir=<dir>    Specify target directory for -z");
+        out.println("    -z  or --extract       Extract all attachments into current directory");
+        out.println("    --extract-dir=<dir>    Specify output directory for -z");
         out.println("    -r  or --pretty-print  For JSON, XML and XHTML outputs, adds newlines and");
         out.println("                           whitespace, for better readability");
         out.println();
@@ -880,7 +880,7 @@ public class TikaCLI {
             }
         }
         for (String s : args) {
-            if (s.equals("-srcDir")) {
+            if (s.equals("-inputDir")) {
                 return true;
             } else if (s.equals("-batch-help")) {
                 return true;

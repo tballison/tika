@@ -51,7 +51,7 @@ public class NavigatorCLI {
         options.addOption("p", "port", true, "listen port (default = " + DEFAULT_PORT + ')');
         options.addOption("l", "log", true, "request URI log level ('debug' or 'info')");
         options.addOption("s", "srcDocumentRoot", true, "directory root for source documents");
-        options.addOption("t", "targetDocumentRoot", true, "directory root for extracted documents");
+        options.addOption("o", "outputDocumentRoot", true, "directory root for extracted documents");
         options.addOption("?", "help", false, "this help message");
 
         return options;
@@ -93,18 +93,18 @@ public class NavigatorCLI {
                 System.exit(-1);
             }
 
-            File targetDocumentRoot = null;
-            if (line.hasOption("targetDocumentRoot")) {
-                targetDocumentRoot = new File(line.getOptionValue("targetDocumentRoot"));
+            File outputDocumentRoot = null;
+            if (line.hasOption("outputDocumentRoot")) {
+                outputDocumentRoot = new File(line.getOptionValue("outputDocumentRoot"));
             } else {
-                System.err.println("Must specify 'targetDocumentRoot'");
+                System.err.println("Must specify 'outputDocumentRoot'");
                 System.exit(-1);
             }
 
             JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean();
 
             List<ResourceProvider> rCoreProviders = new ArrayList<ResourceProvider>();
-            rCoreProviders.add(new SingletonResourceProvider(new JSONViewer(targetDocumentRoot)));
+            rCoreProviders.add(new SingletonResourceProvider(new JSONViewer(outputDocumentRoot)));
             rCoreProviders.add(new SingletonResourceProvider(new FileDownloader(srcDocumentRoot)));
 
             List<ResourceProvider> rAllProviders = new ArrayList<ResourceProvider>(rCoreProviders);

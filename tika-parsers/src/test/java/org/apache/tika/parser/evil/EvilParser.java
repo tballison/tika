@@ -218,11 +218,22 @@ public class EvilParser extends AbstractParser {
         }
     }
 
+    //Sleep, really, don't even wake up for InterruptedExceptions
     private void sleep(long maxMillis) {
-        try {
-            Thread.sleep(maxMillis);
-        } catch (InterruptedException e) {
-
+        long start = new Date().getTime();
+        long millisRemaining = maxMillis;
+        while (true) {
+            try {
+                Thread.sleep(millisRemaining);
+            } catch (InterruptedException e) {
+                System.out.println("interrupted exception");
+            }
+            long elapsed = new Date().getTime()-start;
+            millisRemaining = maxMillis - elapsed;
+            System.out.println(millisRemaining);
+            if (millisRemaining < 0) {
+                break;
+            }
         }
     }
 }

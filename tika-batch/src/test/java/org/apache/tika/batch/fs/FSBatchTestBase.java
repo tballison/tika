@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.tika.TikaTest;
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.BatchProcessDriverCLI;
@@ -68,11 +67,11 @@ public abstract class FSBatchTestBase extends TikaTest {
     public static void tearDown() throws Exception {
         //not ideal, but should be ok for testing
         //see caveat in TikaCLITest's textExtract
-        try {
-           FileUtils.deleteDirectory(outputRoot);
+        /*try {
+          // FileUtils.deleteDirectory(outputRoot);
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
     protected void destroyProcess(Process p) {
@@ -85,32 +84,33 @@ public abstract class FSBatchTestBase extends TikaTest {
             p.destroy();
         }
     }
-    File getNewTargDir(String subdirPrefix) throws IOException {
-        File targDir = File.createTempFile(subdirPrefix, "", outputRoot);
-        targDir.delete();
-        targDir.mkdirs();
-        return targDir;
+    
+    File getNewOutputDir(String subdirPrefix) throws IOException {
+        File outputDir = File.createTempFile(subdirPrefix, "", outputRoot);
+        outputDir.delete();
+        outputDir.mkdirs();
+        return outputDir;
     }
 
-    Map<String, String> getDefaultArgs(String srcSubDir, File targDir) throws Exception {
+    Map<String, String> getDefaultArgs(String inputSubDir, File outputDir) throws Exception {
         Map<String, String> args = new HashMap<String, String>();
-        args.put("srcDir", "\""+getInputRoot(srcSubDir).getAbsolutePath()+"\"");
-        if (targDir != null) {
-            args.put("targDir", "\""+targDir.getAbsolutePath()+"\"");
+        args.put("inputDir", "\""+getInputRoot(inputSubDir).getAbsolutePath()+"\"");
+        if (outputDir != null) {
+            args.put("outputDir", "\""+outputDir.getAbsolutePath()+"\"");
         }
         return args;
     }
 
-    public String[] getDefaultCommandLineArgsArr(String srcSubDir, File targDir, Map<String, String> commandLine) throws Exception {
+    public String[] getDefaultCommandLineArgsArr(String inputSubDir, File outputDir, Map<String, String> commandLine) throws Exception {
         List<String> args = new ArrayList<String>();
         //need to include "-" because these are going to the commandline!
-        if (srcSubDir != null) {
-            args.add("-srcDir");
-            args.add(getInputRoot(srcSubDir).getAbsolutePath());
+        if (inputSubDir != null) {
+            args.add("-inputDir");
+            args.add(getInputRoot(inputSubDir).getAbsolutePath());
         }
-        if (targDir != null) {
-            args.add("-targDir");
-            args.add(targDir.getAbsolutePath());
+        if (outputDir != null) {
+            args.add("-outputDir");
+            args.add(outputDir.getAbsolutePath());
         }
         if (commandLine != null) {
             for (Map.Entry<String, String> e : commandLine.entrySet()) {

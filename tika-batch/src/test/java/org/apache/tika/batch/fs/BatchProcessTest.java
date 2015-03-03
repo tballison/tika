@@ -17,6 +17,10 @@ package org.apache.tika.batch.fs;
  */
 
 
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.fail;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -24,21 +28,17 @@ import java.util.Map;
 import org.apache.tika.batch.BatchProcess;
 import org.junit.Test;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.fail;
-import static org.junit.Assert.assertTrue;
-
 public class BatchProcessTest extends FSBatchTestBase {
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
 
-        File targDir = getNewTargDir("one_heavy_hang-");
+        File outputDir = getNewOutputDir("one_heavy_hang-");
 
-        Map<String, String> args = getDefaultArgs("one_heavy_hang", targDir);
+        Map<String, String> args = getDefaultArgs("one_heavy_hang", outputDir);
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
-        assertEquals(5, targDir.listFiles().length);
-        File hvyHang = new File(targDir, "hang_heavy_load1.evil.xml");
+        assertEquals(5, outputDir.listFiles().length);
+        File hvyHang = new File(outputDir, "hang_heavy_load1.evil.xml");
         assertTrue(hvyHang.exists());
         assertEquals(0, hvyHang.length());
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
@@ -50,14 +50,14 @@ public class BatchProcessTest extends FSBatchTestBase {
     public void allHeavyHangsTest() throws Exception {
         //each of the three threads hits a heavy hang.  The BatchProcess runs into
         //all timedouts and shuts down.
-        File targDir = getNewTargDir("allHeavyHangs-");
-        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", targDir);
+        File outputDir = getNewOutputDir("allHeavyHangs-");
+        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", outputDir);
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
 
-        assertEquals(3, targDir.listFiles().length);
+        assertEquals(3, outputDir.listFiles().length);
         for (int i = 1; i < 4; i++) {
-            File hvyHang = new File(targDir, "hang_heavy_load" + i + ".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load" + i + ".evil.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
@@ -67,19 +67,19 @@ public class BatchProcessTest extends FSBatchTestBase {
 
     @Test(timeout = 30000)
     public void allHeavyHangsTestWithCrazyNumberConsumersTest() throws Exception {
-        File targDir = getNewTargDir("allHeavyHangsCrazyNumberConsumers-");
-        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", targDir);
+        File outputDir = getNewOutputDir("allHeavyHangsCrazyNumberConsumers-");
+        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", outputDir);
         args.put("numConsumers", "100");
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
-        assertEquals(6, targDir.listFiles().length);
+        assertEquals(6, outputDir.listFiles().length);
 
         for (int i = 1; i < 6; i++){
-            File hvyHang = new File(targDir, "hang_heavy_load"+i+".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
-        assertContains(new File(targDir, "test1.txt.xml"), "UTF-8", "This is tika-batch's first test file");
+        assertContains(new File(outputDir, "test1.txt.xml"), "UTF-8", "This is tika-batch's first test file");
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
     }
@@ -89,18 +89,18 @@ public class BatchProcessTest extends FSBatchTestBase {
         //this tests that if all consumers are hung and the crawler is
         //waiting to add to the queue, there isn't deadlock.  The batchrunner should
         //shutdown and ask to be restarted.
-        File targDir = getNewTargDir("allHeavyHangsStarvedCrawler-");
-        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", targDir);
+        File outputDir = getNewOutputDir("allHeavyHangsStarvedCrawler-");
+        Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", outputDir);
         args.put("numConsumers", "2");
         args.put("maxQueueSize", "2");
         args.put("timeoutThresholdMillis", "100000000");//make sure that the batch process doesn't time out
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
 
-        assertEquals(2, targDir.listFiles().length);
+        assertEquals(2, outputDir.listFiles().length);
 
         for (int i = 1; i < 2; i++){
-            File hvyHang = new File(targDir, "hang_heavy_load"+i+".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
@@ -115,17 +115,17 @@ public class BatchProcessTest extends FSBatchTestBase {
         //the second should be tied up in a heavy hang
         //the third one should hit the oom after processing test1.txt
         //no consumers should process test2-4.txt!
-        File targDir = getNewTargDir("oom-");
+        File outputDir = getNewOutputDir("oom-");
 
-        Map<String, String> args = getDefaultArgs("oom", targDir);
+        Map<String, String> args = getDefaultArgs("oom", outputDir);
         args.put("numConsumers", "3");
         args.put("timeoutThresholdMillis", "30000");
 
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
 
-        assertEquals(4, targDir.listFiles().length);
-        assertContains(new File(targDir, "test1.txt.xml"), "UTF-8", "This is tika-batch's first test file");
+        assertEquals(4, outputDir.listFiles().length);
+        assertContains(new File(outputDir, "test1.txt.xml"), "UTF-8", "This is tika-batch's first test file");
         assertContains(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
     }
@@ -134,15 +134,15 @@ public class BatchProcessTest extends FSBatchTestBase {
 
     @Test(timeout = 15000)
     public void noRestart() throws Exception {
-        File targDir = getNewTargDir("no_restart");
+        File outputDir = getNewOutputDir("no_restart");
 
-        Map<String, String> args = getDefaultArgs("no_restart", targDir);
+        Map<String, String> args = getDefaultArgs("no_restart", outputDir);
         args.put("numConsumers", "1");
 
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
 
         StreamStrings streamStrings = ex.execute();
-        File[] files = targDir.listFiles();
+        File[] files = outputDir.listFiles();
         assertEquals(2, files.length);
         assertEquals(0, files[1].length());
         assertContains("exitStatus=1", streamStrings.getOutString());
@@ -159,9 +159,9 @@ public class BatchProcessTest extends FSBatchTestBase {
      */
     @Test(timeout = 60000)
     public void testWaitAfterEarlyTermination() throws Exception {
-        File targDir = getNewTargDir("wait_after_early_termination");
+        File outputDir = getNewOutputDir("wait_after_early_termination");
 
-        Map<String, String> args = getDefaultArgs("wait_after_early_termination", targDir);
+        Map<String, String> args = getDefaultArgs("wait_after_early_termination", outputDir);
         args.put("numConsumers", "1");
         args.put("maxAliveTimeSeconds", "5");//main process loop should stop after 5 seconds
         args.put("timeoutThresholdMillis", "300000");//effectively never
@@ -170,9 +170,9 @@ public class BatchProcessTest extends FSBatchTestBase {
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
 
         StreamStrings streamStrings = ex.execute();
-        File[] files = targDir.listFiles();
+        File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
-        assertContains(files[0], "UTF-8", "<p>sleep 10000</p>");
+        assertContains(files[0], "UTF-8", "type=\"sleep\" max_millis=\"10000\"");
         assertContains("exitStatus=-1", streamStrings.getOutString());
         assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",
                 streamStrings.getOutString());
@@ -180,18 +180,19 @@ public class BatchProcessTest extends FSBatchTestBase {
 
     @Test(timeout = 60000)
     public void testTimeOutAfterBeingAskedToShutdown() throws Exception {
-        File targDir = getNewTargDir("timeout_after_early_termination");
+        File outputDir = getNewOutputDir("timeout_after_early_termination");
 
-        Map<String, String> args = getDefaultArgs("timeout_after_early_termination", targDir);
+        Map<String, String> args = getDefaultArgs("timeout_after_early_termination", outputDir);
         args.put("numConsumers", "1");
         args.put("maxAliveTimeSeconds", "5");//main process loop should stop after 5 seconds
         args.put("timeoutThresholdMillis", "10000");
         args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
 
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
-
+        System.out.println(outputDir.getAbsolutePath());
         StreamStrings streamStrings = ex.execute();
-        File[] files = targDir.listFiles();
+        System.out.println("OUT>>"+streamStrings.getOutString());
+        File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
         assertEquals(0, files[0].length());
         assertContains("exitStatus=-1", streamStrings.getOutString());

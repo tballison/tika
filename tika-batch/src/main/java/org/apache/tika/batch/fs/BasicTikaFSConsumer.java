@@ -79,7 +79,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
-        //os can be null if fsOSFactory is set to skip processing a file if the target
+        //os can be null if fsOSFactory is set to skip processing a file if the output
         //file already exists
         if (os == null) {
             logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
