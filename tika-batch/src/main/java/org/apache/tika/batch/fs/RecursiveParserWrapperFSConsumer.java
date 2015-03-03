@@ -56,23 +56,25 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
     private final ParserFactory parserFactory;
     private final ContentHandlerFactory contentHandlerFactory;
     private final OutputStreamFactory fsOSFactory;
+    private final TikaConfig tikaConfig;
     private String outputEncoding = "UTF-8";
 
 
     public RecursiveParserWrapperFSConsumer(ArrayBlockingQueue<FileResource> queue,
                                             ParserFactory parserFactory,
                                             ContentHandlerFactory contentHandlerFactory,
-                                            OutputStreamFactory fsOSFactory) {
+                                            OutputStreamFactory fsOSFactory, TikaConfig tikaConfig) {
         super(queue);
         this.parserFactory = parserFactory;
         this.contentHandlerFactory = contentHandlerFactory;
         this.fsOSFactory = fsOSFactory;
+        this.tikaConfig = tikaConfig;
     }
 
     @Override
     public boolean processFileResource(FileResource fileResource) {
 
-        Parser wrapped = parserFactory.getParser(TikaConfig.getDefaultConfig());
+        Parser wrapped = parserFactory.getParser(tikaConfig);
         RecursiveParserWrapper parser = new RecursiveParserWrapper(wrapped, contentHandlerFactory);
         ParseContext context = new ParseContext();
 
@@ -92,10 +94,9 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         //os can be null if fsOSFactory is set to skip processing a file and the output
         //file already exists
         if (os == null) {
-            super.logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
+            super.logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             return false;
         }
-        String absolutePath = fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH);
 
         //try to open the inputstream before the parse.
         //if the parse hangs or throws a nasty exception, at least there will

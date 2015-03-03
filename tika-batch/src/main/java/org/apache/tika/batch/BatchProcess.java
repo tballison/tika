@@ -94,18 +94,14 @@ public class BatchProcess {
 
     private boolean alreadyExecuted = false;
 
-    private final int maxTimedOutConsumers;
-
     public BatchProcess(FileResourceCrawler fileResourceCrawler,
                         ConsumersManager consumersManager,
                         IStatusReporter reporter,
-                        IInterrupter interrupter, int maxTimedOutConsumers) {
+                        IInterrupter interrupter) {
         this.fileResourceCrawler = fileResourceCrawler;
         this.consumersManager = consumersManager;
         this.reporter = reporter;
         this.interrupter = interrupter;
-        //parameter check, maxTimedOutConsumers must be >= 0
-        this.maxTimedOutConsumers = (maxTimedOutConsumers > -1) ? maxTimedOutConsumers : 0;
         timedOuts = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
     }
 
@@ -194,7 +190,6 @@ public class BatchProcess {
                     causeForTermination = CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION;
                 }
                 logger.fatal("Main loop execution exception: " + e.getMessage());
-                e.printStackTrace();
                 break;
             }
         }
@@ -434,11 +429,11 @@ public class BatchProcess {
 
         @Override
         public TimeoutFutureResult call() throws Exception {
-            while (timedOuts.size() <= maxTimedOutConsumers) {
+            while (timedOuts.size() == 0) {
                 try {
                     Thread.sleep(timeoutCheckPulseMillis);
                 } catch (InterruptedException e) {
-                    logger.debug("interrupted ex in TimeoutChecker");
+                    logger.debug("Thread interrupted exception in TimeoutChecker");
                     break;
                     //just stop.
                 }

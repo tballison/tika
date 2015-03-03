@@ -94,8 +94,6 @@ public class BatchProcessBuilder {
                 incomingRuntimeAttributes, docElement);
         long pauseOnEarlyTerminationMillis = XMLDOMUtil.getLong("pauseOnEarlyTerminationMillis",
                 incomingRuntimeAttributes, docElement);
-        int maxTimedOutConsumers = XMLDOMUtil.getInt("maxTimedOutConsumers",
-                incomingRuntimeAttributes, docElement);
         int maxAliveTimeSeconds = XMLDOMUtil.getInt("maxAliveTimeSeconds",
                 incomingRuntimeAttributes, docElement);
 
@@ -136,7 +134,7 @@ public class BatchProcessBuilder {
         interrupter = buildInterrupter(keyNodes.get("interrupter"), runtimeAttributes);
 
         BatchProcess proc = new BatchProcess(
-                crawler, consumersManager, reporter, interrupter, maxTimedOutConsumers);
+                crawler, consumersManager, reporter, interrupter);
 
         if (timeoutThresholdMillis > -1) {
             proc.setTimeoutThresholdMillis(timeoutThresholdMillis);

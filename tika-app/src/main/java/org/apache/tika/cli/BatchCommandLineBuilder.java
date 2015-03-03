@@ -37,9 +37,12 @@ class BatchCommandLineBuilder {
     protected static String[] build(String[] args) throws IOException {
         Map<String, String> processArgs = new LinkedHashMap<String, String>();
         Map<String, String> jvmOpts = new LinkedHashMap<String,String>();
+        //take the args, and divide them into process args and options for
+        //the parent jvm process (i.e. log files, etc)
         mapifyArgs(args, processArgs, jvmOpts);
 
-        List<String> translatedProcessArgs = translateCommandLine(args, processArgs);
+        //now modify processArgs in place
+        translateCommandLine(args, processArgs);
 
         //maybe the user specified a different classpath?!
         if (! jvmOpts.containsKey("-cp") && ! jvmOpts.containsKey("--classpath")) {
@@ -62,7 +65,7 @@ class BatchCommandLineBuilder {
             }
         }
         fullCommand.add("org.apache.tika.batch.fs.FSBatchProcessCLI");
-
+        //now add the process commands
         for (Map.Entry<String, String> e : processArgs.entrySet()) {
             fullCommand.add(e.getKey());
             if (e.getValue().length() > 0) {
@@ -73,6 +76,13 @@ class BatchCommandLineBuilder {
     }
 
 
+    /**
+     * Take the input args and separate them into args that belong on the commandline
+     * and those that belong as jvm args for the parent process.
+     * @param args -- literal args from TikaCLI commandline
+     * @param commandLine args that should be part of the batch commandline
+     * @param jvmArgs args that belong as jvm arguments for the parent process
+     */
     private static void mapifyArgs(final String[] args,
                                    final Map<String, String> commandLine,
                                    final Map<String, String> jvmArgs) {
@@ -80,22 +90,13 @@ class BatchCommandLineBuilder {
         if (args.length == 0) {
             return;
         }
-        //need special handling in case last element in args is the input directory
-        //if it is, then don't look for args in the last place of the args[].
 
-        int end = args.length;
-        String inputDirString = "";
-        File inputDir = new File(args[args.length-1]);
-        if (inputDir.isDirectory()) {
-            end = args.length-1;
-            inputDirString = args[args.length-1];
-        }
         Matcher matcher = JVM_OPTS_PATTERN.matcher("");
-        for (int i = 0; i < end; i++) {
+        for (int i = 0; i < args.length; i++) {
             if (matcher.reset(args[i]).find()) {
                 String jvmArg = matcher.group(1)+matcher.group(2);
                 String v = "";
-                if (i < end-1 && ! args[i+1].startsWith("-")){
+                if (i < args.length-1 && ! args[i+1].startsWith("-")){
                     v = args[i+1];
                     i++;
                 }
@@ -103,31 +104,40 @@ class BatchCommandLineBuilder {
             } else if (args[i].startsWith("-")) {
                 String k = args[i];
                 String v = "";
-                if (i < end-1 && ! args[i+1].startsWith("-")){
+                if (i < args.length-1 && ! args[i+1].startsWith("-")){
                     v = args[i+1];
                     i++;
                 }
                 commandLine.put(k, v);
             }
         }
-        //if we defined this above, now overwrite whatever may have been
-        //parsed as -inputDir earlier
-        if (inputDirString.length() > 0) {
-            commandLine.put("-inputDir", inputDirString);
-        }
     }
 
+    private static void translateCommandLine(String[] args, Map<String, String> map) throws IOException {
+        //if there are two args and they are both directories, treat the first
+        //as input and the second as output.
+        if (args.length == 2 && !args[0].startsWith("-") && ! args[1].startsWith("-")) {
+            File candInput = new File(args[0]);
+            File candOutput = new File(args[1]);
+            if (candOutput.isFile()) {
+                throw new IllegalArgumentException("Can't specify an existing file as the "+
+                "second argument for the output directory of a batch process");
+            }
 
-    private static List<String> translateCommandLine(String[] args, Map<String, String> map) throws IOException {
-        //if no -inputDir is specified, but the last
-        //item in the list is a directory, treat that as inputDir
-        if (! map.containsKey("-inputDir")) {
-            File tmpFile = new File(args[args.length-1]);
-            if (tmpFile.isDirectory()) {
-                map.put("-inputDir", args[args.length-1]);
+            if (candInput.isDirectory()){
+                map.put("-inputDir", args[0]);
+                map.put("-outputDir", args[1]);
             }
         }
-
+        //look for tikaConfig
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if (arg.startsWith("--config=")) {
+                String configPath = arg.substring("--config=".length());
+                map.put("-c", configPath);
+                break;
+            }
+        }
         //now translate output types
         if (map.containsKey("-h") || map.containsKey("--html")) {
             map.remove("-h");
@@ -163,14 +173,19 @@ class BatchCommandLineBuilder {
             //overwrite outputSuffix
             map.put("-outputSuffix", "json");
         }
-        //package
-        List<String> translated = new ArrayList<String>();
-        for (Map.Entry<String, String> e : map.entrySet()) {
-            translated.add(e.getKey());
-            if (e.getValue() != null && e.getValue().trim().length() > 0) {
-                translated.add(e.getValue());
-            }
+
+        if (map.containsKey("--inputDir") || map.containsKey("-i")) {
+            String v1 = map.remove("--inputDir");
+            String v2 = map.remove("-i");
+            String v = (v1 == null) ? v2 : v1;
+            map.put("-inputDir", v);
         }
-        return translated;
+
+        if (map.containsKey("--outputDir") || map.containsKey("-o")) {
+            String v1 = map.remove("--outputDir");
+            String v2 = map.remove("-o");
+            String v = (v1 == null) ? v2 : v1;
+            map.put("-outputDir", v);
+        }
     }
 }

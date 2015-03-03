@@ -48,23 +48,26 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
     private final ParserFactory parserFactory;
     private final ContentHandlerFactory contentHandlerFactory;
     private final OutputStreamFactory fsOSFactory;
+    private final TikaConfig config;
     private String outputEncoding = "UTF-8";
 
 
     public BasicTikaFSConsumer(ArrayBlockingQueue<FileResource> queue,
                                ParserFactory parserFactory,
                                ContentHandlerFactory contentHandlerFactory,
-                               OutputStreamFactory fsOSFactory) {
+                               OutputStreamFactory fsOSFactory,
+                               TikaConfig config) {
         super(queue);
         this.parserFactory = parserFactory;
         this.contentHandlerFactory = contentHandlerFactory;
         this.fsOSFactory = fsOSFactory;
+        this.config = config;
     }
 
     @Override
     public boolean processFileResource(FileResource fileResource) {
 
-        Parser parser = parserFactory.getParser(TikaConfig.getDefaultConfig());
+        Parser parser = parserFactory.getParser(config);
         ParseContext context = new ParseContext();
         if (parseRecursively == true) {
             context.set(Parser.class, parser);
@@ -74,6 +77,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         try {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
+            //this is really, really bad
             logger.fatal(getLogMsg(fileResource.getResourceId(), e));
             flushAndClose(os);
             throw new BatchNoRestartError("IOException trying to open output stream for "+
@@ -82,7 +86,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         //os can be null if fsOSFactory is set to skip processing a file if the output
         //file already exists
         if (os == null) {
-            logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_ABSOLUTE_PATH));
+            logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             return false;
         }
 

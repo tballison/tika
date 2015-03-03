@@ -5,11 +5,12 @@
         pauseOnEarlyTerminationMillis="500"
         timeoutThresholdMillis="3000"
         timeoutCheckPulseMillis="1000"
-        maxTimedOutConsumers="2"
         maxQueueSize="10000"
         numConsumers="3">
     <!-- options to allow on the commandline -->
     <commandline>
+        <option opt="c" longOpt="tika-config" hasArg="true"
+                description="TikaConfig file"/>
         <option opt="bc" longOpt="batch-config" hasArg="true"
                 description="xml batch config file" required="true"/>
         <option opt="randomCrawl" hasArg="false"
@@ -20,8 +21,6 @@
                 description="minimum file size to process; do not process files smaller than this"/>
         <option opt="maxFileSizeBytes" hasArg="true"
                 description="maximum file size to process; do not process files larger than this"/>
-        <option opt="maxTimedOutConsumers" hasArg="true"
-                description="maximum number of allowed timed out consumers"/>
         <option opt="maxQueueSize" hasArg="true"
                 description="maximum queue size for FileResources"/>
         <option opt="fileList" hasArg="true"
@@ -64,17 +63,17 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        inputDir="tika-batch/src/test/resources/test-input"
         />
+<!--        inputDir="tika-batch/src/test/resources/test-input" -->
 
 	<consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
                recursiveParserWrapper="false">
 		<parser class="org.apache.tika.parser.evil.EvilParserFactory" parseRecursively="true"/>
 		<contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
                         basicHandlerType="xml" writeLimit="-1"/>
-		
-		<!-- overwritePolicy: "skip" a file if output file exists, "rename" a output file, "overwrite" -->
-		<outputstream class="FSOutputStreamFactory" handleExisting="skip" outputDir="output"
+
+
+		<outputstream class="FSOutputStreamFactory"
                 encoding="UTF-8" outputSuffix="xml"/>
 	</consumers>
 	

@@ -21,7 +21,6 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -77,7 +76,6 @@ import org.apache.tika.gui.TikaGUI;
 import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.io.IOUtils;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.language.LanguageProfilerBuilder;
 import org.apache.tika.language.ProfilingHandler;
@@ -873,14 +871,17 @@ public class TikaCLI {
     }
 
     private boolean testForBatch(String[] args) {
-        if (args.length > 0) {
-            File inputDir = new File(args[args.length-1]);
-            if (inputDir.isDirectory()) {
+        if (args.length == 2 && ! args[0].startsWith("-")
+                && ! args[1].startsWith("-")) {
+            File inputCand = new File(args[0]);
+            File outputCand = new File(args[1]);
+            if (inputCand.isDirectory() && !outputCand.isFile()) {
                 return true;
             }
         }
+
         for (String s : args) {
-            if (s.equals("-inputDir")) {
+            if (s.equals("-inputDir") || s.equals("--inputDir") || s.equals("-i")) {
                 return true;
             } else if (s.equals("-batch-help")) {
                 return true;
@@ -889,8 +890,6 @@ public class TikaCLI {
         return false;
     }
 
-    private void procBatch(String[] args, TemporaryResources tmp) throws Exception {
-    }
 
 
     /**

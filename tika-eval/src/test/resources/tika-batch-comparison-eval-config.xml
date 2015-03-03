@@ -4,16 +4,17 @@
         maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis = "500"
         timeoutCheckPulseMillis="1000"
-        maxTimedOutConsumers="0"
         maxQueueSize="10000"
         numConsumers="5"
         timeoutThresholdMillis="300000"
         >
 
     <commandline>
+    <option opt="c" longOpt="tika-config" hasArg="true"
+            description="TikaConfig file"/>
     <option opt="bc" longOpt="batch-config" hasArg="true"
             description="xml batch config file" required="true"/>
-    <option opt="srcDir" hasArg="true"
+    <option opt="inputDir" hasArg="true"
             description="dir to start crawling"/>
     <option opt="numConsumers" hasArg="true"
             description="number of fileConsumers threads"/>
@@ -40,8 +41,8 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        srcDir="src/test/resources/test-documents/testA"
         />
+<!--    inputDir="src/test/resources/test-documents/testA"-->
 
 
 <!--              outputFile="target/test-classes/test-output-results_all.csv" -->

@@ -3,14 +3,16 @@
 <tika-batch-config
         maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis="1000"
-        staleThresholdMillis="300000"
-        staleCheckPulseMillis="1000"
         maxStaleConsumers="0"
+        timeoutThresholdMillis="300000"
+        timeoutCheckPulseMillis="1000"
         maxQueueSize="10000"
-        numConsumers="4">
+        numConsumers="5">
 
     <!-- options to allow on the commandline -->
     <commandline>
+        <option opt="c" longOpt="tika-config" hasArg="true"
+                description="TikaConfig file"/>
         <option opt="bc" longOpt="batch-config" hasArg="true"
                 description="xml batch config file"/>
         <option opt="randomCrawl" hasArg="false"
@@ -45,6 +47,10 @@
                 description="how long to wait before determining that a consumer is stale"/>
     </commandline>
 
+
+    <!-- can specify inputDir="input", but the default config should not include this -->
+    <!-- can also specify startDir="input/someDir" to specify which child directory
+         to start processing -->
 	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
         crawlOrder="random"
 		maxFilesToAdd="-1" 
@@ -52,7 +58,6 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        inputDir="input"
         />
 <!--
     This is an example of a crawler that reads a list of files to be processed from a
@@ -75,8 +80,8 @@
                         basicHandlerType="xml" writeLimit="-1"/>
 
         <!-- overwritePolicy: "skip" a file if output file exists, "rename" a output file, "overwrite" -->
-        <outputstream class="FSOutputStreamFactory" handleExisting="skip" outputDir="output"
-                      encoding="UTF-8" outputSuffix="xml"/>
+        <!-- can include e.g. outputDir="output", but we don't want to include this in the default! -->
+        <outputstream class="FSOutputStreamFactory" encoding="UTF-8" outputSuffix="xml"/>
     </consumers>
 
     <!-- reporter and interrupter are optional -->

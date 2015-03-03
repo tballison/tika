@@ -21,9 +21,9 @@
 		includeFilePat=""
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
-        srcDir="tika-batch/src/test/resources/test-input"
         />
 
+<!--    inputDir="src/test/resources/test-documents/testA"-->
 
 	<consumersManager class="BasicFileComparerManager"
                       builderClass="org.apache.tika.batch.GeneralConsumersManagerBuilder">

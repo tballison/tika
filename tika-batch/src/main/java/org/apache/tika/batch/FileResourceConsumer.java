@@ -218,8 +218,12 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
      * @return null or the file started that triggered the stale condition
      */
     public FileStarted checkForTimedOutMillis(long staleThresholdMillis) {
-        //if it there isn't a current file, don't bother obtaining lock
+        //if there isn't a current file, don't bother obtaining lock
         if (currentFile == null) {
+            return null;
+        }
+        //if threshold is < 0, don't even look.
+        if (staleThresholdMillis < 0) {
             return null;
         }
         synchronized(lock) {

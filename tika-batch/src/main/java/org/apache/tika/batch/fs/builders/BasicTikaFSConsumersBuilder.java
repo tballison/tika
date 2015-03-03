@@ -36,6 +36,7 @@ import org.apache.tika.batch.fs.FSConsumersManager;
 import org.apache.tika.batch.fs.FSOutputStreamFactory;
 import org.apache.tika.batch.fs.FSUtil;
 import org.apache.tika.batch.fs.RecursiveParserWrapperFSConsumer;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.sax.ContentHandlerFactory;
 import org.apache.tika.util.ClassLoaderUtil;
 import org.apache.tika.util.PropsUtil;
@@ -59,6 +60,24 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
             if (recursiveParserWrapperNode != null) {
                 recursiveParserWrapper = PropsUtil.getBoolean(recursiveParserWrapperNode.getNodeValue(), recursiveParserWrapper);
             }
+        }
+        TikaConfig config = null;
+        String tikaConfigPath = runtimeAttributes.get("c");
+
+        if( tikaConfigPath == null) {
+            Node tikaConfigNode = node.getAttributes().getNamedItem("tikaConfig");
+            if (tikaConfigNode != null) {
+                tikaConfigPath = PropsUtil.getString(tikaConfigNode.getNodeValue(), null);
+            }
+        }
+        if (tikaConfigPath != null) {
+            try {
+                config = new TikaConfig(new File(tikaConfigPath));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            config = TikaConfig.getDefaultConfig();
         }
 
         List<FileResourceConsumer> consumers = new LinkedList<FileResourceConsumer>();
@@ -93,13 +112,13 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         if (recursiveParserWrapper) {
             for (int i = 0; i < numConsumers; i++) {
                 FileResourceConsumer c = new RecursiveParserWrapperFSConsumer(queue,
-                        parserFactory, contentHandlerFactory, outputStreamFactory);
+                        parserFactory, contentHandlerFactory, outputStreamFactory, config);
                 consumers.add(c);
             }
         } else {
             for (int i = 0; i < numConsumers; i++) {
                 FileResourceConsumer c = new BasicTikaFSConsumer(queue,
-                        parserFactory, contentHandlerFactory, outputStreamFactory);
+                        parserFactory, contentHandlerFactory, outputStreamFactory, config);
                 consumers.add(c);
             }
         }
@@ -129,7 +148,7 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         Map<String, String> attrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
         File outputDir = PropsUtil.getFile(attrs.get("outputDir"), null);
-        FSUtil.HANDLE_EXISTING handleExisting = null;
+/*        FSUtil.HANDLE_EXISTING handleExisting = null;
         String handleExistingString = attrs.get("handleExisting");
         if (handleExistingString == null) {
             handleExistingException();
@@ -142,7 +161,7 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         } else {
             handleExistingException();
         }
-
+*/
         String compressionString = attrs.get("compression");
         FSOutputStreamFactory.COMPRESSION compression = FSOutputStreamFactory.COMPRESSION.NONE;
         if (compressionString == null) {
@@ -156,7 +175,10 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         }
         String suffix = attrs.get("outputSuffix");
 
-        return new FSOutputStreamFactory(outputDir, handleExisting,
+        //TODO: possibly open up the different handle existings in the future
+        //but for now, lock it down to require skip.  Too dangerous otherwise
+        //if the driver restarts and this is set to overwrite...
+        return new FSOutputStreamFactory(outputDir, FSUtil.HANDLE_EXISTING.SKIP,
                 compression, suffix);
     }
 

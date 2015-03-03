@@ -20,12 +20,14 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.tika.io.TemporaryResources;
+import org.apache.tika.io.IOUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,12 +35,23 @@ import org.junit.Test;
 public class TikaCLIBatchCommandLineTest {
 
     File testInput = null;
+    File testFile = null;
 
     @Before
     public void init() {
         testInput = new File("testInput");
-        if (! testInput.mkdirs()) {
+        if (!testInput.mkdirs()) {
             throw new RuntimeException("Failed to open test input directory");
+        }
+        testFile = new File("testFile.txt");
+        OutputStream os = null;
+        try {
+            os = new FileOutputStream(testFile);
+            IOUtils.write("test output", os, "UTF-8");
+        } catch (IOException e) {
+            throw new RuntimeException("Couldn't open testFile");
+        } finally {
+            IOUtils.closeQuietly(os);
         }
     }
 
@@ -46,6 +59,7 @@ public class TikaCLIBatchCommandLineTest {
     public void tearDown() {
         try {
             FileUtils.deleteDirectory(testInput);
+            testFile.delete();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -53,60 +67,147 @@ public class TikaCLIBatchCommandLineTest {
 
     @Test
     public void testJVMOpts() throws Exception {
-        TemporaryResources tmp = new TemporaryResources();
         String path = testInput.getAbsolutePath();
         if (path.contains(" ")) {
-            path = "\""+path+"\"";
+            path = "\"" + path + "\"";
         }
-        String[] params = {"-JXmx1g", "-JDlog4j.configuration=batch_process_log4j.xml", path};
+        String[] params = {"-JXmx1g", "-JDlog4j.configuration=batch_process_log4j.xml", "-inputDir",
+                path, "-outputDir", "testout-output"};
 
-        try {
-            String[] commandLine = BatchCommandLineBuilder.build(params);
-            StringBuilder sb = new StringBuilder();
 
-            for (String s : commandLine) {
-                sb.append(s).append(" ");
-            }
-            String s = sb.toString();
-            int classInd = s.indexOf("org.apache.tika.batch.fs.FSBatchProcessCLI");
-            int xmx = s.indexOf("-Xmx1g");
-            int inputDir = s.indexOf("-inputDir");
-            int log = s.indexOf("-Dlog4j.configuration");
-            assertTrue(classInd > -1);
-            assertTrue(xmx > -1);
-            assertTrue(inputDir > -1);
-            assertTrue(log > -1);
-            assertTrue(xmx < classInd);
-            assertTrue(log < classInd);
-            assertTrue(inputDir > classInd);
-        } finally {
-            tmp.close();
+        String[] commandLine = BatchCommandLineBuilder.build(params);
+        StringBuilder sb = new StringBuilder();
+
+        for (String s : commandLine) {
+            sb.append(s).append(" ");
         }
+        String s = sb.toString();
+        int classInd = s.indexOf("org.apache.tika.batch.fs.FSBatchProcessCLI");
+        int xmx = s.indexOf("-Xmx1g");
+        int inputDir = s.indexOf("-inputDir");
+        int log = s.indexOf("-Dlog4j.configuration");
+        assertTrue(classInd > -1);
+        assertTrue(xmx > -1);
+        assertTrue(inputDir > -1);
+        assertTrue(log > -1);
+        assertTrue(xmx < classInd);
+        assertTrue(log < classInd);
+        assertTrue(inputDir > classInd);
     }
 
     @Test
     public void testBasicMappingOfArgs() throws Exception {
-        //TODO: add more tests
-        TemporaryResources tmp = new TemporaryResources();
         String path = testInput.getAbsolutePath();
         if (path.contains(" ")) {
-            path = "\""+path+"\"";
+            path = "\"" + path + "\"";
         }
         String[] params = {"-JXmx1g", "-JDlog4j.configuration=batch_process_log4j.xml",
                 "-bc", "batch-config.xml",
-                "-J", "-h", path};
+                "-J", "-h", "-inputDir", path};
 
-        try {
-            String[] commandLine = BatchCommandLineBuilder.build(params);
-            Map<String, String> attrs = mapify(commandLine);
-            assertEquals("true", attrs.get("-recursiveParserWrapper"));
-            assertEquals("html", attrs.get("-basicHandlerType"));
-            assertEquals("json", attrs.get("-outputSuffix"));
-            assertEquals("batch-config.xml", attrs.get("-bc"));
+        String[] commandLine = BatchCommandLineBuilder.build(params);
+        Map<String, String> attrs = mapify(commandLine);
+        assertEquals("true", attrs.get("-recursiveParserWrapper"));
+        assertEquals("html", attrs.get("-basicHandlerType"));
+        assertEquals("json", attrs.get("-outputSuffix"));
+        assertEquals("batch-config.xml", attrs.get("-bc"));
+        assertEquals(path, attrs.get("-inputDir"));
+    }
 
-        } finally {
-            tmp.close();
+    @Test
+    public void testTwoDirsNoFlags() throws Exception {
+        String outputRoot = "outputRoot";
+        String path = testInput.getAbsolutePath();
+        if (path.contains(" ")) {
+            path = "\"" + path + "\"";
         }
+        String[] params = {path, outputRoot};
+
+        String[] commandLine = BatchCommandLineBuilder.build(params);
+        Map<String, String> attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+    }
+
+    @Test
+    public void testTwoDirsVarious() throws Exception {
+        String outputRoot = "outputRoot";
+        String path = testInput.getAbsolutePath();
+        if (path.contains(" ")) {
+            path = "\"" + path + "\"";
+        }
+        String[] params = {"-i", path, "-o", outputRoot};
+
+        String[] commandLine = BatchCommandLineBuilder.build(params);
+        Map<String, String> attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+
+        params = new String[]{"--inputDir", path, "--outputDir", outputRoot};
+
+        commandLine = BatchCommandLineBuilder.build(params);
+        attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+
+        params = new String[]{"-inputDir", path, "-outputDir", outputRoot};
+
+        commandLine = BatchCommandLineBuilder.build(params);
+        attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+    }
+
+    @Test
+    public void testConfig() throws Exception {
+        String outputRoot = "outputRoot";
+        String configPath = "c:/somewhere/someConfig.xml";
+        String path = testInput.getAbsolutePath();
+
+        if (path.contains(" ")) {
+            path = "\"" + path + "\"";
+        }
+        String[] params = {"-i", path, "-o", outputRoot, "--config==c:/somewhere/someConfig.xml"};
+
+        String[] commandLine = BatchCommandLineBuilder.build(params);
+        Map<String, String> attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+
+        params = new String[]{"--inputDir", path, "--outputDir", outputRoot,
+        "--config="+configPath};
+
+        commandLine = BatchCommandLineBuilder.build(params);
+        attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+        assertEquals(configPath, attrs.get("-c"));
+
+        params = new String[]{"-inputDir", path, "-outputDir", outputRoot};
+
+        commandLine = BatchCommandLineBuilder.build(params);
+        attrs = mapify(commandLine);
+        assertEquals(path, attrs.get("-inputDir"));
+        assertEquals(outputRoot, attrs.get("-outputDir"));
+    }
+
+    @Test
+    public void testOneDirOneFileException() throws Exception {
+        boolean ex = false;
+        try {
+            String outputRoot = "outputRoot";
+            String path = testInput.getAbsolutePath();
+            if (path.contains(" ")) {
+                path = "\"" + path + "\"";
+            }
+            String[] params = {path, testFile.getAbsolutePath()};
+
+            String[] commandLine = BatchCommandLineBuilder.build(params);
+
+        } catch (IllegalArgumentException e) {
+            ex = true;
+        }
+        assertTrue("exception on <dir> <file>", ex);
     }
 
     private Map<String, String> mapify(String[] args) {
@@ -115,8 +216,8 @@ public class TikaCLIBatchCommandLineTest {
             if (args[i].startsWith("-")) {
                 String k = args[i];
                 String v = "";
-                if (i < args.length-1 && ! args[i+1].startsWith("-")) {
-                    v = args[i+1];
+                if (i < args.length - 1 && !args[i + 1].startsWith("-")) {
+                    v = args[i + 1];
                     i++;
                 }
                 map.put(k, v);

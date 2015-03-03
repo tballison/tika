@@ -230,7 +230,6 @@ public class EvilParser extends AbstractParser {
             }
             long elapsed = new Date().getTime()-start;
             millisRemaining = maxMillis - elapsed;
-            System.out.println(millisRemaining);
             if (millisRemaining < 0) {
                 break;
             }

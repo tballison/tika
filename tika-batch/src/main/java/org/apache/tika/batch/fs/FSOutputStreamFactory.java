@@ -35,6 +35,7 @@ public class FSOutputStreamFactory implements OutputStreamFactory {
         GZIP,
         ZIP
     }
+
     private final FSUtil.HANDLE_EXISTING handleExisting;
     private final File outputRoot;
     private final String suffix;

@@ -61,6 +61,7 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         assertEquals(1, outputDir.listFiles().length);
     }
 
+    /* turn this back on if there is any need to add "handleExisting"
     @Test
     public void testRename() throws Exception {
         File outputDir = getNewOutputDir("os-factory-rename-");
@@ -92,5 +93,6 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         }
         assertEquals(3, hits);
     }
+    */
 
 }
