@@ -218,11 +218,17 @@ public class EvilParser extends AbstractParser {
         }
     }
 
+    //don't allow interrupts
     private void sleep(long maxMillis) {
-        try {
-            Thread.sleep(maxMillis);
-        } catch (InterruptedException e) {
-
+        long start = new Date().getTime();
+        long elapsed = -1;
+        while (elapsed < maxMillis) {
+            try {
+                Thread.sleep(maxMillis);
+            } catch (InterruptedException e) {
+                //swallow
+            }
+            elapsed = new Date().getTime()-start;
         }
     }
 }

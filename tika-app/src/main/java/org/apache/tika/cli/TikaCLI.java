@@ -21,7 +21,6 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -64,6 +63,8 @@ import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.tika.Tika;
+import org.apache.tika.batch.BatchProcessDriverCLI;
+import org.apache.tika.batch.fs.FSBatchProcessCLI;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.detect.CompositeDetector;
 import org.apache.tika.detect.DefaultDetector;
@@ -108,19 +109,34 @@ import org.xml.sax.helpers.DefaultHandler;
  * Simple command line interface for Apache Tika.
  */
 public class TikaCLI {
+
+
     private File extractDir = new File(".");
 
     private static final Log logger = LogFactory.getLog(TikaCLI.class);
 
     public static void main(String[] args) throws Exception {
+        TikaCLI cli = new TikaCLI();
+
+        if (cli.testForHelp(args)) {
+            FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
+            cli.usage();
+            batchProcessCLI.usage();
+            return;
+        } else if (cli.testForBatch(args)) {
+            String[] batchArgs = BatchCommandLineBuilder.build(args);
+            BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
+            batchDriver.execute();
+            System.exit(0);
+        }
+
         BasicConfigurator.configure(
                 new WriterAppender(new SimpleLayout(), System.err));
         Logger.getRootLogger().setLevel(Level.INFO);
 
-        TikaCLI cli = new TikaCLI();
         if (args.length > 0) {
-            for (int i = 0; i < args.length; i++) {
-                cli.process(args[i]);
+            for (String arg : args) {
+                cli.process(arg);
             }
             if (cli.pipeMode) {
                 cli.process("-");
@@ -139,6 +155,16 @@ public class TikaCLI {
             }
         }
     }
+
+    private boolean testForHelp(String[] args) {
+        for (String s : args) {
+            if (s.equals("-?") || s.equals("--help")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     private class OutputType {
 
@@ -520,8 +546,8 @@ public class TikaCLI {
         out.println("    -d  or --detect        Detect document type");
         out.println("    -eX or --encoding=X    Use output encoding X");
         out.println("    -pX or --password=X    Use document password X");
-        out.println("    -z  or --extract       Extract all attachements into current directory");
-        out.println("    --extract-dir=<dir>    Specify target directory for -z");
+        out.println("    -z  or --extract       Extract all attachments into current directory");
+        out.println("    --extract-dir=<dir>    Specify output directory for -z");
         out.println("    -r  or --pretty-print  For JSON, XML and XHTML outputs, adds newlines and");
         out.println("                           whitespace, for better readability");
         out.println();
@@ -569,6 +595,8 @@ public class TikaCLI {
         out.println("    Apache Tika server. The server will listen to the");
         out.println("    ports you specify as one or more arguments.");
         out.println();
+
+
     }
 
     private void version() {
@@ -844,6 +872,28 @@ public class TikaCLI {
         }
     }
 
+    private boolean testForBatch(String[] args) {
+        if (args.length == 2 && ! args[0].startsWith("-")
+                && ! args[1].startsWith("-")) {
+            File inputCand = new File(args[0]);
+            File outputCand = new File(args[1]);
+            if (inputCand.isDirectory() && !outputCand.isFile()) {
+                return true;
+            }
+        }
+
+        for (String s : args) {
+            if (s.equals("-inputDir") || s.equals("--inputDir") || s.equals("-i")) {
+                return true;
+            } else if (s.equals("-batch-help")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+
     /**
      * Returns a output writer with the given encoding.
      *
@@ -852,7 +902,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return output writer
-     * @throws UnsupportedEncodingException
+     * @throws java.io.UnsupportedEncodingException
      *         if the given encoding is not supported
      */
     private static Writer getOutputWriter(OutputStream output, String encoding)
@@ -879,7 +929,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return {@link System#out} transformer handler
-     * @throws TransformerConfigurationException
+     * @throws javax.xml.transform.TransformerConfigurationException
      *         if the transformer can not be created
      */
     private static TransformerHandler getTransformerHandler(

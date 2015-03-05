@@ -21,6 +21,8 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.CharArrayWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -366,6 +368,29 @@ public class IOUtils {
         copy(input, sw, encoding);
         return sw.toString();
     }
+
+    /**
+     * Get the contents of a <code>File</code> as a String
+     * using the specified character encoding.
+     * <p>
+     * This method closes the <code>InputStream</code>.
+     *
+     * @param file file to read
+     * @param charset charset to use to read the file
+     * @return the requested String
+     * @throws NullPointerException if the input is null
+     * @throws IOException if an I/O error occurs
+     */
+    public static String toString(File file, Charset charset)
+            throws IOException {
+        InputStream is = new FileInputStream(file);
+        try {
+            return toString(is, charset.toString());
+        } finally {
+            closeQuietly(is);
+        }
+    }
+
 
     /**
      * Get the contents of a <code>Reader</code> as a String.
