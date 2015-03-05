@@ -116,23 +116,25 @@ public class TikaCLI {
     private static final Log logger = LogFactory.getLog(TikaCLI.class);
 
     public static void main(String[] args) throws Exception {
+        TikaCLI cli = new TikaCLI();
+
+        if (cli.testForHelp(args)) {
+            FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
+            cli.usage();
+            batchProcessCLI.usage();
+            return;
+        } else if (cli.testForBatch(args)) {
+            String[] batchArgs = BatchCommandLineBuilder.build(args);
+            BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
+            batchDriver.execute();
+            System.exit(0);
+        }
+
         BasicConfigurator.configure(
                 new WriterAppender(new SimpleLayout(), System.err));
         Logger.getRootLogger().setLevel(Level.INFO);
 
-        TikaCLI cli = new TikaCLI();
         if (args.length > 0) {
-            if (cli.testForHelp(args)) {
-                FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
-                cli.usage();
-                batchProcessCLI.usage();
-                return;
-            } else if (cli.testForBatch(args)) {
-                String[] batchArgs = BatchCommandLineBuilder.build(args);
-                BatchProcessDriverCLI batchDriver = new BatchProcessDriverCLI(batchArgs);
-                batchDriver.execute();
-                System.exit(0);
-            }
             for (int i = 0; i < args.length; i++) {
                 cli.process(args[i]);
             }

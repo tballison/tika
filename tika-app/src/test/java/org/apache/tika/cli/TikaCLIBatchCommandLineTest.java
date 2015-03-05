@@ -167,28 +167,15 @@ public class TikaCLIBatchCommandLineTest {
         if (path.contains(" ")) {
             path = "\"" + path + "\"";
         }
-        String[] params = {"-i", path, "-o", outputRoot, "--config==c:/somewhere/someConfig.xml"};
 
+        String[] params = {"--inputDir", path, "--outputDir", outputRoot,
+                "--config="+configPath};
         String[] commandLine = BatchCommandLineBuilder.build(params);
         Map<String, String> attrs = mapify(commandLine);
         assertEquals(path, attrs.get("-inputDir"));
         assertEquals(outputRoot, attrs.get("-outputDir"));
-
-        params = new String[]{"--inputDir", path, "--outputDir", outputRoot,
-        "--config="+configPath};
-
-        commandLine = BatchCommandLineBuilder.build(params);
-        attrs = mapify(commandLine);
-        assertEquals(path, attrs.get("-inputDir"));
-        assertEquals(outputRoot, attrs.get("-outputDir"));
         assertEquals(configPath, attrs.get("-c"));
 
-        params = new String[]{"-inputDir", path, "-outputDir", outputRoot};
-
-        commandLine = BatchCommandLineBuilder.build(params);
-        attrs = mapify(commandLine);
-        assertEquals(path, attrs.get("-inputDir"));
-        assertEquals(outputRoot, attrs.get("-outputDir"));
     }
 
     @Test
