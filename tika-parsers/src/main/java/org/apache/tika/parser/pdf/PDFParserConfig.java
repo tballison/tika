@@ -117,7 +117,7 @@ public class PDFParserConfig implements Serializable{
             }
         }
         setEnableAutoSpace(
-                getProp(props.getProperty("enableAutospace"), getEnableAutoSpace()));
+                getProp(props.getProperty("enableAutoSpace"), getEnableAutoSpace()));
         setSuppressDuplicateOverlappingText(
                 getProp(props.getProperty("suppressDuplicateOverlappingText"), 
                         getSuppressDuplicateOverlappingText()));
