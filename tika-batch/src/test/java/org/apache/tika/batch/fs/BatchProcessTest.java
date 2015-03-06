@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.io.IOUtils;
 import org.junit.Test;
@@ -81,8 +82,8 @@ public class BatchProcessTest extends FSBatchTestBase {
             assertEquals(0, hvyHang.length());
         }
         assertContains("This is tika-batch's first test file",
-            IOUtils.toString(new File(outputDir, "test1.txt.xml"),
-                    org.apache.tika.io.IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
 
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
@@ -129,8 +130,8 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         assertEquals(4, outputDir.listFiles().length);
         assertContains("This is tika-batch's first test file",
-                IOUtils.toString(new File(outputDir, "test1.txt.xml"),
-                        IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
 
         assertContains(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
@@ -179,8 +180,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
         assertContains("type=\"sleep\" max_millis=\"10000\"",
-                IOUtils.toString(new File(outputDir, "asleep_10000.evil.xml"),
-                IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
 
         assertContains("exitStatus=-1", streamStrings.getOutString());
         assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",

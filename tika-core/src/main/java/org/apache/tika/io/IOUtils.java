@@ -370,29 +370,6 @@ public class IOUtils {
     }
 
     /**
-     * Get the contents of a <code>File</code> as a String
-     * using the specified character encoding.
-     * <p>
-     * This method closes the <code>InputStream</code>.
-     *
-     * @param file file to read
-     * @param charset charset to use to read the file
-     * @return the requested String
-     * @throws NullPointerException if the input is null
-     * @throws IOException if an I/O error occurs
-     */
-    public static String toString(File file, Charset charset)
-            throws IOException {
-        InputStream is = new FileInputStream(file);
-        try {
-            return toString(is, charset.toString());
-        } finally {
-            closeQuietly(is);
-        }
-    }
-
-
-    /**
      * Get the contents of a <code>Reader</code> as a String.
      * <p>
      * This method buffers the input internally, so there is no need to use a

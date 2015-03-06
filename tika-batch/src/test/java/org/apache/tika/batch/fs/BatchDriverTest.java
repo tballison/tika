@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.io.IOUtils;
 import org.junit.Test;
@@ -49,8 +50,8 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertFalse(driver.getUserInterrupted());
         assertEquals(5, outputDir.listFiles().length);
         assertContains("first test file",
-                IOUtils.toString(new File(outputDir, "test1.txt.xml"),
-                        IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
     }
 
     @Test(timeout = 15000)
@@ -68,8 +69,8 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertTrue(driver.getNumRestarts() > 0);
         assertFalse(driver.getUserInterrupted());
         assertContains("first test file",
-                IOUtils.toString(new File(outputDir, "test1.txt.xml"),
-                        IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
     }
 
     @Test(timeout = 15000)
@@ -107,8 +108,8 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertEquals(1, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
         assertContains("first test file",
-                IOUtils.toString(new File(outputDir, "test4.txt.xml"),
-                IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
     }
 
     @Test(timeout = 30000)
@@ -126,7 +127,7 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertEquals(2, driver.getNumRestarts());
         assertFalse(driver.getUserInterrupted());
         assertContains("first test file",
-                IOUtils.toString(new File(outputDir, "test1.txt.xml"),
-                        IOUtils.UTF_8));
+                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                        IOUtils.UTF_8.toString()));
     }
 }
