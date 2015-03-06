@@ -52,11 +52,11 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         File outputDir = getNewOutputDir("os-factory-skip-");
         Map<String, String> args = getDefaultArgs("basic", outputDir);
         args.put("handleExisting", "skip");
-        BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
+        BatchProcess runner = getNewBatchRunner("/tika-batch-config-evil-test.xml", args);
         ParallelFileProcessingResult result = runner.execute();
         assertEquals(1, outputDir.listFiles().length);
 
-        runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
+        runner = getNewBatchRunner("/tika-batch-config-evil-test.xml", args);
         result = runner.execute();
         assertEquals(1, outputDir.listFiles().length);
     }

@@ -23,7 +23,7 @@
 
     <parsers>
     
-        <parser name="parse-evil" class="org.apache.tika.parser.evil.EvilParser">
+        <parser name="parse-evil" class="org.apache.tika.parser.mock.MockParser">
         		<mime>application/evil</mime>
         </parser>
 

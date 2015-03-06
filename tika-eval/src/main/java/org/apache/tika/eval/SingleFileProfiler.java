@@ -81,8 +81,6 @@ public class SingleFileProfiler extends AbstractProfiler {
                     Integer.toString(counter.getUniqueTokenCount()));
             output.put(HEADERS.TOKEN_COUNT.name(),
                     Integer.toString(counter.getTokenCount()));
-
-
         } catch (IOException e) {
             //should log
             e.printStackTrace();

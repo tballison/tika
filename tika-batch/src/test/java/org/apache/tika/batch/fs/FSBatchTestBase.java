@@ -44,7 +44,7 @@ import org.junit.BeforeClass;
  *     OutputStream when tearDown() is called.  The current solution is to create
  *     the temp dir within the target/tika-batch/test-classes so that they will at least
  *     be removed during each maven &quot;clean&quot;</li>
- *     <li>The &quot;evil&quot; tests are time-based.  This is not
+ *     <li>The &quot;mock&quot; tests are time-based.  This is not
  *     extremely reliable across different machines with different number/power of cpus.
  *     </li>
  * </ol>

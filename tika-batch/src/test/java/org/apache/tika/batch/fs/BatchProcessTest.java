@@ -38,7 +38,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
         assertEquals(5, outputDir.listFiles().length);
-        File hvyHang = new File(outputDir, "hang_heavy_load1.evil.xml");
+        File hvyHang = new File(outputDir, "hang_heavy_load1.mock.xml");
         assertTrue(hvyHang.exists());
         assertEquals(0, hvyHang.length());
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
@@ -57,7 +57,7 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         assertEquals(3, outputDir.listFiles().length);
         for (int i = 1; i < 4; i++) {
-            File hvyHang = new File(outputDir, "hang_heavy_load" + i + ".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load" + i + ".mock.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
@@ -75,7 +75,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertEquals(6, outputDir.listFiles().length);
 
         for (int i = 1; i < 6; i++){
-            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".mock.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
@@ -100,7 +100,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertEquals(2, outputDir.listFiles().length);
 
         for (int i = 1; i < 2; i++){
-            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
+            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".mock.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }

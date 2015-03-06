@@ -70,9 +70,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         JSON_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
-        JSON_EX(new ColInfo(-1, Types.VARCHAR, 1024)),
-        ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
-        SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 1024)),
+        JSON_EX(new ColInfo(-1, Types.VARCHAR, 512)),
+        ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
+        SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
+        ENCRYPTED_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
+        ACCESS_PERMISSION_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
         DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 128)),
         DETECTED_FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 32)),
         ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
@@ -112,6 +114,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("(Caused by: [^:]+):[^\\r\\n]+");
     private final static Pattern OBJECT_ID_SNIPPER =
             Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
+
+    private final static Pattern ACCESS_PERMISSION_EXCEPTION =
+            Pattern.compile("org.apache.tika.exception.AccessPermissionException");
+    private final static Pattern ENCRYPTION_EXCEPTION =
+            Pattern.compile("org.apache.tika.exception.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     protected TableWriter writer;
@@ -205,22 +212,33 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return;
         }
         for (Metadata m : metadataList) {
-            String exc = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime");
-            if (exc != null) {
-                data.put(HEADERS.ORIG_STACK_TRACE+extension, exc);
+            String fullTrace = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime");
+            if (fullTrace != null) {
+                data.put(HEADERS.ORIG_STACK_TRACE+extension, fullTrace);
                 //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
                 //org.apache.tika.exception.TikaException: TIKA-198: Illegal
-                // IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
+                //IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
                 //For reporting purposes, let's snip off the object id so that we can more
                 //easily count exceptions.
-                Matcher matcher = OBJECT_ID_SNIPPER.matcher(exc);
-                if (matcher.matches()) {
-                    exc = matcher.group(1) + matcher.group(2);
+                String sortTrace = fullTrace;
+                Matcher matcher = OBJECT_ID_SNIPPER.matcher(sortTrace);
+                if (matcher.find()) {
+                    sortTrace = matcher.group(1) + matcher.group(2);
                 }
-                matcher = CAUSED_BY_SNIPPER.matcher(exc);
-                exc = matcher.replaceAll("$1");
-                exc = exc.replaceAll("org.apache.tika.", "o.a.t.");
-                data.put(HEADERS.SORT_STACK_TRACE + extension, exc);
+                matcher = CAUSED_BY_SNIPPER.matcher(sortTrace);
+                sortTrace = matcher.replaceAll("$1");
+                sortTrace = sortTrace.replaceAll("org.apache.tika.", "o.a.t.");
+                data.put(HEADERS.SORT_STACK_TRACE + extension, sortTrace);
+
+                matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
+                if (matcher.find()) {
+                    data.put(HEADERS.ACCESS_PERMISSION_EXCEPTION.name(), "true");
+                }
+
+                matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
+                if (matcher.find()) {
+                    data.put(HEADERS.ENCRYPTED_EXCEPTION.name(), "true");
+                }
             }
         }
     }

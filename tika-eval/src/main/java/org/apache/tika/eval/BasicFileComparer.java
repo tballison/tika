@@ -88,6 +88,8 @@ public class BasicFileComparer extends AbstractProfiler {
         addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.ORIG_STACK_TRACE, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.SORT_STACK_TRACE, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.ENCRYPTED_EXCEPTION, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.ACCESS_PERMISSION_EXCEPTION, thisExtension, thatExtension);
         addHeader(headers, HEADERS.FILE_EXTENSION);
         addHeaders(headers, HEADERS.DETECTED_CONTENT_TYPE, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.DETECTED_FILE_EXTENSION, thisExtension, thatExtension);

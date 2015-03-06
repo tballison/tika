@@ -68,7 +68,7 @@
 
 	<consumers builderClass="org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder"
                recursiveParserWrapper="false">
-		<parser class="org.apache.tika.parser.evil.EvilParserFactory" parseRecursively="true"/>
+		<parser class="org.apache.tika.parser.mock.MockParserFactory" parseRecursively="true"/>
 		<contenthandler builderClass="org.apache.tika.batch.builders.DefaultContentHandlerFactoryBuilder"
                         basicHandlerType="xml" writeLimit="-1"/>
 
