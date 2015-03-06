@@ -17,19 +17,12 @@ package org.apache.tika.eval.batch;
  * limitations under the License.
  */
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -38,8 +31,6 @@ import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.BasicFileComparer;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
-import org.apache.tika.eval.db.SqliteUtil;
-import org.apache.tika.eval.io.CSVTableWriter;
 import org.apache.tika.eval.io.JDBCTableWriter;
 import org.apache.tika.eval.io.TableWriter;
 import org.apache.tika.util.PropsUtil;
@@ -84,48 +75,24 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
 
     private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
                                          String tableName, File thisRootDir, File thatRootDir, boolean append) {
-        if (outputFile != null) {
-            return buildCSVWriter(outputFile);
-        } else if (dbDir != null && tableName != null) {
+        if (dbDir != null && tableName != null) {
             return buildDBWriter(whichDB, dbDir, tableName, thisRootDir, thatRootDir, append);
         }
-        throw new RuntimeException("Must specify either an outputFile (csv) or a database directory and table name.");
+        throw new RuntimeException("Must specify a database directory and table name.");
     }
 
     private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName,
                                       File thisRootDir, File thatRootDir, boolean append) {
         TableWriter writer = null;
         try {
-            DBUtil util = null;
-            if (whichDB.equals("sqlite")) {
-                util = new SqliteUtil();
-            } else if (whichDB.equals("h2")) {
-                util = new H2Util();
-            }
+            DBUtil util = new H2Util();
+
             writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), util, dbDir, tableName, append);
             ((JDBCTableWriter)writer).addPairTable(thisRootDir.getName(), thatRootDir.getName());
         } catch (Exception e){
             throw new RuntimeException(e);
         }
         return writer;
-    }
-
-    private TableWriter buildCSVWriter(File outputFile) {
-        TableWriter tableWriter = null;
-        try {
-            OutputStream os = new FileOutputStream(outputFile);
-            //need to include BOM! TODO: parameterize encoding, bom and delimiter
-            os.write((byte) 255);
-            os.write((byte) 254);
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-16LE"));
-            CSVPrinter p = new CSVPrinter(writer, CSVFormat.EXCEL.withDelimiter('\t'));
-
-
-            tableWriter = new CSVTableWriter(p, 1000, BasicFileComparer.getHeaders());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return tableWriter;
     }
 
     private File getNonNullFile(Map<String, String> attrs, String key) {

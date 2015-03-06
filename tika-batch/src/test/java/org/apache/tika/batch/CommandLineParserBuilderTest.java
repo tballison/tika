@@ -39,7 +39,7 @@ public class CommandLineParserBuilderTest extends FSBatchTestBase {
             is = new FileInputStream(new File(configFile));
             CommandLineParserBuilder builder = new CommandLineParserBuilder();
             Options options = builder.build(is);
-            //TODO: insert actual tests :)
+            //TODO: insert actual tests
         } finally {
             IOUtils.closeQuietly(is);
         }

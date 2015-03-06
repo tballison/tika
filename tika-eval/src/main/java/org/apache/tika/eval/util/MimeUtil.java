@@ -62,7 +62,7 @@ public class MimeUtil {
             ext = ext.substring(1);
         }
 
-        //special handling to for text/html/xml
+        //special handling for text/html/xml
         if (ext.length() == 0) {
             ext = tryTextyTypes(mime.getType());
         }
