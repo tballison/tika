@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.util.LinkedList;
 import java.util.List;
@@ -41,6 +39,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.sax.ContentHandlerFactory;
+import org.apache.tika.util.TikaExceptionFilter;
 import org.xml.sax.helpers.DefaultHandler;
 
 /**
@@ -58,6 +57,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
     private final OutputStreamFactory fsOSFactory;
     private final TikaConfig tikaConfig;
     private String outputEncoding = "UTF-8";
+    //TODO: parameterize this
+    private TikaExceptionFilter exceptionFilter = new TikaExceptionFilter();
 
 
     public RecursiveParserWrapperFSConsumer(ArrayBlockingQueue<FileResource> queue,
@@ -114,9 +115,10 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
 
         Throwable thrown = null;
         List<Metadata> metadataList = null;
+        Metadata containerMetadata = fileResource.getMetadata();
         try {
             parser.parse(is, new DefaultHandler(),
-                    fileResource.getMetadata(), context);
+                    containerMetadata, context);
             metadataList = parser.getMetadata();
         } catch (Throwable t) {
             thrown = t;
@@ -125,15 +127,20 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             } else {
                 logger.error(getLogMsg(fileResource.getResourceId(), t));
             }
-            //if you've reached here, metadataList is null
-            metadataList = new LinkedList<Metadata>();
-            Metadata m = fileResource.getMetadata();
-
-            StringWriter stringWriter = new StringWriter();
-            PrintWriter w = new PrintWriter(stringWriter);
-            t.printStackTrace(w);
-            stringWriter.flush();
-            m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stringWriter.toString());
+            metadataList = parser.getMetadata();
+            if (metadataList == null) {
+                //if you've reached here, metadataList is null
+                metadataList = new LinkedList<Metadata>();
+            }
+            Metadata m = null;
+            if (metadataList.size() == 0) {
+                m = containerMetadata;
+            } else {
+                //take the top metadata item
+                m = metadataList.remove(0);
+            }
+            String stackTrace = exceptionFilter.getStackTrace(t);
+            m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stackTrace);
             metadataList.add(0, m);
         } finally {
             close(is);

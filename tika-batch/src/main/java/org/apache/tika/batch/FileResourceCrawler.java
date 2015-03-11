@@ -18,7 +18,6 @@ package org.apache.tika.batch;
  */
 
 import java.util.Date;
-import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;

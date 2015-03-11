@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+<!-- NOTE: tika-batch is still an experimental feature.
+    The configuration file will likely change and be backward incompatible
+    with new versions of Tika.  Please stay tuned.
+    -->
+
 <tika-batch-config
         maxAliveTimeSeconds="-1"
         pauseOnEarlyTerminationMillis="1000"
@@ -21,8 +44,6 @@
                 description="number of fileConsumers threads"/>
         <option opt="maxFileSizeBytes" hasArg="true"
                 description="maximum file size to process; do not process files larger than this"/>
-        <option opt="maxStaleConsumers" hasArg="true"
-                description="maximum number of allowed stale consumers"/>
         <option opt="maxQueueSize" hasArg="true"
                 description="maximum queue size for FileResources"/>
         <option opt="fileList" hasArg="true"
@@ -43,8 +64,12 @@
                 description="what type of content handler: xml, text, html, body"/>
         <option opt="outputSuffix" hasArg="true"
                 description="suffix to add to the end of the output file name"/>
-        <option opt="staleThresholdMillis" hasArg="true"
+        <option opt="timeoutThresholdMillis" hasArg="true"
                 description="how long to wait before determining that a consumer is stale"/>
+        <option opt="includeFilePat" hasArg="true"
+                description="regex that specifies which files to process"/>
+        <option opt="excludeFilePat" hasArg="true"
+                description="regex that specifies which files to avoid processing"/>
     </commandline>
 
 

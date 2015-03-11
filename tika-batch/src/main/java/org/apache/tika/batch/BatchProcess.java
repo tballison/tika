@@ -17,6 +17,8 @@ package org.apache.tika.batch;
  * limitations under the License.
  */
 
+import java.io.IOException;
+import java.io.PrintStream;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -31,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.tika.io.IOUtils;
 
 
 /**
@@ -39,10 +42,12 @@ import org.apache.commons.logging.LogFactory;
  * It requires a {@link FileResourceCrawler} and {@link FileResourceConsumer}s, and it can also
  * support a {@link SimpleLogStatusReporter} and an {@link CommandLineInterrupter}.
  * <p/>
- * This is designed to shutdown if there are too many timed out processors (runaway parser)
- * This is designed to shutdown if there are too many timed out processors (runaway parser)
- * or an OutOfMemoryError. Consider using {@link BatchProcessDriverCLI}
- * for more robust handling of these types of errors.
+ * This is designed to shutdown if a parser has timed out or if there is
+ * an OutOfMemoryError. Consider using {@link BatchProcessDriverCLI}
+ * as a daemon/watchdog that monitors and can restart this batch process;
+ * <p>
+ * Note that this classs redirects stderr to stdout so that it can
+ * communicate without interference with the parent process on stderr.
  */
 public class BatchProcess {
 
@@ -56,7 +61,7 @@ public class BatchProcess {
         MAIN_LOOP_EXCEPTION_NO_RESTART,
         MAIN_LOOP_EXCEPTION,
         CRAWLER_TIMED_OUT,
-        TOO_MANY_TIMED_OUT_CONSUMERS,
+        TIMED_OUT_CONSUMER,
         USER_INTERRUPTION,
         BATCH_PROCESS_ALIVE_TOO_LONG,
     }
@@ -65,6 +70,8 @@ public class BatchProcess {
     static {
         logger = LogFactory.getLog(BatchProcess.class);
     }
+
+    private PrintStream outputStreamWriter;
 
     // If a file hasn't been processed in this amount of time,
     // report it to the console. When the directory crawler has stopped, the thread will
@@ -105,11 +112,27 @@ public class BatchProcess {
         timedOuts = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
     }
 
+    /**
+     * Runs main execution loop.
+     * <p>
+     * Redirects stdout to stderr to keep clean communications
+     * over stdout with parent process
+     * @return result of the processing
+     * @throws InterruptedException
+     */
     public ParallelFileProcessingResult execute()
             throws InterruptedException {
         if (alreadyExecuted) {
             throw new IllegalStateException("Can only execute BatchRunner once.");
         }
+        //redirect streams
+        try {
+            outputStreamWriter = new PrintStream(System.err, true, IOUtils.UTF_8.toString());
+        } catch (IOException e) {
+            throw new RuntimeException("Can't redirect streams");
+        }
+        System.setErr(System.out);
+
         long start = new Date().getTime();
         logger.info("BatchProcess starting up");
         //TODO: hope that this doesn't hang. :)
@@ -160,8 +183,6 @@ public class BatchProcess {
                         processed += ((FileConsumerFutureResult) result).getFilesProcessed();
                     } else if (result instanceof FileResourceCrawlerFutureResult) {
                         crawlerRemoved++;
-                        added += ((FileResourceCrawlerFutureResult) result).getAdded();
-                        considered += ((FileResourceCrawlerFutureResult) result).getConsidered();
                         if (fileResourceCrawler.wasTimedOut()) {
                             causeForTermination = CAUSE_FOR_TERMINATION.CRAWLER_TIMED_OUT;
                             break;
@@ -170,7 +191,7 @@ public class BatchProcess {
                         causeForTermination = CAUSE_FOR_TERMINATION.USER_INTERRUPTION;
                         break;
                     } else if (result instanceof TimeoutFutureResult) {
-                        causeForTermination = CAUSE_FOR_TERMINATION.TOO_MANY_TIMED_OUT_CONSUMERS;
+                        causeForTermination = CAUSE_FOR_TERMINATION.TIMED_OUT_CONSUMER;
                         break;
                     } //only thing left should be StatusReporterResult
                 }
@@ -193,7 +214,13 @@ public class BatchProcess {
                 break;
             }
         }
+        reporter.setIsShuttingDown(true);
+        added = fileResourceCrawler.getAdded();
+        considered = fileResourceCrawler.getConsidered();
 
+        //TODO: figure out safe way to shutdown resource crawler
+        //if it isn't.  Does it need to add poison at this point?
+        //fileResourceCrawler.pleaseShutdown();
 
         //Step 1: prevent uncalled threads from being started
         ex.shutdown();
@@ -258,9 +285,9 @@ public class BatchProcess {
             //do not restart!!!
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION) {
             restartMsg = "Uncaught consumer throwable";
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.TOO_MANY_TIMED_OUT_CONSUMERS) {
+        } else if (causeForTermination == CAUSE_FOR_TERMINATION.TIMED_OUT_CONSUMER) {
             if (areResourcesPotentiallyRemaining()) {
-                restartMsg = "Too many timed out consumers with resources remaining";
+                restartMsg = "Consumer timed out with resources remaining";
             }
         } else if (causeForTermination == CAUSE_FOR_TERMINATION.BATCH_PROCESS_ALIVE_TOO_LONG) {
             restartMsg = BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString();
@@ -344,11 +371,12 @@ public class BatchProcess {
             } else {
                 logger.fatal(restartMsg);
             }
-            //must send to err to communicate with potential driver
-            System.err.println(
+
+            //send over stdout wrapped in outputStreamWriter
+            outputStreamWriter.println(
                     BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString() +
                             " >> " + restartMsg);
-            System.err.flush();
+            outputStreamWriter.flush();
             return BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE;
         }
         return 0;

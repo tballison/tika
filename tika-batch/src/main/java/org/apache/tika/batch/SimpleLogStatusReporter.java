@@ -21,8 +21,7 @@ import java.text.NumberFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.log4j.Logger;
 import org.apache.tika.util.DurationFormatUtils;
 
 /**
@@ -32,7 +31,7 @@ import org.apache.tika.util.DurationFormatUtils;
 
 public class SimpleLogStatusReporter implements IStatusReporter {
 
-    private final Log logger = LogFactory.getLog(SimpleLogStatusReporter.class);
+    private static final Logger logger =  Logger.getLogger(SimpleLogStatusReporter.class);
 
     //require references to these so that the
     //StatusReporter can query them when it wakes up
@@ -46,6 +45,8 @@ public class SimpleLogStatusReporter implements IStatusReporter {
 
     //how long before considering a parse "stale" (potentially hung forever)
     private long staleThresholdMillis = 100000;
+
+    private volatile boolean isShuttingDown = false;
 
     /**
      * Initialize with the crawler and consumers
@@ -135,6 +136,10 @@ public class SimpleLogStatusReporter implements IStatusReporter {
                     msg = "The directory crawler has completed its crawl.\n";
                     report(msg);
                 }
+                if (isShuttingDown) {
+                    msg = "Process is shutting down now.";
+                    report(msg);
+                }
             }
         } catch (InterruptedException e) {
             //swallow
@@ -208,5 +213,13 @@ public class SimpleLogStatusReporter implements IStatusReporter {
             ret += consumer.getNumHandledExceptions();
         }
         return ret;
+    }
+
+    /**
+     * Set whether the main process is in the process of shutting down.
+     * @param isShuttingDown
+     */
+    public void setIsShuttingDown(boolean isShuttingDown){
+        this.isShuttingDown = isShuttingDown;
     }
 }

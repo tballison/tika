@@ -33,7 +33,7 @@ public class CommandLineParserBuilderTest extends FSBatchTestBase {
     @Test
     public void testBasic() throws Exception {
         String configFile = this.getClass().getResource(
-                "/tika-batch-config-basic-test.xml").getFile();
+                "/tika-batch-config-test.xml").getFile();
         InputStream is = null;
         try {
             is = new FileInputStream(new File(configFile));

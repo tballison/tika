@@ -27,10 +27,12 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcess;
+import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.io.IOUtils;
 import org.junit.Test;
 
 public class BatchProcessTest extends FSBatchTestBase {
+
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
 
@@ -40,7 +42,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
         assertEquals(5, outputDir.listFiles().length);
-        File hvyHang = new File(outputDir, "hang_heavy_load1.evil.xml");
+        File hvyHang = new File(outputDir, "test0_heavy_hang.xml.xml");
         assertTrue(hvyHang.exists());
         assertEquals(0, hvyHang.length());
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
@@ -58,10 +60,10 @@ public class BatchProcessTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
 
         assertEquals(3, outputDir.listFiles().length);
-        for (int i = 1; i < 4; i++) {
-            File hvyHang = new File(outputDir, "hang_heavy_load" + i + ".evil.xml");
+        for (File hvyHang : outputDir.listFiles()){
             assertTrue(hvyHang.exists());
-            assertEquals(0, hvyHang.length());
+            assertEquals("file length for "+hvyHang.getName()+" should be 0, but is: " +hvyHang.length(),
+                    0, hvyHang.length());
         }
         assertContains(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
@@ -74,17 +76,19 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("numConsumers", "100");
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
         StreamStrings streamStrings = ex.execute();
-        assertEquals(6, outputDir.listFiles().length);
+        assertEquals(7, outputDir.listFiles().length);
 
-        for (int i = 1; i < 6; i++){
-            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
+        for (int i = 0; i < 6; i++){
+            File hvyHang = new File(outputDir, "test"+i+"_heavy_hang.xml.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
         assertContains("This is tika-batch's first test file",
-                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                FileUtils.readFileToString(new File(outputDir, "test6_ok.xml.xml"),
                         IOUtils.UTF_8.toString()));
 
+        //key that the process realize that there were no more processable files
+        //in the queue and does not ask for a restart!
         assertNotContained(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
                 streamStrings.getErrString());
     }
@@ -103,8 +107,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
         assertEquals(2, outputDir.listFiles().length);
 
-        for (int i = 1; i < 2; i++){
-            File hvyHang = new File(outputDir, "hang_heavy_load"+i+".evil.xml");
+        for (int i = 0; i < 2; i++){
+            File hvyHang = new File(outputDir, "test"+i+"_heavy_hang.xml.xml");
             assertTrue(hvyHang.exists());
             assertEquals(0, hvyHang.length());
         }
@@ -117,8 +121,10 @@ public class BatchProcessTest extends FSBatchTestBase {
     public void outOfMemory() throws Exception {
         //the first consumer should sleep for 10 seconds
         //the second should be tied up in a heavy hang
-        //the third one should hit the oom after processing test1.txt
+        //the third one should hit the oom after processing test2_ok.xml
         //no consumers should process test2-4.txt!
+        //i.e. the first consumer will finish in 10 seconds and
+        //then otherwise would be looking for more, but the oom should prevent that
         File outputDir = getNewOutputDir("oom-");
 
         Map<String, String> args = getDefaultArgs("oom", outputDir);
@@ -130,7 +136,7 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         assertEquals(4, outputDir.listFiles().length);
         assertContains("This is tika-batch's first test file",
-                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+                FileUtils.readFileToString(new File(outputDir, "test2_ok.xml.xml"),
                         IOUtils.UTF_8.toString()));
 
         assertContains(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString(),
@@ -152,7 +158,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         File[] files = outputDir.listFiles();
         assertEquals(2, files.length);
         assertEquals(0, files[1].length());
-        assertContains("exitStatus=1", streamStrings.getOutString());
+        assertContains("exitStatus="+ BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
+                streamStrings.getOutString());
         assertContains("causeForTermination='MAIN_LOOP_EXCEPTION_NO_RESTART'",
                 streamStrings.getOutString());
     }
@@ -179,8 +186,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
-        assertContains("type=\"sleep\" max_millis=\"10000\"",
-                FileUtils.readFileToString(new File(outputDir, "test1.txt.xml"),
+        assertContains("<p>some content</p>",
+                FileUtils.readFileToString(new File(outputDir, "test0_sleep.xml.xml"),
                         IOUtils.UTF_8.toString()));
 
         assertContains("exitStatus=-1", streamStrings.getOutString());
@@ -208,6 +215,25 @@ public class BatchProcessTest extends FSBatchTestBase {
                 streamStrings.getOutString());
     }
 
+    @Test(timeout = 10000)
+    public void testRedirectionOfStreams() throws Exception {
+        //test redirection of system.err to system.out
+        File outputDir = getNewOutputDir("noisy_parsers");
+
+        Map<String, String> args = getDefaultArgs("noisy_parsers", outputDir);
+        args.put("numConsumers", "1");
+        args.put("maxAliveTimeSeconds", "20");//main process loop should stop after 5 seconds
+
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        StreamStrings streamStrings = ex.execute();
+        File[] files = outputDir.listFiles();
+        assertEquals(1, files.length);
+        assertContains("System.out", streamStrings.getOutString());
+        assertContains("System.err", streamStrings.getOutString());
+        assertEquals(0, streamStrings.getErrString().length());
+    }
+
+
     private class BatchProcessTestExecutor {
         private final Map<String, String> args;
 
@@ -218,7 +244,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         private StreamStrings execute() {
             Process p = null;
             try {
-                ProcessBuilder b = getNewBatchRunnerProcess("/tika-batch-config-evil-test.xml", args);
+                ProcessBuilder b = getNewBatchRunnerProcess("/tika-batch-config-test.xml", args);
                 p = b.start();
                 StringStreamGobbler errorGobbler = new StringStreamGobbler(p.getErrorStream());
                 StringStreamGobbler outGobbler = new StringStreamGobbler(p.getInputStream());

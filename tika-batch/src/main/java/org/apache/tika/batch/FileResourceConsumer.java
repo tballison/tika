@@ -238,6 +238,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
             }
             if (tmp.getElapsedMillis() > staleThresholdMillis) {
                 setEndedState(STATE.TIMED_OUT);
+                logger.fatal("timed out ("+tmp.getElapsedMillis()+"ms):"+tmp.getResourceId());
                 return tmp;
             }
         }

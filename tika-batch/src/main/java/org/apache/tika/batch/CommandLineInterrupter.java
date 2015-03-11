@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import org.apache.log4j.Logger;
 import org.apache.tika.io.IOUtils;
 
 
@@ -30,7 +31,8 @@ import org.apache.tika.io.IOUtils;
  *
  */
 public class CommandLineInterrupter implements IInterrupter {
-  
+
+    private Logger logger = Logger.getLogger(CommandLineInterrupter.class);
 	public IFileProcessorFutureResult call(){
 		try{
 			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, IOUtils.UTF_8));
@@ -45,8 +47,7 @@ public class CommandLineInterrupter implements IInterrupter {
 		} catch (InterruptedException e){
 		    //canceller was interrupted
 		} catch (IOException e){
-            //TODO: log?
-			//e.printStackTrace();
+            logger.error("IOException from STDIN in CommandlineInterrupter.");
 		}
 		return new InterrupterFutureResult();
 	}

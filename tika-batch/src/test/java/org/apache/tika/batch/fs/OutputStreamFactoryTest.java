@@ -34,7 +34,7 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
     public void testIllegalState() throws Exception {
         File outputDir = getNewOutputDir("os-factory-illegal-state-");
         Map<String, String> args = getDefaultArgs("basic", outputDir);
-        BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
+        BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
         runner.execute();
         assertEquals(1, outputDir.listFiles().length);
 
@@ -52,11 +52,11 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         File outputDir = getNewOutputDir("os-factory-skip-");
         Map<String, String> args = getDefaultArgs("basic", outputDir);
         args.put("handleExisting", "skip");
-        BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
+        BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
         ParallelFileProcessingResult result = runner.execute();
         assertEquals(1, outputDir.listFiles().length);
 
-        runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
+        runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
         result = runner.execute();
         assertEquals(1, outputDir.listFiles().length);
     }
@@ -83,7 +83,7 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         int hits = 0;
         for (File f : outputDir.listFiles()){
             String name = f.getName();
-            if (name.equals("test1.txt.xml")) {
+            if (name.equals("test2_ok.xml.xml")) {
                 hits++;
             } else if (name.equals("test1(1).txt.xml")) {
                 hits++;

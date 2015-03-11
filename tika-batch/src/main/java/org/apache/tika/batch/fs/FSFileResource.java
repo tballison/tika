@@ -33,13 +33,14 @@ import org.apache.tika.metadata.Metadata;
  * <ul>
  *     <li>Metadata.RESOURCE_NAME_KEY (file name)</li>
  *     <li>Metadata.CONTENT_LENGTH</li>
- *     <li>FSProperties.FS_ABSOLUTE_PATH</li>
+ *     <li>FSProperties.FS_REL_PATH</li>
  *     <li>FileResource.FILE_EXTENSION</li>
  * </ul>,
  */
 public class FSFileResource implements FileResource {
 
     private final File fullPath;
+    private final String relativePath;
     private final Metadata metadata;
 
     public FSFileResource(File inputRoot, File fullPath) {
@@ -47,7 +48,7 @@ public class FSFileResource implements FileResource {
         this.metadata = new Metadata();
         //child path must actually be a child
         assert(FSUtil.checkThisIsAncestorOfThat(inputRoot, fullPath));
-        String relativePath = fullPath.getAbsolutePath().substring(inputRoot.getAbsolutePath().length()+1);
+        this.relativePath = fullPath.getAbsolutePath().substring(inputRoot.getAbsolutePath().length()+1);
 
         //need to set these now so that the filter can determine
         //whether or not to crawl this file
@@ -77,11 +78,11 @@ public class FSFileResource implements FileResource {
 
     /**
      *
-     * @return file's absolutePath
+     * @return file's relativePath
      */
     @Override
     public String getResourceId() {
-        return fullPath.getAbsolutePath();
+        return relativePath;
     }
 
     @Override

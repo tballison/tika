@@ -20,5 +20,9 @@ import java.util.concurrent.Callable;
 
 
 public interface IStatusReporter extends Callable<IFileProcessorFutureResult> {
-
+    /**
+     * Main process calls this to report that it is in the process of shutting down.
+     * @param isShuttingDown whether the main process has started to shut down.
+     */
+    public void setIsShuttingDown(boolean isShuttingDown);
 }

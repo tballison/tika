@@ -139,8 +139,8 @@ public class FSBatchProcessCLI {
             BasicConfigurator.configure(appender);
             Logger.getRootLogger().setLevel(Level.INFO);
         }
-        FSBatchProcessCLI cli = new FSBatchProcessCLI(args);
         try{
+            FSBatchProcessCLI cli = new FSBatchProcessCLI(args);
             cli.execute(args);
         } catch (Throwable t) {
             logger.fatal("Fatal exception from FSBatchProcessCLI: "+t.getMessage(), t);
