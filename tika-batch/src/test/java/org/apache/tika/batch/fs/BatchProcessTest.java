@@ -190,7 +190,7 @@ public class BatchProcessTest extends FSBatchTestBase {
                 FileUtils.readFileToString(new File(outputDir, "test0_sleep.xml.xml"),
                         IOUtils.UTF_8.toString()));
 
-        assertContains("exitStatus=-1", streamStrings.getOutString());
+        assertContains("exitStatus="+BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE, streamStrings.getOutString());
         assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",
                 streamStrings.getOutString());
     }
@@ -210,7 +210,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
         assertEquals(0, files[0].length());
-        assertContains("exitStatus=-1", streamStrings.getOutString());
+        assertContains("exitStatus="+BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE, streamStrings.getOutString());
         assertContains("causeForTermination='BATCH_PROCESS_ALIVE_TOO_LONG'",
                 streamStrings.getOutString());
     }
@@ -231,6 +231,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertContains("System.out", streamStrings.getOutString());
         assertContains("System.err", streamStrings.getOutString());
         assertEquals(0, streamStrings.getErrString().length());
+
+        System.out.println(streamStrings.getOutString() + " : "+streamStrings.getErrString());
     }
 
 

@@ -40,7 +40,7 @@ public class HandlerBuilderTest extends FSBatchTestBase {
         args.put("outputSuffix", "xml");
 
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        ParallelFileProcessingResult result = run(runner);
         File outputFile = new File(outputDir, "test0.xml.xml");
         String resultString = FileUtils.readFileToString(outputFile, IOUtils.UTF_8.toString());
         assertTrue(resultString.contains("<html xmlns=\"http://www.w3.org/1999/xhtml\">"));
@@ -57,7 +57,7 @@ public class HandlerBuilderTest extends FSBatchTestBase {
         args.put("basicHandlerType", "html");
         args.put("outputSuffix", "html");
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        ParallelFileProcessingResult result = run(runner);
         File outputFile = new File(outputDir, "test0.xml.html");
         String resultString = FileUtils.readFileToString(outputFile, IOUtils.UTF_8.toString());
         assertTrue(resultString.contains("<html xmlns=\"http://www.w3.org/1999/xhtml\">"));
@@ -74,7 +74,7 @@ public class HandlerBuilderTest extends FSBatchTestBase {
         args.put("outputSuffix", "txt");
 
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        ParallelFileProcessingResult result = run(runner);
         File outputFile = new File(outputDir, "test0.xml.txt");
         String resultString = FileUtils.readFileToString(outputFile, IOUtils.UTF_8.toString());
         assertFalse(resultString.contains("<html xmlns=\"http://www.w3.org/1999/xhtml\">"));
@@ -91,7 +91,7 @@ public class HandlerBuilderTest extends FSBatchTestBase {
         args.put("writeLimit", "5");
 
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        ParallelFileProcessingResult result = run(runner);
 
         File outputFile = new File(outputDir, "test0.xml.xml");
         String resultString = FileUtils.readFileToString(outputFile, IOUtils.UTF_8.toString());
@@ -110,11 +110,12 @@ public class HandlerBuilderTest extends FSBatchTestBase {
         args.put("recursiveParserWrapper", "true");
 
         BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        ParallelFileProcessingResult result = run(runner);
         File outputFile = new File(outputDir, "test0.xml.json");
         String resultString = FileUtils.readFileToString(outputFile, IOUtils.UTF_8.toString());
         assertTrue(resultString.contains("\"author\":\"Nikolai Lobachevsky\""));
         assertTrue(resultString.contains("tika-batch\\u0027s first test file"));
     }
+
 
 }

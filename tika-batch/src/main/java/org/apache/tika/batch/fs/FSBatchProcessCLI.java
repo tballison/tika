@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -104,11 +107,16 @@ public class FSBatchProcessCLI {
         try {
             is = getConfigInputStream(args);
             process = b.build(is, mapArgs);
-
         } finally {
             IOUtils.closeQuietly(is);
         }
-        ParallelFileProcessingResult result = process.execute();
+        final Thread mainThread = Thread.currentThread();
+
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<ParallelFileProcessingResult> futureResult = executor.submit(process);
+
+        ParallelFileProcessingResult result = futureResult.get();
         System.out.println(FINISHED_STRING);
         System.out.println("\n");
         System.out.println(result.toString());

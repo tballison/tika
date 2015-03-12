@@ -25,8 +25,7 @@
 
 <tika-batch-config
         maxAliveTimeSeconds="-1"
-        pauseOnEarlyTerminationMillis="1000"
-        maxStaleConsumers="0"
+        pauseOnEarlyTerminationMillis="10000"
         timeoutThresholdMillis="300000"
         timeoutCheckPulseMillis="1000"
         maxQueueSize="10000"
@@ -38,8 +37,14 @@
                 description="TikaConfig file"/>
         <option opt="bc" longOpt="batch-config" hasArg="true"
                 description="xml batch config file"/>
-        <option opt="randomCrawl" hasArg="false"
-                description="file crawler crawls directories randomly"/>
+        <!-- We needed sorted for testing.  We added random for performance.
+             Where crawling a directory is slow, it might be beneficial to
+             go randomly so that the parsers are triggered earlier.  The
+             default is operating system's choice ("os") which means whatever order
+             the os returns files in .listFiles(). -->
+        <option opt="crawlOrder" hasArg="true"
+                description="how does the crawler sort the directories and files:
+                                (random|sorted|os)"/>
         <option opt="numConsumers" hasArg="true"
                 description="number of fileConsumers threads"/>
         <option opt="maxFileSizeBytes" hasArg="true"

@@ -49,7 +49,7 @@ import org.apache.tika.io.IOUtils;
  * Note that this classs redirects stderr to stdout so that it can
  * communicate without interference with the parent process on stderr.
  */
-public class BatchProcess {
+public class BatchProcess implements Callable<ParallelFileProcessingResult> {
 
     public enum BATCH_CONSTANTS {
         BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME,
@@ -83,6 +83,8 @@ public class BatchProcess {
     //or because of an uncaught runtime throwable, pause
     //this long before shutting down to allow parsers to finish
     private long pauseOnEarlyTerminationMillis = 30*1000; //30 seconds
+
+    private long consumersManagerShutdownMillis = 60*1000;
 
     //maximum time that this process should stay alive
     //to avoid potential memory leaks, not a bad idea to shutdown
@@ -120,7 +122,7 @@ public class BatchProcess {
      * @return result of the processing
      * @throws InterruptedException
      */
-    public ParallelFileProcessingResult execute()
+    public ParallelFileProcessingResult call()
             throws InterruptedException {
         if (alreadyExecuted) {
             throw new IllegalStateException("Can only execute BatchRunner once.");
@@ -132,6 +134,8 @@ public class BatchProcess {
             throw new RuntimeException("Can't redirect streams");
         }
         System.setErr(System.out);
+
+        Runtime.getRuntime().addShutdownHook(getConsumersManagerShutdownThread());
 
         long start = new Date().getTime();
         logger.info("BatchProcess starting up");
@@ -230,7 +234,7 @@ public class BatchProcess {
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
             consumer.pleaseShutdown();
         }
-
+        fileResourceCrawler.shutDownNoPoison();
         //if there are any active/asked to shutdown consumers, await termination
         //this can happen if a user interrupts the process
         //of if the crawler stops early, or ...
@@ -311,12 +315,7 @@ public class BatchProcess {
                     "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
                     " This exceeds the maxTimeoutMillis parameter");
         }
-        //Now we try to shutdown the ConsumersManager
-        //TODO: put this in a separate thread and time it out if necessary.
-        //a ConsumersManager shutdown hang would cause entire BatchProcess to hang.
-        logger.info("ConsumersManager is about to shut down");
-        consumersManager.shutdown();
-        logger.info("ConsumersManager has shut down");
+
 
         double elapsed = ((double) new Date().getTime() - (double) start) / 1000.0;
         return new
@@ -451,6 +450,35 @@ public class BatchProcess {
      */
     public void setMaxAliveTimeSeconds(int maxAliveTimeSeconds) {
         this.maxAliveTimeSeconds = maxAliveTimeSeconds;
+    }
+
+    public void setConsumersManagerShutdownMillis(long millis) {
+        consumersManagerShutdownMillis = millis;
+    }
+
+    private Thread getConsumersManagerShutdownThread() {
+        Thread thread =  new Thread() {
+            public void run() {
+                //start a new thread that can be timed
+                Thread timed = new Thread() {
+                    public void run() {
+                        logger.trace("starting to shutdown consumers manager");
+                        consumersManager.shutdown();
+                        logger.trace("finished shutting down consumers manager");
+                    };
+                };
+                timed.start();
+                try {
+                    timed.join(consumersManagerShutdownMillis);
+                } catch (InterruptedException e) {
+                    logger.warn("interruption exception during consumers manager shutdown");
+                }
+                if (timed.isAlive()) {
+                    logger.error("ConsumersManager was still alive during shutdown!");
+                }
+            }
+        };
+        return thread;
     }
 
     private class TimeoutChecker implements Callable<IFileProcessorFutureResult> {

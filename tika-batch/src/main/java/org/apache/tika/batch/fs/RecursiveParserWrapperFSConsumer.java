@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.log4j.Level;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -88,7 +89,9 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
-            logger.fatal(getLogMsg(fileResource.getResourceId(), e));
+            //this is really, really bad
+            logWithResourceId(Level.FATAL, "ioe_opening_os",
+                    fileResource.getResourceId(), e);
             throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
@@ -107,8 +110,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             is = fileResource.openInputStream();
         } catch (IOException e) {
-            logger.error(getLogMsg(fileResource.getResourceId(), e));
-            incrementHandledExceptions();
+            logWithResourceId(Level.ERROR, "ioe_opening_is",
+                    fileResource.getResourceId(), e);
             flushAndClose(os);
             return false;
         }
@@ -123,9 +126,11 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         } catch (Throwable t) {
             thrown = t;
             if (t instanceof Error) {
-                logger.fatal(getLogMsg(fileResource.getResourceId(), t));
+                logWithResourceId(Level.FATAL, "parse_ex",
+                        fileResource.getResourceId(), t);
             } else {
-                logger.error(getLogMsg(fileResource.getResourceId(), t));
+                logWithResourceId(Level.ERROR, "parse_ex",
+                        fileResource.getResourceId(), t);
             }
             metadataList = parser.getMetadata();
             if (metadataList == null) {
@@ -152,7 +157,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             writer = new OutputStreamWriter(os, getOutputEncoding());
             JsonMetadataList.toJson(metadataList, writer);
         } catch (Exception e) {
-            logger.error(getLogMsg(fileResource.getResourceId() ,e));
+            logWithResourceId(Level.ERROR, "json_ex",
+                    fileResource.getResourceId(), e);
         } finally {
             flushAndClose(writer);
         }

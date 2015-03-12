@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.log4j.Level;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -79,7 +80,8 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
             //this is really, really bad
-            logger.fatal(getLogMsg(fileResource.getResourceId(), e));
+            logWithResourceId(Level.FATAL, "ioe_opening_os",
+                    fileResource.getResourceId(), e);
             throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
@@ -94,8 +96,8 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         try {
             is = fileResource.openInputStream();
         } catch (IOException e) {
-            incrementHandledExceptions();
-            logger.error(getLogMsg(fileResource.getResourceId(), e));
+            logWithResourceId(Level.ERROR, "ioe_opening_is",
+                    fileResource.getResourceId(), e);
             flushAndClose(os);
             return false;
         }
@@ -104,9 +106,10 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         try {
             handler = contentHandlerFactory.getNewContentHandler(os, getOutputEncoding());
         } catch (UnsupportedEncodingException e) {
-            close(is);
+            incrementHandledExceptions();
+            logWithResourceId(Level.FATAL, "output_encoding_ex",
+                    fileResource.getResourceId(), e);
             flushAndClose(os);
-            logger.fatal(getLogMsg(fileResource.getResourceId(), e));
             throw new RuntimeException(e.getMessage());
         }
 
@@ -116,7 +119,8 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             parser.parse(is, handler,
                     fileResource.getMetadata(), context);
         } catch (Throwable t) {
-            logger.error(getLogMsg(fileResource.getResourceId(), t));
+            logWithResourceId(Level.ERROR, "parse_ex",
+                    fileResource.getResourceId(), t);
             thrown = t;
         } finally {
             close(is);

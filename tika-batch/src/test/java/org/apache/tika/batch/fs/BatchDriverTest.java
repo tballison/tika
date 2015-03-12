@@ -28,27 +28,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.io.IOUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 
 public class BatchDriverTest extends FSBatchTestBase {
 
-    private static boolean DEBUG = false;
-
-    @Before
-    public void logTrace() {
-        if (DEBUG) {
-            Logger log = Logger.getLogger("org.apache.tika.batch.BatchProcessDriverCLI");
-            log.setLevel(Level.TRACE);
-            log.addAppender(new ConsoleAppender());
-        }
-    }
+    //for debugging, turn logging off/on via resources/log4j.properties for the driver
+    //and log4j_process.properties for the process.
 
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
@@ -67,6 +55,8 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertContains("first test file",
                 FileUtils.readFileToString(new File(outputDir, "test2_ok.xml.xml"),
                         IOUtils.UTF_8.toString()));
+
+
     }
 
     @Test(timeout = 30000)

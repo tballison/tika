@@ -24,11 +24,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.TikaTest;
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.BatchProcessDriverCLI;
+import org.apache.tika.batch.ParallelFileProcessingResult;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.io.IOUtils;
 import org.junit.AfterClass;
@@ -154,7 +159,7 @@ public abstract class FSBatchTestBase extends TikaTest {
         List<String> commandLine = new ArrayList<String>();
         commandLine.add("java");
         commandLine.add("-Dlog4j.configuration=file:"+
-            this.getClass().getResource("/log4j.properties").getFile());
+            this.getClass().getResource("/log4j_process.properties").getFile());
         commandLine.add("-Xmx128m");
         commandLine.add("-cp");
         String cp = System.getProperty("java.class.path");
@@ -201,9 +206,15 @@ public abstract class FSBatchTestBase extends TikaTest {
             commandLine.add(s);
         }
 
-        return new BatchProcessDriverCLI(
-                commandLine.toArray(new String[commandLine.size()]));
+        BatchProcessDriverCLI driver = new BatchProcessDriverCLI(
+          commandLine.toArray(new String[commandLine.size()]));
+        driver.setRedirectChildProcessToStdOut(false);
+        return driver;
     }
 
-
+    protected ParallelFileProcessingResult run(BatchProcess process) throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<ParallelFileProcessingResult> futureResult = executor.submit(process);
+        return futureResult.get(10, TimeUnit.SECONDS);
+    }
 }

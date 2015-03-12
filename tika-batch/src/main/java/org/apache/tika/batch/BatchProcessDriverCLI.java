@@ -35,15 +35,14 @@ import org.apache.tika.io.IOUtils;
 public class BatchProcessDriverCLI {
 
     /**
-     * This relies on an exit value of 1024 (do not restart),
-     * 0 ended correctly, -1 ended with exception
-     * and should restart.
+     * This relies on an special exit values of 254 (do not restart),
+     * 0 ended correctly, 253 ended with exception (do restart)
      */
-    public static final int PROCESS_RESTART_EXIT_CODE = -1;
+    public static final int PROCESS_RESTART_EXIT_CODE = 253;
     //make sure this is above 255 to avoid stopping on system errors
     //that is, if there is a system error (e.g. 143), you
     //should restart the process.
-    public static final int PROCESS_NO_RESTART_EXIT_CODE = 666;
+    public static final int PROCESS_NO_RESTART_EXIT_CODE = 254;
     public static final int PROCESS_COMPLETED_SUCCESSFULLY = 0;
     private static Logger logger = Logger.getLogger(BatchProcessDriverCLI.class);
 
@@ -57,7 +56,7 @@ public class BatchProcessDriverCLI {
 
 
     private volatile boolean userInterrupted = false;
-    private boolean mustRestartProcess = false;
+    private boolean receivedRestartMsg = false;
     private Process process = null;
 
     private StreamGobbler errorWatcher = null;
@@ -73,6 +72,7 @@ public class BatchProcessDriverCLI {
 
     private final String[] commandLine;
     private int numRestarts = 0;
+    private boolean redirectChildProcessToStdOut = true;
 
     public BatchProcessDriverCLI(String[] commandLine){
         this.commandLine = tryToReadMaxRestarts(commandLine);
@@ -120,7 +120,7 @@ public class BatchProcessDriverCLI {
             }
 
             logger.trace("Before sleep:" +
-                        " exit=" + exit + " mustRestartProcess=" + mustRestartProcess);
+                        " exit=" + exit + " receivedRestartMsg=" + receivedRestartMsg);
 
             //Even if the process has exited,
             //wait just a little bit to make sure that
@@ -130,12 +130,12 @@ public class BatchProcessDriverCLI {
             } catch (InterruptedException e) {
                 logger.trace("interrupted exception during sleep");
             }
-                logger.trace("After sleep:" +
-                        " exit=" + exit + " mustRestartProcess=" + mustRestartProcess);
+            logger.trace("After sleep:" +
+                    " exit=" + exit + " receivedRestartMsg=" + receivedRestartMsg);
             //if we've gotten the message via stdout to restart
             //but the process hasn't exited yet, give it another
             //chance
-            if (mustRestartProcess && exit == null) {
+            if (receivedRestartMsg && exit == null) {
                 loopsAfterRestartMessageReceived++;
                 logger.trace("Must restart, still not exited; loops after restart: " +
                             loopsAfterRestartMessageReceived);
@@ -143,24 +143,24 @@ public class BatchProcessDriverCLI {
             }
             if (loopsAfterRestartMessageReceived > waitNumLoopsAfterRestartmessage) {
                 logger.trace("About to try to restart because:" +
-                        " exit=" + exit + " mustRestartProcess=" + mustRestartProcess);
+                        " exit=" + exit + " receivedRestartMsg=" + receivedRestartMsg);
                 logger.warn("Restarting after exceeded wait loops waiting for exit: "+
                         loopsAfterRestartMessageReceived);
-                boolean restarted = restart();
+                boolean restarted = restart(exit, receivedRestartMsg);
                 if (!restarted) {
                     break;
                 }
             } else if (exit != null && exit != BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE
                     && exit != BatchProcessDriverCLI.PROCESS_COMPLETED_SUCCESSFULLY) {
                 logger.trace("About to try to restart because:" +
-                            " exit=" + exit + " mustRestartProcess=" + mustRestartProcess);
+                            " exit=" + exit + " receivedRestartMsg=" + receivedRestartMsg);
 
                 if (exit != null && exit == BatchProcessDriverCLI.PROCESS_RESTART_EXIT_CODE) {
                     logger.info("Restarting on expected restart code");
                 } else {
                     logger.warn("Restarting on unexpected restart code: "+exit);
                 }
-                boolean restarted = restart();
+                boolean restarted = restart(exit, receivedRestartMsg);
                 if (!restarted) {
                     break;
                 }
@@ -213,13 +213,14 @@ public class BatchProcessDriverCLI {
      * @return whether or not this was successful, will be false if numRestarts >= maxProcessRestarts
      * @throws Exception
      */
-    private boolean restart() throws Exception {
+    private boolean restart(Integer exitValue, boolean receivedRestartMsg) throws Exception {
         if (maxProcessRestarts > -1 && numRestarts >= maxProcessRestarts) {
             logger.warn("Hit the maximum number of process restarts. Driver is shutting down now.");
             stop();
             return false;
         }
-        logger.warn("Must restart process ("+numRestarts+" restarts so far).");
+        logger.warn("Must restart process (exitValue="+exitValue+" numRestarts="+numRestarts+
+                " receivedRestartMessage="+receivedRestartMsg+")");
         stop();
         start();
         numRestarts++;
@@ -232,7 +233,7 @@ public class BatchProcessDriverCLI {
             process.destroy();
         }
 
-        mustRestartProcess = false;
+        receivedRestartMsg = false;
         //interrupt the writer thread first
         interruptWriterThread.interrupt();
 
@@ -259,6 +260,10 @@ public class BatchProcessDriverCLI {
         interruptWriterThread = new Thread(interruptWriter);
         interruptWriterThread.start();
 
+    }
+
+    public void setRedirectChildProcessToStdOut(boolean redirectChildProcessToStdOut) {
+        this.redirectChildProcessToStdOut = redirectChildProcessToStdOut;
     }
 
     /**
@@ -332,7 +337,9 @@ public class BatchProcessDriverCLI {
             try {
                 logger.trace("gobbler starting to read");
                 while ((line = reader.readLine()) != null && this.running) {
-                    System.out.println("BatchProcess:"+line);
+                    if (redirectChildProcessToStdOut) {
+                        System.out.println("BatchProcess:"+line);
+                    }
                 }
             } catch (IOException e) {
                 logger.trace("gobbler io exception");
@@ -362,7 +369,7 @@ public class BatchProcessDriverCLI {
                 logger.trace("watcher starting to read");
                 while ((line = reader.readLine()) != null && this.running) {
                     if (line.startsWith(BatchProcess.BATCH_CONSTANTS.BATCH_PROCESS_FATAL_MUST_RESTART.toString())) {
-                        mustRestartProcess = true;
+                        receivedRestartMsg = true;
                     }
                     logger.info("BatchProcess: "+line);
                 }
