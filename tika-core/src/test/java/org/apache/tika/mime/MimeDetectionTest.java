@@ -64,9 +64,9 @@ public class MimeDetectionTest {
                 "application/rdf+xml",
                 "http://www.w3.org/2002/07/owl#",
                 "test-difficult-rdf2.xml");
-        // add mock test from TIKA-327
+        // add evil test from TIKA-327
         testFile("text/html", "test-tika-327.html");
-        // add another mock html test from TIKA-357
+        // add another evil html test from TIKA-357
         testFile("text/html", "testlargerbuffer.html");
         // test fragment of HTML with <div> (TIKA-1102)
         testFile("text/html", "htmlfragment");
