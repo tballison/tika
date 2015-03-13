@@ -21,6 +21,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import org.apache.log4j.Logger;
+import org.apache.tika.io.IOUtils;
+
 
 /**
  * Class that waits for input on System.in.  If the user enters a keystroke on 
@@ -28,10 +31,11 @@ import java.io.InputStreamReader;
  *
  */
 public class CommandLineInterrupter implements IInterrupter {
-  
+
+    private Logger logger = Logger.getLogger(CommandLineInterrupter.class);
 	public IFileProcessorFutureResult call(){
 		try{
-			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, IOUtils.UTF_8));
 			while (true){
 				if (reader.ready()){
 					reader.readLine();
@@ -43,8 +47,7 @@ public class CommandLineInterrupter implements IInterrupter {
 		} catch (InterruptedException e){
 		    //canceller was interrupted
 		} catch (IOException e){
-            //TODO: log?
-			//e.printStackTrace();
+            logger.error("IOException from STDIN in CommandlineInterrupter.");
 		}
 		return new InterrupterFutureResult();
 	}

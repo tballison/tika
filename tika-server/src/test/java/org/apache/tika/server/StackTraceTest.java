@@ -110,7 +110,7 @@ public class StackTraceTest extends CXFTestBase {
                     .type("blechdeblah/deblechdeblah")
                     .accept("*/*")
                     .header("Content-Disposition",
-                            "attachment; filename=null_pointer.evil")
+                            "attachment; filename=null_pointer.mock")
                     .put(ClassLoader.getSystemResourceAsStream(TEST_NULL));
             assertNotNull("null response: " + path, response);
             assertEquals("bad type: " + path, 415, response.getStatus());

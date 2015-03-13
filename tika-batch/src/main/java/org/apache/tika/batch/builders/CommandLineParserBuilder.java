@@ -94,10 +94,10 @@ public class CommandLineParserBuilder {
         if (longOpt.trim().length() > 0) {
             option.setLongOpt(longOpt);
         }
-        if (isRequired == true) {
+        if (isRequired) {
             option.setRequired(true);
         }
-        if (hasArg == true) {
+        if (hasArg) {
             option.setArgs(1);
         }
         return option;

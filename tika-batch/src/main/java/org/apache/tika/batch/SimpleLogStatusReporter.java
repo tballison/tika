@@ -48,6 +48,8 @@ public class SimpleLogStatusReporter implements IStatusReporter {
     //how long before considering a parse "stale" (potentially hung forever)
     private long staleThresholdMillis = 100000;
 
+    private volatile boolean isShuttingDown = false;
+
     /**
      * Initialize with the crawler and consumers
      *
@@ -86,12 +88,12 @@ public class SimpleLogStatusReporter implements IStatusReporter {
                 int avg = (elapsedSecs > 5 || cnt > 100) ? (int) ((double) cnt / elapsedSecs) : -1;
 
                 String elapsedString = DurationFormatUtils.formatMillis(new Date().getTime() - start);
-                String docsPerSec = avg > -1 ? String.format(BatchLocalization.getLocale(),
+                String docsPerSec = avg > -1 ? String.format(Locale.ROOT,
                         " (%s docs per sec)",
                         numberFormat.format(avg)) : "";
                 String msg =
                         String.format(
-                                BatchLocalization.getLocale(),
+                                Locale.ROOT,
                                 "Processed %s documents in %s%s.",
                                 numberFormat.format(cnt), elapsedString, docsPerSec);
                 report(msg);
@@ -99,7 +101,7 @@ public class SimpleLogStatusReporter implements IStatusReporter {
                     msg = "There has been one handled exception.";
                 } else {
                     msg =
-                            String.format(BatchLocalization.getLocale(),
+                            String.format(Locale.ROOT,
                                     "There have been %s handled exceptions.",
                                     numberFormat.format(exceptions));
                 }
@@ -134,6 +136,10 @@ public class SimpleLogStatusReporter implements IStatusReporter {
 
                 if (! crawler.isActive()) {
                     msg = "The directory crawler has completed its crawl.\n";
+                    report(msg);
+                }
+                if (isShuttingDown) {
+                    msg = "Process is shutting down now.";
                     report(msg);
                 }
             }
@@ -209,5 +215,13 @@ public class SimpleLogStatusReporter implements IStatusReporter {
             ret += consumer.getNumHandledExceptions();
         }
         return ret;
+    }
+
+    /**
+     * Set whether the main process is in the process of shutting down.
+     * @param isShuttingDown
+     */
+    public void setIsShuttingDown(boolean isShuttingDown){
+        this.isShuttingDown = isShuttingDown;
     }
 }

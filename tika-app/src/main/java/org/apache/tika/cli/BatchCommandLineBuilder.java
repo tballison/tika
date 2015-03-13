@@ -29,6 +29,10 @@ import java.util.regex.Pattern;
 /**
  * This takes a TikaCLI commandline and builds the full commandline for
  * org.apache.tika.batch.fs.FSBatchProcessCLI.
+ * <p>
+ * The "default" batch config file that this relies on
+ * if no batch config file is specified on the commandline
+ * is: tika-batch/src/main/resources/.../default-tika-batch-config.xml
  */
 class BatchCommandLineBuilder {
 
@@ -114,7 +118,7 @@ class BatchCommandLineBuilder {
     }
 
     private static void translateCommandLine(String[] args, Map<String, String> map) throws IOException {
-        //if there are two args and they are both directories, treat the first
+        //if there are only two args and they are both directories, treat the first
         //as input and the second as output.
         if (args.length == 2 && !args[0].startsWith("-") && ! args[1].startsWith("-")) {
             File candInput = new File(args[0]);
@@ -130,8 +134,7 @@ class BatchCommandLineBuilder {
             }
         }
         //look for tikaConfig
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
+        for (String arg : args) {
             if (arg.startsWith("--config=")) {
                 String configPath = arg.substring("--config=".length());
                 map.put("-c", configPath);

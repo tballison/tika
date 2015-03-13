@@ -22,7 +22,5 @@ public class StrawmanTest {
     @Test
     public void basicTest() {
 
-
-
     }
 }

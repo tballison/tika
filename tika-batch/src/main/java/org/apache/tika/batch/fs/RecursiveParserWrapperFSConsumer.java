@@ -21,13 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.log4j.Level;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -41,6 +40,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.sax.ContentHandlerFactory;
+import org.apache.tika.util.TikaExceptionFilter;
 import org.xml.sax.helpers.DefaultHandler;
 
 /**
@@ -58,6 +58,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
     private final OutputStreamFactory fsOSFactory;
     private final TikaConfig tikaConfig;
     private String outputEncoding = "UTF-8";
+    //TODO: parameterize this
+    private TikaExceptionFilter exceptionFilter = new TikaExceptionFilter();
 
 
     public RecursiveParserWrapperFSConsumer(ArrayBlockingQueue<FileResource> queue,
@@ -87,14 +89,16 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             os = fsOSFactory.getOutputStream(fileResource.getMetadata());
         } catch (IOException e) {
-            super.logger.fatal(getLogMsg(fileResource.getResourceId(), e));
+            //this is really, really bad
+            logWithResourceId(Level.FATAL, "ioe_opening_os",
+                    fileResource.getResourceId(), e);
             throw new BatchNoRestartError("IOException trying to open output stream for "+
                     fileResource.getResourceId() + " :: " + e.getMessage());
         }
         //os can be null if fsOSFactory is set to skip processing a file and the output
         //file already exists
         if (os == null) {
-            super.logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
+            logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             return false;
         }
 
@@ -106,39 +110,42 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         try {
             is = fileResource.openInputStream();
         } catch (IOException e) {
-            logger.error(getLogMsg(fileResource.getResourceId(), e));
-            incrementHandledExceptions();
+            logWithResourceId(Level.ERROR, "ioe_opening_is",
+                    fileResource.getResourceId(), e);
             flushAndClose(os);
             return false;
         }
 
         Throwable thrown = null;
         List<Metadata> metadataList = null;
+        Metadata containerMetadata = fileResource.getMetadata();
         try {
             parser.parse(is, new DefaultHandler(),
-                    fileResource.getMetadata(), context);
+                    containerMetadata, context);
             metadataList = parser.getMetadata();
         } catch (Throwable t) {
             thrown = t;
             if (t instanceof Error) {
-                logger.fatal(getLogMsg(fileResource.getResourceId(), t));
+                logWithResourceId(Level.FATAL, "parse_ex",
+                        fileResource.getResourceId(), t);
             } else {
-                logger.error(getLogMsg(fileResource.getResourceId(), t));
+                logWithResourceId(Level.ERROR, "parse_ex",
+                        fileResource.getResourceId(), t);
             }
+            metadataList = parser.getMetadata();
             if (metadataList == null) {
+                //if you've reached here, metadataList is null
                 metadataList = new LinkedList<Metadata>();
             }
             Metadata m = null;
-            if (metadataList.size() > 0) {
-                m = metadataList.remove(0);
+            if (metadataList.size() == 0) {
+                m = containerMetadata;
             } else {
-                m = fileResource.getMetadata();
+                //take the top metadata item
+                m = metadataList.remove(0);
             }
-            StringWriter stringWriter = new StringWriter();
-            PrintWriter w = new PrintWriter(stringWriter);
-            t.printStackTrace(w);
-            stringWriter.flush();
-            m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stringWriter.toString());
+            String stackTrace = exceptionFilter.getStackTrace(t);
+            m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stackTrace);
             metadataList.add(0, m);
         } finally {
             close(is);
@@ -150,7 +157,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             writer = new OutputStreamWriter(os, getOutputEncoding());
             JsonMetadataList.toJson(metadataList, writer);
         } catch (Exception e) {
-            logger.error(getLogMsg(fileResource.getResourceId() ,e));
+            logWithResourceId(Level.ERROR, "json_ex",
+                    fileResource.getResourceId(), e);
         } finally {
             flushAndClose(writer);
         }

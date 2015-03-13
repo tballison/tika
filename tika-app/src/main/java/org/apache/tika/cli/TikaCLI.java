@@ -21,6 +21,7 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -121,7 +122,6 @@ public class TikaCLI {
         if (cli.testForHelp(args)) {
             FSBatchProcessCLI batchProcessCLI = new FSBatchProcessCLI(args);
             cli.usage();
-            batchProcessCLI.usage();
             return;
         } else if (cli.testForBatch(args)) {
             String[] batchArgs = BatchCommandLineBuilder.build(args);
@@ -135,8 +135,8 @@ public class TikaCLI {
         Logger.getRootLogger().setLevel(Level.INFO);
 
         if (args.length > 0) {
-            for (int i = 0; i < args.length; i++) {
-                cli.process(args[i]);
+            for (String arg : args) {
+                cli.process(arg);
             }
             if (cli.pipeMode) {
                 cli.process("-");
@@ -595,8 +595,33 @@ public class TikaCLI {
         out.println("    Apache Tika server. The server will listen to the");
         out.println("    ports you specify as one or more arguments.");
         out.println();
-
-
+        out.println("- Batch mode");
+        out.println();
+        out.println("    Simplest method.");
+        out.println("    Specify two directories as args with no other args:");
+        out.println("         java -jar tika-app.jar <inputDirectory> <outputDirectory");
+        out.println();
+        out.println("Batch Options:");
+        out.println("    -i  or --inputDir          Input directory");
+        out.println("    -o  or --outputDir         Output directory");
+        out.println("    -numConsumers              Number of processing threads");
+        out.println("    -bc                        Batch config file");
+        out.println("    -maxRestarts               Maximum number of times the ");
+        out.println("                               watchdog process will restart the child process.");
+        out.println("    -timeoutThresholdMillis    Number of milliseconds allowed to a parse");
+        out.println("                               before the process is killed and restarted");
+        out.println("    -fileList                  List of files to process, with");
+        out.println("                               paths relative to the input directory");
+        out.println("    -includeFilePat            Regular expression to determine which");
+        out.println("                               files to process, e.g. \"(?i)\\.pdf\"");
+        out.println("    -excludeFilePat            Regular expression to determine which");
+        out.println("                               files to avoid processing, e.g. \"(?i)\\.pdf\"");
+        out.println("    -maxFileSizeBytes          Skip files longer than this value");
+        out.println();
+        out.println("    Control the type of output with -x, -h, -t and/or -J.");
+        out.println();
+        out.println("    To modify child process jvm args, prepend \"J\" as in:");
+        out.println("    -JXmx4g or -JDlog4j.configuration=file:log4j.xml.");
     }
 
     private void version() {
@@ -902,7 +927,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return output writer
-     * @throws UnsupportedEncodingException
+     * @throws java.io.UnsupportedEncodingException
      *         if the given encoding is not supported
      */
     private static Writer getOutputWriter(OutputStream output, String encoding)
@@ -929,7 +954,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return {@link System#out} transformer handler
-     * @throws TransformerConfigurationException
+     * @throws javax.xml.transform.TransformerConfigurationException
      *         if the transformer can not be created
      */
     private static TransformerHandler getTransformerHandler(

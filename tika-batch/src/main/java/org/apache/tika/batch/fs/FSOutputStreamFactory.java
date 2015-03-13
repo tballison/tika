@@ -62,7 +62,7 @@ public class FSOutputStreamFactory implements OutputStreamFactory {
      * Finally, this will open an output stream for the appropriate output file.
      * @param metadata must have a value set for FSMetadataProperties.FS_ABSOLUTE_PATH or
      *                 else NullPointerException will be thrown!
-     * @return
+     * @return OutputStream
      * @throws java.io.IOException, NullPointerException
      */
     @Override

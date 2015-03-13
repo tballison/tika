@@ -17,11 +17,11 @@ package org.apache.tika.batch.builders;
  * limitations under the License.
  */
 
+import java.util.Locale;
 import java.util.Map;
 
 import org.apache.tika.sax.BasicContentHandlerFactory;
 import org.apache.tika.sax.ContentHandlerFactory;
-import org.apache.tika.util.BatchLocalization;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
@@ -43,7 +43,7 @@ public class DefaultContentHandlerFactoryBuilder implements ContentHandlerFactor
         if (handlerTypeString == null) {
             handlerTypeString = "text";
         }
-        handlerTypeString = handlerTypeString.toLowerCase(BatchLocalization.getLocale());
+        handlerTypeString = handlerTypeString.toLowerCase(Locale.ROOT);
         if (handlerTypeString.equals("xml")) {
             type = BasicContentHandlerFactory.HANDLER_TYPE.XML;
         } else if (handlerTypeString.equals("text")) {

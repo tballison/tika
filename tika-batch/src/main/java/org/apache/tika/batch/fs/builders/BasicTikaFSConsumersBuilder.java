@@ -182,9 +182,4 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
                 compression, suffix);
     }
 
-    private void handleExistingException() {
-        throw new RuntimeException("Must specify handleExisting in FSOutputStreamFactory; values include: overwrite, rename, skip");
-    }
-
-
 }

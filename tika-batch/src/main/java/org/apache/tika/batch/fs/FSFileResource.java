@@ -20,11 +20,11 @@ package org.apache.tika.batch.fs;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.util.BatchLocalization;
 
 /**
  * FileSystem(FS)Resource wraps a file name.
@@ -33,13 +33,14 @@ import org.apache.tika.util.BatchLocalization;
  * <ul>
  *     <li>Metadata.RESOURCE_NAME_KEY (file name)</li>
  *     <li>Metadata.CONTENT_LENGTH</li>
- *     <li>FSProperties.FS_ABSOLUTE_PATH</li>
+ *     <li>FSProperties.FS_REL_PATH</li>
  *     <li>FileResource.FILE_EXTENSION</li>
  * </ul>,
  */
 public class FSFileResource implements FileResource {
 
     private final File fullPath;
+    private final String relativePath;
     private final Metadata metadata;
 
     public FSFileResource(File inputRoot, File fullPath) {
@@ -47,7 +48,7 @@ public class FSFileResource implements FileResource {
         this.metadata = new Metadata();
         //child path must actually be a child
         assert(FSUtil.checkThisIsAncestorOfThat(inputRoot, fullPath));
-        String relativePath = fullPath.getAbsolutePath().substring(inputRoot.getAbsolutePath().length()+1);
+        this.relativePath = fullPath.getAbsolutePath().substring(inputRoot.getAbsolutePath().length()+1);
 
         //need to set these now so that the filter can determine
         //whether or not to crawl this file
@@ -59,29 +60,29 @@ public class FSFileResource implements FileResource {
 
     /**
      * Simple extension extractor that takes whatever comes after the
-     * last period in the path.  It returns a lowercased version of that.
-     * <p/>
+     * last period in the path.  It returns a lowercased version of the "extension."
+     * <p>
      * If there is no period, it returns an empty string.
      *
-     * @param fullPath
-     * @return
+     * @param fullPath full path from which to try to find an extension
+     * @return the lowercased extension or an empty string
      */
     private String getExtension(File fullPath) {
         String p = fullPath.getName();
         int i = p.lastIndexOf(".");
         if (i > -1) {
-            return p.substring(i + 1).toLowerCase(BatchLocalization.getLocale());
+            return p.substring(i + 1).toLowerCase(Locale.ROOT);
         }
         return "";
     }
 
     /**
      *
-     * @return file's absolutePath
+     * @return file's relativePath
      */
     @Override
     public String getResourceId() {
-        return fullPath.getAbsolutePath();
+        return relativePath;
     }
 
     @Override

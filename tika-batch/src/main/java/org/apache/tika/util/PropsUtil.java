@@ -18,6 +18,7 @@ package org.apache.tika.util;
  */
 
 import java.io.File;
+import java.util.Locale;
 
 /**
  * Utility class to handle properties.  If the value is null,
@@ -29,10 +30,10 @@ public class PropsUtil {
         if (v == null || v.length() == 0) {
             return defaultMissing;
         }
-        if (v.toLowerCase(BatchLocalization.getLocale()).equals("true")) {
+        if (v.toLowerCase(Locale.ROOT).equals("true")) {
             return true;
         }
-        if (v.toLowerCase(BatchLocalization.getLocale()).equals("false")) {
+        if (v.toLowerCase(Locale.ROOT).equals("false")) {
             return false;
         }
         return defaultMissing;
@@ -57,7 +58,7 @@ public class PropsUtil {
         try {
             return Long.parseLong(v);
         } catch (NumberFormatException e) {
-
+            //swallow
         }
         return defaultMissing;
     }

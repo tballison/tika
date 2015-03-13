@@ -18,7 +18,6 @@ package org.apache.tika.batch;
  */
 
 import java.util.Date;
-import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +33,7 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
     protected final static int STOP_NOW = 2;
 
     private volatile boolean hasCompletedCrawling = false;
+    private volatile boolean shutDownNoPoison = false;
     private volatile boolean isActive = true;
     private volatile boolean timedOut = false;
 
@@ -75,7 +75,7 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
             //this can be triggered by shutdownNow in BatchProcess
             logger.info("InterruptedException in FileCrawler: " + e.getMessage());
         } catch (Exception e) {
-            logger.error("Exception in FileCrawler: " + e.getMessage());
+            logger.error("Exception in FileResourceCrawler: " + e.getMessage());
         } finally {
             isActive = false;
         }
@@ -126,19 +126,30 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
         return (isAdded)?ADDED:SKIPPED;
     }
 
-    private void shutdown() throws InterruptedException {
-
-        if (hasCompletedCrawling == true) {
+    //Warning! Depending on the value of maxConsecWaitInMillis
+    //this could try forever in vain to add poison to the queue.
+    private void shutdown() throws InterruptedException{
+        logger.debug("FileResourceCrawler entering shutdown");
+        if (hasCompletedCrawling || shutDownNoPoison) {
             return;
         }
         int i = 0;
         long start = new Date().getTime();
         while (queue.offer(new PoisonFileResource(), 1L, TimeUnit.SECONDS)) {
+            if (shutDownNoPoison) {
+                logger.debug("quitting the poison loop because shutDownNoPoison is now true");
+                return;
+            }
+            if (Thread.currentThread().isInterrupted()) {
+                logger.debug("thread interrupted while trying to add poison");
+                return;
+            }
             long elapsed = new Date().getTime() - start;
             if (maxConsecWaitInMillis > -1 && elapsed > maxConsecWaitInMillis) {
                 logger.error("Crawler timed out while trying to add poison");
-                throw new InterruptedException("FileResourceCrawler timed out while trying to shutdown.");
+                return;
             }
+            logger.debug("added "+i+" number of PoisonFileResource(s)");
             if (i++ >= numConsumers) {
                 break;
             }
@@ -175,7 +186,7 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
      * Maximum number of files to add.  If {@link #maxFilesToAdd} < 0 (default),
      * then this crawler will add all documents.
      *
-     * @param maxFilesToAdd
+     * @param maxFilesToAdd maximum number of files to add to the queue
      */
     public void setMaxFilesToAdd(int maxFilesToAdd) {
         this.maxFilesToAdd = maxFilesToAdd;
@@ -189,7 +200,7 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
      * If {@link #maxFilesToConsider} < 0 (default), then this crawler
      * will add all documents.
      *
-     * @param maxFilesToConsider
+     * @param maxFilesToConsider maximum number of files to consider adding to the queue
      */
     public void setMaxFilesToConsider(int maxFilesToConsider) {
         this.maxFilesToConsider = maxFilesToConsider;
@@ -202,10 +213,8 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
     public boolean isQueueEmpty() {
         int size= 0;
         synchronized(queue) {
-            Iterator<FileResource> it = queue.iterator();
-            while (it.hasNext()) {
-                if (it.next() instanceof PoisonFileResource) {
-                } else {
+            for (FileResource aQueue : queue) {
+                if (!(aQueue instanceof PoisonFileResource)) {
                     size++;
                 }
             }
@@ -220,13 +229,29 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
      * If the crawler timed out while trying to add poison, this is not
      * set to true.
      *
-     * @return
+     * @return whether this was timed out or not
      */
     public boolean wasTimedOut() {
         return timedOut;
     }
 
+    /**
+     *
+     * @return number of files that this crawler added to the queue
+     */
     public int getAdded() {
         return added;
+    }
+
+    /**
+     * Set to true to shut down the FileResourceCrawler without
+     * adding poison.  Do this only if you've already called another mechanism
+     * to request that consumers shut down.  This prevents a potential deadlock issue
+     * where the crawler is trying to add to the queue, but it is full.
+     *
+     * @return
+     */
+    public void shutDownNoPoison() {
+        this.shutDownNoPoison = true;
     }
 }

@@ -1,5 +1,21 @@
 package org.apache.tika.batch.fs.strawman;
 
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -7,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -85,8 +102,8 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
             throw new RuntimeException("couldn't make parent file for " + outputFile);
         }
         List<String> commandLine = new ArrayList<String>();
-        for (int i = 0; i < args.length; i++) {
-            commandLine.add(args[i]);
+        for (String arg : args) {
+            commandLine.add(arg);
         }
         commandLine.add("-t");
         commandLine.add("\""+f.getAbsolutePath()+"\"");
@@ -140,31 +157,34 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         int processed = processDirectory(inputDir);
         double elapsedSecs = ((double)new Date().getTime()-(double)start)/(double)1000;
         logger.info("Finished processing " + processed + " files in " + elapsedSecs + " seconds.");
-        return new Integer(processed);
+        return processed;
     }
 
     private class RedirectGobbler implements Runnable {
-        private OutputStream os = null;
-        private InputStream is = null;
+        private OutputStream redirectOs = null;
+        private InputStream redirectIs = null;
 
         private RedirectGobbler(InputStream is, OutputStream os) {
-            this.is = is;
-            this.os = os;
+            this.redirectIs = is;
+            this.redirectOs = os;
         }
-        private void gobble(InputStream is) {
-        }
+
         private void close() {
-            if (os != null) {
+            if (redirectOs != null) {
                 try {
-                    os.flush();
+                    redirectOs.flush();
                 } catch (IOException e) {
                     logger.error("can't flush");
                 }
                 try {
-                    os.close();
-                    is.close();
+                    redirectIs.close();
                 } catch (IOException e) {
-                    logger.error("can't close");
+                    logger.error("can't close input in redirect gobbler");
+                }
+                try {
+                    redirectOs.close();
+                } catch (IOException e) {
+                    logger.error("can't close output in redirect gobbler");
                 }
             }
         }
@@ -172,7 +192,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         @Override
         public void run() {
             try {
-                IOUtils.copy(is, os);
+                IOUtils.copy(redirectIs, redirectOs);
             } catch (IOException e) {
                 logger.error("IOException while gobbling");
             }
@@ -198,9 +218,7 @@ public class StrawManTikaAppDriver implements Callable<Integer> {
         int totalThreads = Integer.parseInt(args[2]);
 
         List<String> commandLine = new ArrayList<String>();
-        for (int i = 3; i < args.length; i++) {
-            commandLine.add(args[i]);
-        }
+        commandLine.addAll(Arrays.asList(args).subList(3, args.length));
         totalThreads = (totalThreads < 1) ? 1 : totalThreads;
         ExecutorService ex = Executors.newFixedThreadPool(totalThreads);
         ExecutorCompletionService<Integer> completionService =

@@ -17,11 +17,12 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
-import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.ParallelFileProcessingResult;
@@ -34,17 +35,19 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
     public void testIllegalState() throws Exception {
         File outputDir = getNewOutputDir("os-factory-illegal-state-");
         Map<String, String> args = getDefaultArgs("basic", outputDir);
-        BatchProcess runner = getNewBatchRunner("/tika-batch-config-basic-test.xml", args);
-        runner.execute();
+        BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
+        run(runner);
         assertEquals(1, outputDir.listFiles().length);
 
         boolean illegalState = false;
-        try{
-            ParallelFileProcessingResult result = runner.execute();
-        } catch (IllegalStateException e) {
-            illegalState = true;
+        try {
+            ParallelFileProcessingResult result = run(runner);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                illegalState = true;
+            }
         }
-        assertTrue(illegalState);
+        assertTrue("Should have been an illegal state exception", illegalState);
     }
 
     @Test
@@ -52,12 +55,12 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         File outputDir = getNewOutputDir("os-factory-skip-");
         Map<String, String> args = getDefaultArgs("basic", outputDir);
         args.put("handleExisting", "skip");
-        BatchProcess runner = getNewBatchRunner("/tika-batch-config-evil-test.xml", args);
-        ParallelFileProcessingResult result = runner.execute();
+        BatchProcess runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
+        ParallelFileProcessingResult result = run(runner);
         assertEquals(1, outputDir.listFiles().length);
 
-        runner = getNewBatchRunner("/tika-batch-config-evil-test.xml", args);
-        result = runner.execute();
+        runner = getNewBatchRunner("/tika-batch-config-test.xml", args);
+        result = run(runner);
         assertEquals(1, outputDir.listFiles().length);
     }
 
@@ -83,7 +86,7 @@ public class OutputStreamFactoryTest extends FSBatchTestBase {
         int hits = 0;
         for (File f : outputDir.listFiles()){
             String name = f.getName();
-            if (name.equals("test1.txt.xml")) {
+            if (name.equals("test2_ok.xml.xml")) {
                 hits++;
             } else if (name.equals("test1(1).txt.xml")) {
                 hits++;

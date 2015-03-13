@@ -180,8 +180,11 @@ public class BatchProcessBuilder {
     /**
      * numConsumers is needed by both the crawler and the consumers. This utility method
      * is to be used to extract the number of consumers from a map of String key value pairs.
-     * @param attrs
-     * @return
+     * <p>
+     * If the value is "default", not a parseable integer or has a value < 1,
+     * then <code>AbstractConsumersBuilder</code>'s <code>getDefaultNumConsumers()</code>
+     * @param attrs attributes from which to select the NUM_CONSUMERS_KEY
+     * @return number of consumers
      */
     public static int getNumConsumers(Map<String, String> attrs) {
         String nString = attrs.get(BatchProcessBuilder.NUM_CONSUMERS_KEY);
@@ -240,10 +243,12 @@ public class BatchProcessBuilder {
             }
         }
 
-        try {
-            maxQueueSize = Integer.parseInt(szString);
-        } catch (NumberFormatException e) {
-            //swallow
+        if (szString != null) {
+            try {
+                maxQueueSize = Integer.parseInt(szString);
+            } catch (NumberFormatException e) {
+                //swallow
+            }
         }
 
         if (maxQueueSize < 0) {
@@ -276,10 +281,7 @@ public class BatchProcessBuilder {
         }
 
         ICrawlerBuilder builder = ClassLoaderUtil.buildClass(ICrawlerBuilder.class, className);
-        FileResourceCrawler crawler = builder.build(node, runtimeAttributes, queue);
-
-
-        return crawler;
+        return builder.build(node, runtimeAttributes, queue);
     }
 
 

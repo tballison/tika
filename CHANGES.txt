@@ -1,5 +1,9 @@
 Release 1.8 - Current Development
 
+  * Upgrade UCAR dependencies to 4.5.5 (TIKA-1571)
+  
+  * Fix Paths in Tika server welcome page (TIKA-1567).
+
   * Fixed infinite recursion while parsing some PDFs (TIKA-1038).
 
   * XHTMLContentHandler now properly passes along body attributes,
@@ -24,7 +28,7 @@ Release 1.8 - Current Development
     parse exceptions. (TIKA-1323)
 
   * Added MockParser for testing handling of exceptions, errors
-    and hangs in code that uses parsers. (TIKA-1533)
+    and hangs in code that uses parsers. (TIKA-1553)
 
   * The ForkParser service removed from Activator. Rollback of (TIKA-1354).
 

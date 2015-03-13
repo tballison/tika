@@ -54,12 +54,12 @@ public class FSListCrawler extends FileResourceCrawler {
             }
             File f = new File(root, line);
             if (! f.exists()) {
-                super.logger.warn("File doesn't exist:"+f.getAbsolutePath());
+                logger.warn("File doesn't exist:"+f.getAbsolutePath());
                 line = nextLine();
                 continue;
             }
             if (f.isDirectory()) {
-                super.logger.warn("File is a directory:"+f.getAbsolutePath());
+                logger.warn("File is a directory:"+f.getAbsolutePath());
                 line = nextLine();
                 continue;
             }

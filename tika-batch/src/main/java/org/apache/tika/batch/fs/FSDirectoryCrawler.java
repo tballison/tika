@@ -78,14 +78,14 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
             if (directory != null) {
                 path = directory.getAbsolutePath();
             }
-            super.logger.warn("FSFileAdder can't read this directory: " + path);
+            logger.warn("FSFileAdder can't read this directory: " + path);
             return;
         }
 
         List<File> directories = new ArrayList<File>();
         File[] fileArr = directory.listFiles();
         if (fileArr == null) {
-            super.logger.info("Empty directory: " + directory.getAbsolutePath());
+            logger.info("Empty directory: " + directory.getAbsolutePath());
             return;
         }
 
@@ -124,7 +124,6 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
         for (File f : directories) {
             addFiles(f);
         }
-        return;
     }
 
     /**
@@ -134,7 +133,7 @@ public class FSDirectoryCrawler extends FileResourceCrawler {
      * mkdirs() on an output directory if your FileResourceConsumers
      * are writing to a file.
      *
-     * @param f
+     * @param f file to handle
      */
     public void handleFirstFileInDirectory(File f) {
         //no-op

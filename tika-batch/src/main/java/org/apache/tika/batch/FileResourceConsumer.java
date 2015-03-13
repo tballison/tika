@@ -17,15 +17,21 @@ package org.apache.tika.batch;
  * limitations under the License.
  */
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Date;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 
@@ -49,6 +55,10 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
         CONSUMER_ERROR,
         COMPLETED
     }
+
+    public static String TIME_OUT = "timeout";
+    public static String ELAPSED_MILLIS = "elapsedMS";
+
     private static AtomicInteger numConsumers = new AtomicInteger(-1);
     protected static Logger logger = Logger.getLogger(FileResourceConsumer.class);
 
@@ -56,6 +66,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
 
     private final ArrayBlockingQueue<FileResource> fileQueue;
 
+    private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newFactory();
     private final int consumerId;
 
     //used to lock checks on state to prevent
@@ -140,7 +151,7 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
     /**
      * Returns whether or not the consumer is still could process
      * a file or is still processing a file (ACTIVELY_CONSUMING or ASKED_TO_SHUTDOWN)
-     * @return
+     * @return whether this consumer is still active
      */
     public boolean isStillActive() {
         if (Thread.currentThread().isInterrupted()) {
@@ -238,10 +249,56 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
             }
             if (tmp.getElapsedMillis() > staleThresholdMillis) {
                 setEndedState(STATE.TIMED_OUT);
+                logWithResourceId(Level.FATAL, TIME_OUT,
+                        tmp.getResourceId(), ELAPSED_MILLIS, Long.toString(tmp.getElapsedMillis()));
                 return tmp;
             }
         }
         return null;
+    }
+
+    protected void logWithResourceId(Level level, String type, String resourceId, String... attrs) {
+        logWithResourceId(level, type, resourceId, null, attrs);
+    }
+
+    /**
+     * Use this for structured output that captures resourceId and other attributes.
+     *
+     * @param level level
+     * @param type entity name for exception
+     * @param resourceId resourceId string
+     * @param t throwable can be null
+     * @param attrs (array of key0, value0, key1, value1, etc.)
+     */
+    protected void logWithResourceId(Level level, String type, String resourceId, Throwable t, String... attrs) {
+
+        StringWriter writer = new StringWriter();
+        try {
+            XMLStreamWriter xml = xmlOutputFactory.createXMLStreamWriter(writer);
+            xml.writeStartDocument();
+            xml.writeStartElement(type);
+            xml.writeAttribute("resourceId", resourceId);
+            if (attrs != null) {
+                //this assumes args has name value pairs alternating, name0 at 0, val0 at 1, name1 at 2, val2 at 3, etc.
+                for (int i = 0; i < attrs.length - 1; i++) {
+                    xml.writeAttribute(attrs[i], attrs[i + 1]);
+                }
+            }
+            if (t != null) {
+                StringWriter stackWriter = new StringWriter();
+                PrintWriter printWriter = new PrintWriter(stackWriter);
+                t.printStackTrace(printWriter);
+                xml.writeCharacters(stackWriter.toString());
+            }
+            xml.writeEndElement();
+            xml.writeEndDocument();
+            xml.flush();
+            xml.close();
+        } catch (XMLStreamException e) {
+            logger.error("error writing xml stream for: " + resourceId, t);
+        }
+
+        logger.log(level, writer.toString());
     }
 
     private FileResource getNextFileResource() throws InterruptedException {
@@ -318,10 +375,6 @@ public abstract class FileResourceConsumer implements Callable<IFileProcessorFut
                 currentState = cause;
             }
         }
-    }
-
-    protected String getLogMsg(String fileResourceId, Throwable t) {
-        return ">"+fileResourceId + "< : " + t.getMessage();
     }
 
 }

@@ -89,7 +89,7 @@ public class FSUtil {
     public static File getOutputFile(File outputRoot, String initialRelativePath,
                                      HANDLE_EXISTING handleExisting, String suffix) throws IOException {
         String localSuffix = (suffix == null) ? "" : suffix;
-        File cand = new File(outputRoot, initialRelativePath+"."+localSuffix);
+        File cand = new File(outputRoot, initialRelativePath+ "." +localSuffix);
         if (cand.isFile()) {
             if (handleExisting.equals(HANDLE_EXISTING.OVERWRITE)) {
                 return cand;
@@ -129,14 +129,14 @@ public class FSUtil {
 
         File outputParent = cand.getParentFile();
         while (fNameBase != null && cand.isFile() && ++cnt < 10000) {
-            String candFileName = fNameBase + "(" + cnt + ")." + fNameExt+"."+localSuffix;
+            String candFileName = fNameBase + "(" + cnt + ")." + fNameExt+ "" +localSuffix;
             cand = new File(outputParent, candFileName);
         }
         //reset count to 0 and try 20000 times
         cnt = 0;
         while (cand.isFile() && cnt++ < 20000) {
             UUID uid = UUID.randomUUID();
-            cand = new File(outputParent, uid.toString() + fNameExt+"."+localSuffix);
+            cand = new File(outputParent, uid.toString() + fNameExt+ "" +localSuffix);
         }
 
         if (cand.isFile()) {
