@@ -17,16 +17,13 @@ package org.apache.tika.batch.fs;
  * limitations under the License.
  */
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.log4j.Level;
-import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
-import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.OutputStreamFactory;
 import org.apache.tika.batch.ParserFactory;
 import org.apache.tika.config.TikaConfig;
@@ -44,7 +41,7 @@ import org.xml.sax.ContentHandler;
  * This will re-throw errors.
  *
  */
-public class BasicTikaFSConsumer extends FileResourceConsumer {
+public class BasicTikaFSConsumer extends AbstractFSConsumer {
 
     private boolean parseRecursively = true;
     private final ParserFactory parserFactory;
@@ -75,16 +72,7 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             context.set(Parser.class, parser);
         }
 
-        OutputStream os = null;
-        try {
-            os = fsOSFactory.getOutputStream(fileResource.getMetadata());
-        } catch (IOException e) {
-            //this is really, really bad
-            logWithResourceId(Level.FATAL, "ioe_opening_os",
-                    fileResource.getResourceId(), e);
-            throw new BatchNoRestartError("IOException trying to open output stream for "+
-                    fileResource.getResourceId() + " :: " + e.getMessage());
-        }
+        OutputStream os = getOutputStream(fsOSFactory, fileResource);
         //os can be null if fsOSFactory is set to skip processing a file if the output
         //file already exists
         if (os == null) {
@@ -92,16 +80,11 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
             return false;
         }
 
-        InputStream is = null;
-        try {
-            is = fileResource.openInputStream();
-        } catch (IOException e) {
-            logWithResourceId(Level.ERROR, "ioe_opening_is",
-                    fileResource.getResourceId(), e);
-            flushAndClose(os);
+        InputStream is = getInputStream(fileResource);
+        if (is == null) {
+            IOUtils.closeQuietly(os);
             return false;
         }
-
         ContentHandler handler;
         try {
             handler = contentHandlerFactory.getNewContentHandler(os, getOutputEncoding());
@@ -116,23 +99,17 @@ public class BasicTikaFSConsumer extends FileResourceConsumer {
         //now actually call parse!
         Throwable thrown = null;
         try {
-            parser.parse(is, handler,
+            parse(fileResource.getResourceId(), parser, is, handler,
                     fileResource.getMetadata(), context);
+        } catch (Error t) {
+            throw t;
         } catch (Throwable t) {
-            logWithResourceId(Level.ERROR, "parse_ex",
-                    fileResource.getResourceId(), t);
             thrown = t;
         } finally {
-            close(is);
             flushAndClose(os);
         }
 
         if (thrown != null) {
-            if (thrown instanceof Error) {
-                throw (Error)thrown;
-            } else {
-                incrementHandledExceptions();
-            }
             return false;
         }
         return true;

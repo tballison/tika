@@ -1,4 +1,4 @@
-package org.apache.tika.batch.builders;
+package org.apache.tika.eval.io;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,11 +17,15 @@ package org.apache.tika.batch.builders;
  * limitations under the License.
  */
 
-import org.apache.tika.batch.IInterrupter;
-import org.w3c.dom.Node;
+import java.io.InputStream;
 
-import java.util.Map;
+import org.junit.Test;
 
-public interface IInterupterBuilder {
-    public IInterrupter build(Node n, Map<String, String> commandlineArguments);
+public class FatalExceptionReaderTest {
+    @Test
+    public void testSimpleRead() throws Exception {
+        InputStream is = this.getClass().getResourceAsStream("/test-documents/batch-process-fatal.xml");
+        XMLLogReader reader = new XMLLogReader();
+        //reader.read(is);
+    }
 }

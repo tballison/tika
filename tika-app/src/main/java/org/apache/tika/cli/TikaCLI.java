@@ -156,14 +156,6 @@ public class TikaCLI {
         }
     }
 
-    private boolean testForHelp(String[] args) {
-        for (String s : args) {
-            if (s.equals("-?") || s.equals("--help")) {
-                return true;
-            }
-        }
-        return false;
-    }
 
 
     private class OutputType {
@@ -897,6 +889,15 @@ public class TikaCLI {
         }
     }
 
+    private boolean testForHelp(String[] args) {
+        for (String s : args) {
+            if (s.equals("-?") || s.equals("--help")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean testForBatch(String[] args) {
         if (args.length == 2 && ! args[0].startsWith("-")
                 && ! args[1].startsWith("-")) {
@@ -909,8 +910,6 @@ public class TikaCLI {
 
         for (String s : args) {
             if (s.equals("-inputDir") || s.equals("--inputDir") || s.equals("-i")) {
-                return true;
-            } else if (s.equals("-batch-help")) {
                 return true;
             }
         }

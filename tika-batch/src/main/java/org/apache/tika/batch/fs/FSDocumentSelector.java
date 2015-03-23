@@ -53,7 +53,7 @@ public class FSDocumentSelector implements DocumentSelector {
     @Override
     public boolean select(Metadata metadata) {
         String fName = metadata.get(Metadata.RESOURCE_NAME_KEY);
-        long sz = PropsUtil.getLong(metadata.get(Metadata.CONTENT_LENGTH), -1);
+        long sz = PropsUtil.getLong(metadata.get(Metadata.CONTENT_LENGTH), -1L);
         if (maxFileSizeBytes > -1 && sz > 0) {
             if (sz > maxFileSizeBytes) {
                 return false;

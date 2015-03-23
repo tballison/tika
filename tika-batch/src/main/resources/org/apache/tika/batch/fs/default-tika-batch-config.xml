@@ -117,5 +117,5 @@
     <!-- reporter and interrupter are optional -->
     <reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000"
               reporterStaleThresholdMillis="60000"/>
-    <interrupter builderClass="org.apache.tika.batch.builders.CommandLineInterrupterBuilder"/>
+    <interrupter builderClass="org.apache.tika.batch.builders.InterrupterBuilder"/>
 </tika-batch-config>

@@ -56,7 +56,6 @@
     <module>tika-server</module>
     <module>tika-translate</module>
     <module>tika-example</module>
-    <module>tika-batch</module>
     <module>tika-eval</module>
   </modules>
 

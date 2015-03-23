@@ -21,11 +21,11 @@ import java.util.Map;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceCrawler;
-import org.apache.tika.batch.SimpleLogStatusReporter;
+import org.apache.tika.batch.StatusReporter;
 import org.w3c.dom.Node;
 
 public interface StatusReporterBuilder {
 
-    public SimpleLogStatusReporter build(FileResourceCrawler crawler, ConsumersManager consumers,
+    public StatusReporter build(FileResourceCrawler crawler, ConsumersManager consumers,
                                 Node n, Map<String, String> commandlineArguments);
 }

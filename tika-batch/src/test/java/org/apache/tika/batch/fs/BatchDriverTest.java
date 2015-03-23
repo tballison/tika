@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.io.IOUtils;
@@ -96,7 +97,11 @@ public class BatchDriverTest extends FSBatchTestBase {
         assertFalse(driver.getUserInterrupted());
         File[] files = outputDir.listFiles();
         assertEquals(2, files.length);
-        assertEquals(0, files[1].length());
+        File test2 = new File(outputDir, "test2_norestart.xml.xml");
+        assertTrue("test2_norestart.xml", test2.exists());
+        File test3 = new File(outputDir, "test3_ok.xml.xml");
+        assertFalse("test3_ok.xml", test3.exists());
+        assertEquals(0, test3.length());
     }
 
     @Test(timeout = 15000)

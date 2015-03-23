@@ -151,6 +151,7 @@ public class FSBatchProcessCLI {
             FSBatchProcessCLI cli = new FSBatchProcessCLI(args);
             cli.execute(args);
         } catch (Throwable t) {
+            t.printStackTrace();
             logger.fatal("Fatal exception from FSBatchProcessCLI: "+t.getMessage(), t);
             System.exit(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE);
         }

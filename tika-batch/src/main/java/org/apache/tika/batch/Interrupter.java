@@ -20,6 +20,7 @@ package org.apache.tika.batch;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.Callable;
 
 import org.apache.log4j.Logger;
 import org.apache.tika.io.IOUtils;
@@ -29,10 +30,12 @@ import org.apache.tika.io.IOUtils;
  * Class that waits for input on System.in.  If the user enters a keystroke on 
  * System.in, this will send a signal to the FileResourceRunner to shutdown gracefully.
  *
+ * <p>
+ * In the future, this may implement a common IInterrupter interface for more flexibility.
  */
-public class CommandLineInterrupter implements IInterrupter {
+public class Interrupter implements Callable<IFileProcessorFutureResult> {
 
-    private Logger logger = Logger.getLogger(CommandLineInterrupter.class);
+    private Logger logger = Logger.getLogger(Interrupter.class);
 	public IFileProcessorFutureResult call(){
 		try{
 			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, IOUtils.UTF_8));

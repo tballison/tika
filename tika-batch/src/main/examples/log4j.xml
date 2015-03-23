@@ -27,7 +27,7 @@
         </layout>
     </appender>
 
-  <logger name="org.apache.tika.batch.SimpleLogStatusReporter" additivity="false">
+  <logger name="org.apache.tika.batch.StatusReporter" additivity="false">
     <level value="info"/>
     <appender-ref ref="stdout"/>
   </logger>

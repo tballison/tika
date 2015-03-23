@@ -31,8 +31,8 @@ import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceCrawler;
-import org.apache.tika.batch.IInterrupter;
-import org.apache.tika.batch.IStatusReporter;
+import org.apache.tika.batch.Interrupter;
+import org.apache.tika.batch.StatusReporter;
 import org.apache.tika.util.ClassLoaderUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Document;
@@ -41,6 +41,10 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 
+/**
+ * Builds a BatchProcessor from a combination of runtime arguments and the
+ * config file.
+ */
 public class BatchProcessBuilder {
 
     public final static int DEFAULT_MAX_QUEUE_SIZE = 1000;
@@ -48,7 +52,7 @@ public class BatchProcessBuilder {
     public final static String NUM_CONSUMERS_KEY = "numConsumers";
 
     /**
-     * Builds a FileResourceBatchProcessor from runtime arguments and a
+     * Builds a BatchProcess from runtime arguments and a
      * input stream of a configuration file.  With the exception of the QueueBuilder,
      * the builders choose how to adjudicate between
      * runtime arguments and the elements in the configuration file.
@@ -99,8 +103,8 @@ public class BatchProcessBuilder {
 
         FileResourceCrawler crawler = null;
         ConsumersManager consumersManager = null;
-        IStatusReporter reporter = null;
-        IInterrupter interrupter = null;
+        StatusReporter reporter = null;
+        Interrupter interrupter = null;
 
         /*
          * TODO: This is a bit smelly.  NumConsumers needs to be used by the crawler
@@ -151,19 +155,19 @@ public class BatchProcessBuilder {
         return proc;
     }
 
-    private IInterrupter buildInterrupter(Node node, Map<String, String> runtimeAttributes) {
+    private Interrupter buildInterrupter(Node node, Map<String, String> runtimeAttributes) {
         Map<String, String> attrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
         String className = attrs.get("builderClass");
         if (className == null) {
             throw new RuntimeException("Need to specify class name in interrupter element");
         }
-        IInterupterBuilder builder = ClassLoaderUtil.buildClass(IInterupterBuilder.class, className);
+        InterrupterBuilder builder = ClassLoaderUtil.buildClass(InterrupterBuilder.class, className);
 
         return builder.build(node, runtimeAttributes);
 
     }
 
-    private IStatusReporter buildReporter(FileResourceCrawler crawler, ConsumersManager consumersManager,
+    private StatusReporter buildReporter(FileResourceCrawler crawler, ConsumersManager consumersManager,
                                           Node node, Map<String, String> runtimeAttributes) {
 
         Map<String, String> attrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);

@@ -1,4 +1,8 @@
-package org.apache.tika.batch;
+package org.apache.tika.eval.io;
+
+import java.io.IOException;
+
+import org.apache.log4j.Level;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -16,8 +20,6 @@ package org.apache.tika.batch;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import java.util.concurrent.Callable;
-
-public interface IInterrupter extends Callable<IFileProcessorFutureResult> {
+public interface XMLLogMsgHandler {
+    public void handleMsg(Level level, String xml) throws IOException;
 }

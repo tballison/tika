@@ -45,7 +45,8 @@ public class BasicFileComparer extends AbstractProfiler {
         DIFF_NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
         DIFF_NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
         TOP_10_UNIQUE_TOKEN_DIFFS(new ColInfo(-1, Types.VARCHAR, 1024)),
-        TOP_10_TOKEN_DIFFS(new ColInfo(-1, Types.VARCHAR, 1024)),
+        TOP_10_MORE_IN_A(new ColInfo(-1, Types.VARCHAR, 1024)),
+        TOP_10_MORE_IN_B(new ColInfo(-1, Types.VARCHAR, 1024)),
         DICE_COEFFICIENT(new ColInfo(-1, Types.FLOAT)),
         OVERLAP(new ColInfo(-1, Types.FLOAT));
 
@@ -103,7 +104,8 @@ public class BasicFileComparer extends AbstractProfiler {
         addHeaders(headers, COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.TOKEN_COUNT, thisExtension, thatExtension);
         addHeader(headers, COMPARISON_HEADERS.OVERLAP);
-        addHeader(headers, COMPARISON_HEADERS.TOP_10_TOKEN_DIFFS);
+        addHeader(headers, COMPARISON_HEADERS.TOP_10_MORE_IN_A);
+        addHeader(headers, COMPARISON_HEADERS.TOP_10_MORE_IN_B);
         addHeaders(headers, HEADERS.TOP_N_WORDS, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.NUM_EN_STOPS_TOP_N, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.LANG_ID1, thisExtension, thatExtension);
@@ -116,7 +118,6 @@ public class BasicFileComparer extends AbstractProfiler {
         super(queue);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
-
     }
 
     private static void addHeaders(Map<String, ColInfo> headers, HEADERS header, String thisExtension, String thatExtension) {
@@ -153,7 +154,6 @@ public class BasicFileComparer extends AbstractProfiler {
 
         File thisFile = new File(thisRootDir, relativePath);
         File thatFile = new File(thatRootDir, relativePath);
-
         if (minJsonLength > -1) {
             if (thisFile.length() < minJsonLength && thatFile.length() < minJsonLength) {
                 return false;
@@ -170,6 +170,7 @@ public class BasicFileComparer extends AbstractProfiler {
             Map<String, String> output = compareFiles(relativePath, thisFile, thatFile);
             writer.writeRow(output);
         } catch (Throwable e) {
+            e.printStackTrace();
             //this should be cataclysmic...
             throw new RuntimeException("Exception while working on: " + relativePath, e);
         }
@@ -217,7 +218,7 @@ public class BasicFileComparer extends AbstractProfiler {
         output.put(HEADERS.ELAPSED_TIME_MILLIS + thisExtension,
                 getTime(thisMetadata));
 
-        //langid(thisMetadata, thisExtension, output);
+        langid(thisMetadata, thisExtension, output);
 
         //prep the token counting
         Map<String, PairCount> tokens = new HashMap<String, PairCount>();
@@ -256,7 +257,7 @@ public class BasicFileComparer extends AbstractProfiler {
         output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
                 Integer.toString(thatNumMetadataValues - thisNumMetadataValues));
 
-        //langid(thatMetadata, thatExtension, output);
+        langid(thatMetadata, thatExtension, output);
 
 
         countTokens(thatMetadata, thoseTokens);
@@ -308,24 +309,32 @@ public class BasicFileComparer extends AbstractProfiler {
             return;
         }
         int topNDiffs = 10;
-        MutableValueAbsIntPriorityQueue queue = new MutableValueAbsIntPriorityQueue(topNDiffs);
+        MutableValueAbsIntPriorityQueue bQueue = new MutableValueAbsIntPriorityQueue(topNDiffs);
+        MutableValueAbsIntPriorityQueue aQueue = new MutableValueAbsIntPriorityQueue(topNDiffs);
         for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
             int diff = e.getValue().b - e.getValue().a;
             if (diff == 0) {
                 continue;
-            }
-            if (queue.top() == null || queue.size() < topNDiffs ||
-                    Math.abs(diff) >= Math.abs(queue.top().getValue())) {
-                queue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
+            } else if (diff > 0) {
+                if (bQueue.top() == null || bQueue.size() < topNDiffs ||
+                        diff >= bQueue.top().getValue()) {
+                    bQueue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
+                }
+            } else {
+                diff = Math.abs(diff);
+                if (aQueue.top() == null || aQueue.size() < topNDiffs ||
+                        diff >= aQueue.top().getValue()) {
+                    aQueue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
+                }
             }
         }
 
         List<TokenIntPair> tokenDiffs = new ArrayList<TokenIntPair>();
         //now we reverse the queue
-        TokenIntPair term = queue.pop();
+        TokenIntPair term = aQueue.pop();
         while (term != null) {
             tokenDiffs.add(0, term);
-            term = queue.pop();
+            term = aQueue.pop();
         }
 
         int i = 0;
@@ -336,7 +345,26 @@ public class BasicFileComparer extends AbstractProfiler {
             }
             sb.append(p.getToken()).append(": ").append(p.getValue());
         }
-        data.put(COMPARISON_HEADERS.TOP_10_TOKEN_DIFFS.name(), sb.toString());
+        data.put(COMPARISON_HEADERS.TOP_10_MORE_IN_A.name(), sb.toString());
+
+
+        tokenDiffs.clear();
+        //now we reverse the queue
+        term = bQueue.pop();
+        while (term != null) {
+            tokenDiffs.add(0, term);
+            term = bQueue.pop();
+        }
+
+        i = 0;
+        sb.setLength(0);
+        for (TokenIntPair p : tokenDiffs) {
+            if (i++ > 0) {
+                sb.append(" | ");
+            }
+            sb.append(p.getToken()).append(": ").append(p.getValue());
+        }
+        data.put(COMPARISON_HEADERS.TOP_10_MORE_IN_B.name(), sb.toString());
     }
 
     private void handleUniques(Map<String, String> data,

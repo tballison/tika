@@ -20,10 +20,10 @@ package org.apache.tika.batch;
 import java.text.NumberFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.Callable;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.tika.util.BatchLocalization;
 import org.apache.tika.util.DurationFormatUtils;
 
 /**
@@ -31,9 +31,9 @@ import org.apache.tika.util.DurationFormatUtils;
  * This wakes up roughly every {@link #sleepMillis} and log.info's a status report.
  */
 
-public class SimpleLogStatusReporter implements IStatusReporter {
+public class StatusReporter implements Callable<IFileProcessorFutureResult> {
 
-    private final Log logger = LogFactory.getLog(SimpleLogStatusReporter.class);
+    private final Log logger = LogFactory.getLog(StatusReporter.class);
 
     //require references to these so that the
     //StatusReporter can query them when it wakes up
@@ -56,7 +56,7 @@ public class SimpleLogStatusReporter implements IStatusReporter {
      * @param crawler   crawler to ping at intervals
      * @param consumersManager consumers to ping at intervals
      */
-    public SimpleLogStatusReporter(FileResourceCrawler crawler, ConsumersManager consumersManager) {
+    public StatusReporter(FileResourceCrawler crawler, ConsumersManager consumersManager) {
         this.consumersManager = consumersManager;
         this.crawler = crawler;
         start = new Date().getTime();

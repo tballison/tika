@@ -66,6 +66,12 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
         this.numConsumers = numConsumers;
     }
 
+    /**
+     * Implement this to control the addition of FileResources.  Call {@link #tryToAdd}
+     * to add FileResources to the queue.
+     *
+     * @throws InterruptedException
+     */
     public abstract void start() throws InterruptedException;
 
     public FileResourceCrawlerFutureResult call() {
@@ -89,6 +95,12 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
         return new FileResourceCrawlerFutureResult(considered, added);
     }
 
+    /**
+     *
+     * @param fileResource resource to add
+     * @return int status of the attempt (SKIPPED, ADDED, STOP_NOW) to add the resource to the queue.
+     * @throws InterruptedException
+     */
     protected int tryToAdd(FileResource fileResource) throws InterruptedException {
 
         if (maxFilesToAdd > -1 && added >= maxFilesToAdd) {

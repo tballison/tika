@@ -17,15 +17,15 @@ package org.apache.tika.batch.builders;
  * limitations under the License.
  */
 
-import org.apache.tika.batch.FileResource;
-import org.w3c.dom.Node;
-
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.tika.batch.FileResource;
+import org.w3c.dom.Node;
+
 /**
  * Same as {@link org.apache.tika.batch.builders.ObjectFromDOMAndQueueBuilder},
- * but this is for objects that require access to the common queue.
+ * but this is for objects that require access to the shared queue.
  * @param <T>
  */
 public interface ObjectFromDOMAndQueueBuilder<T> {

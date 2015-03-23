@@ -38,7 +38,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         String[] args = getDefaultCommandLineArgsArr("testA", null, m);
 
         BatchProcessDriverCLI driver = getNewDriver("/tika-batch-comparison-eval-config.xml", args);
-
+        driver.setRedirectChildProcessToStdOut(true);
         driver.execute();
 
 //        SqliteUtil dbUtil = new SqliteUtil();
@@ -48,16 +48,11 @@ public class ComparerBatchTest extends FSBatchTestBase {
         Set<String> fileNames = new HashSet<String>();
         try {
             conn = dbUtil.getConnection(dbFile);
-            Set<String> tables = dbUtil.getTables(conn);
-            for (String t : tables) {
-                System.out.println(t);
-            }
             String sql = "select * from comparisons";
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
-
             while (rs.next()) {
-                fileNames.add(rs.getString(1));
+                fileNames.add(rs.getString("FILE_PATH"));
             }
         } finally {
             if (st != null) {
@@ -67,7 +62,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
                 dbUtil.shutDownDB(conn);
             }
         }
-        assertEquals(2, fileNames.size());
+        assertEquals(3, fileNames.size());
         assertTrue(fileNames.contains("file1.json"));
     }
 }

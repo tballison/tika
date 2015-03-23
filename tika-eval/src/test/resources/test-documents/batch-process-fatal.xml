@@ -1,0 +1,8 @@
+<log4j:event logger="org.apache.tika.batch.FileResourceConsumer" timestamp="1426251036570" level="FATAL" thread="pool-2-thread-4">
+<log4j:message><![CDATA[<?xml version="1.0" ?><timeout resourceId="467/467228.pdf" elapsedMS="10869"></timeout>]]></log4j:message>
+</log4j:event>
+
+<log4j:event logger="org.apache.tika.batch.FileResourceConsumer" timestamp="1426251060476" level="FATAL" thread="pool-2-thread-4">
+<log4j:message><![CDATA[<?xml version="1.0" ?><timeout resourceId="461/461359.pdf" elapsedMS="10630"></timeout>]]></log4j:message>
+</log4j:event>
+

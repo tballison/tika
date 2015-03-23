@@ -21,7 +21,7 @@ import java.util.Map;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceCrawler;
-import org.apache.tika.batch.SimpleLogStatusReporter;
+import org.apache.tika.batch.StatusReporter;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
@@ -29,13 +29,13 @@ import org.w3c.dom.Node;
 public class SimpleLogReporterBuilder implements StatusReporterBuilder {
 
     @Override
-    public SimpleLogStatusReporter build(FileResourceCrawler crawler, ConsumersManager consumersManager,
+    public StatusReporter build(FileResourceCrawler crawler, ConsumersManager consumersManager,
                                 Node n, Map<String, String> commandlineArguments) {
 
         Map<String, String> attributes = XMLDOMUtil.mapifyAttrs(n, commandlineArguments);
-        long sleepMillis = PropsUtil.getLong(attributes.get("sleepMillis"), 1000);
-        long staleThresholdMillis = PropsUtil.getLong(attributes.get("reporterStaleThresholdMillis"), 500000);
-        SimpleLogStatusReporter reporter = new SimpleLogStatusReporter(crawler, consumersManager);
+        long sleepMillis = PropsUtil.getLong(attributes.get("sleepMillis"), 1000L);
+        long staleThresholdMillis = PropsUtil.getLong(attributes.get("reporterStaleThresholdMillis"), 500000L);
+        StatusReporter reporter = new StatusReporter(crawler, consumersManager);
         reporter.setSleepMillis(sleepMillis);
         reporter.setStaleThresholdMillis(staleThresholdMillis);
         return reporter;

@@ -33,7 +33,7 @@ import org.w3c.dom.Node;
  * Sets the writeLimit to the value of "writeLimit.
  * Default is -1;
  */
-public class DefaultContentHandlerFactoryBuilder implements ContentHandlerFactoryBuilder {
+public class DefaultContentHandlerFactoryBuilder implements IContentHandlerFactoryBuilder {
 
     @Override
     public ContentHandlerFactory build(Node node, Map<String, String> runtimeAttributes) {

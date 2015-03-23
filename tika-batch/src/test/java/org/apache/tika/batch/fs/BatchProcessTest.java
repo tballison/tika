@@ -19,6 +19,7 @@ package org.apache.tika.batch.fs;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.fail;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -157,8 +158,12 @@ public class BatchProcessTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
         assertEquals(2, files.length);
-        assertEquals(0, files[1].length());
-        assertContains("exitStatus="+ BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
+        File test2 = new File(outputDir, "test2_norestart.xml.xml");
+        assertTrue("test2_norestart.xml", test2.exists());
+        File test3 = new File(outputDir, "test3_ok.xml.xml");
+        assertFalse("test3_ok.xml", test3.exists());
+        assertEquals(0, test3.length());
+        assertContains("exitStatus=" + BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
                 streamStrings.getOutString());
         assertContains("causeForTermination='MAIN_LOOP_EXCEPTION_NO_RESTART'",
                 streamStrings.getOutString());
@@ -232,21 +237,53 @@ public class BatchProcessTest extends FSBatchTestBase {
         assertContains("System.err", streamStrings.getOutString());
         assertEquals(0, streamStrings.getErrString().length());
 
-        System.out.println(streamStrings.getOutString() + " : "+streamStrings.getErrString());
     }
 
+    @Test(timeout = 10000)
+    public void testConsumersManagerInitHang() throws Exception {
+        File outputDir = getNewOutputDir("init_hang");
+
+        Map<String, String> args = getDefaultArgs("noisy_parsers", outputDir);
+        args.put("numConsumers", "1");
+        args.put("hangOnInit", "true");
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args, "/tika-batch-config-MockConsumersBuilder.xml");
+        StreamStrings streamStrings = ex.execute();
+        assertEquals(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE, ex.getExitValue());
+        assertContains("causeForTermination='CONSUMERS_MANAGER_DIDNT_INIT_IN_TIME_NO_RESTART'", streamStrings.getOutString());
+    }
+
+    @Test(timeout = 10000)
+    public void testConsumersManagerShutdownHang() throws Exception {
+        File outputDir = getNewOutputDir("shutdown_hang");
+
+        Map<String, String> args = getDefaultArgs("noisy_parsers", outputDir);
+        args.put("numConsumers", "1");
+        args.put("hangOnShutdown", "true");
+
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args, "/tika-batch-config-MockConsumersBuilder.xml");
+        StreamStrings streamStrings = ex.execute();
+        assertEquals(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE, ex.getExitValue());
+        assertContains("ConsumersManager did not shutdown within", streamStrings.getOutString());
+    }
 
     private class BatchProcessTestExecutor {
         private final Map<String, String> args;
+        private final String configPath;
+        private int exitValue = Integer.MIN_VALUE;
 
         public BatchProcessTestExecutor(Map<String, String> args) {
+            this(args, "/tika-batch-config-test.xml");
+        }
+
+        public BatchProcessTestExecutor(Map<String, String> args, String configPath) {
             this.args = args;
+            this.configPath = configPath;
         }
 
         private StreamStrings execute() {
             Process p = null;
             try {
-                ProcessBuilder b = getNewBatchRunnerProcess("/tika-batch-config-test.xml", args);
+                ProcessBuilder b = getNewBatchRunnerProcess(configPath, args);
                 p = b.start();
                 StringStreamGobbler errorGobbler = new StringStreamGobbler(p.getErrorStream());
                 StringStreamGobbler outGobbler = new StringStreamGobbler(p.getInputStream());
@@ -256,7 +293,7 @@ public class BatchProcessTest extends FSBatchTestBase {
                 outThread.start();
                 while (true) {
                     try {
-                        p.exitValue();
+                        exitValue = p.exitValue();
                         break;
                     } catch (IllegalThreadStateException e) {
                         //still going;
@@ -273,6 +310,10 @@ public class BatchProcessTest extends FSBatchTestBase {
                 destroyProcess(p);
             }
             return null;
+        }
+
+        private int getExitValue() {
+            return exitValue;
         }
 
     }

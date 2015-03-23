@@ -98,7 +98,7 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
             crawler.setDocumentSelector(selector);
         }
 
-        crawler.setMaxConsecWaitInMillis(PropsUtil.getLong(attributes.get(MAX_CONSEC_WAIT_MILLIS), 300000));//5 minutes
+        crawler.setMaxConsecWaitInMillis(PropsUtil.getLong(attributes.get(MAX_CONSEC_WAIT_MILLIS), 300000L));//5 minutes
         return crawler;
     }
 
@@ -117,8 +117,8 @@ public class FSCrawlerBuilder implements ICrawlerBuilder {
     private DocumentSelector buildSelector(Map<String, String> attributes) {
         String includeString = attributes.get(INCLUDE_FILE_PAT_ATTR);
         String excludeString = attributes.get(EXCLUDE_FILE_PAT_ATTR);
-        long maxFileSize = PropsUtil.getLong(attributes.get(MAX_FILE_SIZE_BYTES_ATTR), -1);
-        long minFileSize = PropsUtil.getLong(attributes.get(MIN_FILE_SIZE_BYTES_ATTR), -1);
+        long maxFileSize = PropsUtil.getLong(attributes.get(MAX_FILE_SIZE_BYTES_ATTR), -1L);
+        long minFileSize = PropsUtil.getLong(attributes.get(MIN_FILE_SIZE_BYTES_ATTR), -1L);
         Pattern includePat = (includeString != null && includeString.length() > 0) ? Pattern.compile(includeString) : null;
         Pattern excludePat = (excludeString != null && excludeString.length() > 0) ? Pattern.compile(excludeString) : null;
 

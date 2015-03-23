@@ -1,4 +1,4 @@
-package org.apache.tika.batch.builders;
+package org.apache.tika.batch.mock;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -16,17 +16,23 @@ package org.apache.tika.batch.builders;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.tika.batch.CommandLineInterrupter;
-import org.apache.tika.batch.IInterrupter;
+import org.apache.tika.batch.ConsumersManager;
+import org.apache.tika.batch.FileResource;
+import org.apache.tika.batch.fs.builders.BasicTikaFSConsumersBuilder;
 import org.w3c.dom.Node;
 
-import java.util.Map;
-
-public class CommandLineInterrupterBuilder implements IInterupterBuilder {
+public class MockConsumersBuilder extends BasicTikaFSConsumersBuilder {
 
     @Override
-    public IInterrupter build(Node n, Map<String, String> commandlineArguments) {
-        return new CommandLineInterrupter();
+    public ConsumersManager build(Node node, Map<String, String> runtimeAttributes,
+                                  ArrayBlockingQueue<FileResource> queue) {
+        ConsumersManager manager = super.build(node, runtimeAttributes, queue);
+
+        boolean hangOnInit = runtimeAttributes.containsKey("hangOnInit");
+        boolean hangOnShutdown = runtimeAttributes.containsKey("hangOnShutdown");
+        return new MockConsumersManager(manager, hangOnInit, hangOnShutdown);
     }
 }

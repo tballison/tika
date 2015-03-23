@@ -1,4 +1,5 @@
-package org.apache.tika.util;
+package org.apache.tika.batch.builders;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,20 +17,13 @@ package org.apache.tika.util;
  * limitations under the License.
  */
 
-import java.util.Locale;
+import java.util.Map;
 
-/**
- * Simple class to handle localization issues.
- * We should probably push these into TikaConfig and propagate
- * changes throughout code base.
- */
-public class BatchLocalization {
+import org.apache.tika.sax.ContentHandlerFactory;
+import org.w3c.dom.Node;
 
-    public static Locale getLocale() {
-        return Locale.ENGLISH;
-    }
+public interface IContentHandlerFactoryBuilder extends ObjectFromDOMBuilder<ContentHandlerFactory> {
 
-    public static String getEncoding() {
-        return "UTF-8";
-    }
+  public ContentHandlerFactory build(Node node, Map<String, String> attributes);
+
 }

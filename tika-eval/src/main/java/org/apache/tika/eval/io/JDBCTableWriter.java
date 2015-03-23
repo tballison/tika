@@ -168,6 +168,7 @@ public class JDBCTableWriter implements TableWriter {
         if (conn != null) {
             try {
                 conn.commit();
+                System.out.println("COMMITTED: ");
             } catch (SQLException e) {
                 throw new IOExceptionWithCause(e);
             }

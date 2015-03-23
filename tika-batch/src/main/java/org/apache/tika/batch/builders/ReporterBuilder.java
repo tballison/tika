@@ -19,12 +19,12 @@ package org.apache.tika.batch.builders;
 
 import java.util.Map;
 
-import org.apache.tika.batch.SimpleLogStatusReporter;
+import org.apache.tika.batch.StatusReporter;
 import org.w3c.dom.Node;
 
 /**
  * Interface for reporter builders
  */
-public interface ReporterBuilder extends ObjectFromDOMBuilder<SimpleLogStatusReporter> {
-    public SimpleLogStatusReporter build(Node n, Map<String, String> runtimeAttributes);
+public interface ReporterBuilder extends ObjectFromDOMBuilder<StatusReporter> {
+    public StatusReporter build(Node n, Map<String, String> runtimeAttributes);
 }

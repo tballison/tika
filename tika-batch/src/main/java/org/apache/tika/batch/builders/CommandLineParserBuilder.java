@@ -32,6 +32,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+/**
+ * Reads configurable options from a config file and returns org.apache.commons.cli.Options
+ * object to be used in commandline parser.  This allows users and developers to set
+ * which options should be made available via the commandline.
+ */
 public class CommandLineParserBuilder {
 
     public Options build(InputStream is) throws IOException {

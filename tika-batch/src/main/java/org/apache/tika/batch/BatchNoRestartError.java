@@ -18,8 +18,9 @@ package org.apache.tika.batch;
 
 /**
  * FileResourceConsumers should throw this if something
- * terrible has happened and the BatchProcess should shutdown
+ * catastrophic has happened and the BatchProcess should shutdown
  * and not be restarted.
+ *
  */
 public class BatchNoRestartError extends Error {
 

@@ -30,7 +30,7 @@ import org.apache.tika.batch.OutputStreamFactory;
 import org.apache.tika.batch.ParserFactory;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.batch.builders.ContentHandlerFactoryBuilder;
+import org.apache.tika.batch.builders.IContentHandlerFactoryBuilder;
 import org.apache.tika.batch.fs.BasicTikaFSConsumer;
 import org.apache.tika.batch.fs.FSConsumersManager;
 import org.apache.tika.batch.fs.FSOutputStreamFactory;
@@ -61,6 +61,20 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
                 recursiveParserWrapper = PropsUtil.getBoolean(recursiveParserWrapperNode.getNodeValue(), recursiveParserWrapper);
             }
         }
+
+        //how long to let the consumersManager run on init() and shutdown()
+        Long consumersManagerMaxMillis = null;
+        String consumersManagerMaxMillisString = runtimeAttributes.get("consumersManagerMaxMillis");
+        if (consumersManagerMaxMillisString != null){
+            consumersManagerMaxMillis = PropsUtil.getLong(consumersManagerMaxMillisString, null);
+        } else {
+            Node consumersManagerMaxMillisNode = node.getAttributes().getNamedItem("consumersManagerMaxMillis");
+            if (consumersManagerMaxMillis == null) {
+                consumersManagerMaxMillis = PropsUtil.getLong(consumersManagerMaxMillisNode.getNodeValue(),
+                        null);
+            }
+        }
+
         TikaConfig config = null;
         String tikaConfigPath = runtimeAttributes.get("c");
 
@@ -122,7 +136,11 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
                 consumers.add(c);
             }
         }
-        return new FSConsumersManager(consumers);
+        ConsumersManager manager = new FSConsumersManager(consumers);
+        if (consumersManagerMaxMillis != null) {
+            manager.setConsumersManagerMaxMillis(consumersManagerMaxMillis);
+        }
+        return manager;
     }
 
 
@@ -133,7 +151,7 @@ public class BasicTikaFSConsumersBuilder extends AbstractConsumersBuilder {
         if (className == null) {
             throw new RuntimeException("Must specify builderClass for contentHandler");
         }
-        ContentHandlerFactoryBuilder builder = ClassLoaderUtil.buildClass(ContentHandlerFactoryBuilder.class, className);
+        IContentHandlerFactoryBuilder builder = ClassLoaderUtil.buildClass(IContentHandlerFactoryBuilder.class, className);
         return builder.build(node, runtimeAttributes);
     }
 

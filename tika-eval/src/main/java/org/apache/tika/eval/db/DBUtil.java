@@ -118,6 +118,9 @@ public abstract class DBUtil {
                 case Types.BIGINT:
                     st.setLong(colInfo.getDBColOffset(), Long.parseLong(value));
                     break;
+                case Types.BOOLEAN:
+                    st.setBoolean(colInfo.getDBColOffset(), Boolean.parseBoolean(value));
+                    break;
                 default:
                     throw new UnsupportedOperationException("Don't yet support type: " + colInfo.getType());
             }

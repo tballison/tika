@@ -64,7 +64,7 @@ public class ParallelFileProcessingResult {
 
     /**
      * @return whether the {@link BatchProcess} was interrupted
-     * by an {@link CommandLineInterrupter}.
+     * by an {@link Interrupter}.
      */
     public String getCauseForTermination() {
         return causeForTermination;

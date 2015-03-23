@@ -22,11 +22,18 @@ import java.util.Locale;
 
 /**
  * Utility class to handle properties.  If the value is null,
- * then the defaultMissing value will be returned.
+ * or if there is a parser error, the defaultMissing value will be returned.
  */
 public class PropsUtil {
 
-    public static boolean getBoolean(String v, boolean defaultMissing) {
+    /**
+     * Parses v.  If there is a problem, this returns defaultMissing.
+     *
+     * @param v string to parse
+     * @param defaultMissing value to return if value is null or unparseable
+     * @return parsed value
+     */
+    public static Boolean getBoolean(String v, Boolean defaultMissing) {
         if (v == null || v.length() == 0) {
             return defaultMissing;
         }
@@ -39,7 +46,14 @@ public class PropsUtil {
         return defaultMissing;
     }
 
-    public static int getInt(String v, int defaultMissing) {
+    /**
+     * Parses v.  If there is a problem, this returns defaultMissing.
+     *
+     * @param v string to parse
+     * @param defaultMissing value to return if value is null or unparseable
+     * @return parsed value
+     */
+    public static Integer getInt(String v, Integer defaultMissing) {
         if (v == null || v.length() == 0) {
             return defaultMissing;
         }
@@ -51,7 +65,14 @@ public class PropsUtil {
         return defaultMissing;
     }
 
-    public static long getLong(String v, long defaultMissing) {
+    /**
+     * Parses v.  If there is a problem, this returns defaultMissing.
+     *
+     * @param v string to parse
+     * @param defaultMissing value to return if value is null or unparseable
+     * @return parsed value
+     */
+    public static Long getLong(String v, Long defaultMissing) {
         if (v == null || v.length() == 0) {
             return defaultMissing;
         }
@@ -64,6 +85,13 @@ public class PropsUtil {
     }
 
 
+    /**
+     * Parses v.  If there is a problem, this returns defaultMissing.
+     *
+     * @param v string to parse
+     * @param defaultMissing value to return if value is null or unparseable
+     * @return parsed value
+     */
     public static File getFile(String v, File defaultMissing) {
         if (v == null || v.length() == 0) {
             return defaultMissing;
@@ -79,6 +107,13 @@ public class PropsUtil {
         return new File(v);
     }
 
+    /**
+     * Parses v.  If v is null, this returns defaultMissing.
+     *
+     * @param v string to parse
+     * @param defaultMissing value to return if value is null
+     * @return parsed value
+     */
     public static String getString(String v, String defaultMissing) {
         if (v == null) {
             return defaultMissing;

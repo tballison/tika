@@ -26,6 +26,9 @@ import java.util.List;
  */
 public abstract class ConsumersManager {
 
+    //maximum time to allow the ConsumersManager for either init()
+    //or shutdown()
+    private long consumersManagerMaxMillis = 60000;
     private final List<FileResourceConsumer> consumers;
 
     public ConsumersManager(List<FileResourceConsumer> consumers) {
@@ -55,4 +58,23 @@ public abstract class ConsumersManager {
 
     }
 
+    /**
+     * {@link org.apache.tika.batch.BatchProcess} will throw an exception
+     * if the ConsumersManager doesn't complete init() or shutdown()
+     * within this amount of time.
+     * @return the maximum time allowed for init() or shutdown()
+     */
+    public long getConsumersManagerMaxMillis() {
+        return consumersManagerMaxMillis;
+    }
+
+    /**
+     * {@see #getConsumersManagerMaxMillis()}
+     *
+     * @param consumersManagerMaxMillis maximum number of milliseconds
+     *                                  to allow for init() or shutdown()
+     */
+    public void setConsumersManagerMaxMillis(long consumersManagerMaxMillis) {
+        this.consumersManagerMaxMillis = consumersManagerMaxMillis;
+    }
 }

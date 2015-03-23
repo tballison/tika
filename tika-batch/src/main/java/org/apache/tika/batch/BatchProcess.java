@@ -38,9 +38,10 @@ import org.apache.tika.io.IOUtils;
 
 /**
  * This is the main processor class for a single process.
+ * This class can only be run once.
  * <p/>
  * It requires a {@link FileResourceCrawler} and {@link FileResourceConsumer}s, and it can also
- * support a {@link SimpleLogStatusReporter} and an {@link CommandLineInterrupter}.
+ * support a {@link StatusReporter} and an {@link Interrupter}.
  * <p/>
  * This is designed to shutdown if a parser has timed out or if there is
  * an OutOfMemoryError. Consider using {@link BatchProcessDriverCLI}
@@ -59,6 +60,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
     private enum CAUSE_FOR_TERMINATION {
         COMPLETED_NORMALLY,
         MAIN_LOOP_EXCEPTION_NO_RESTART,
+        CONSUMERS_MANAGER_DIDNT_INIT_IN_TIME_NO_RESTART,
         MAIN_LOOP_EXCEPTION,
         CRAWLER_TIMED_OUT,
         TIMED_OUT_CONSUMER,
@@ -84,7 +86,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
     //this long before shutting down to allow parsers to finish
     private long pauseOnEarlyTerminationMillis = 30*1000; //30 seconds
 
-    private long consumersManagerShutdownMillis = 60*1000;
+    private final long consumersManagerMaxMillis;
 
     //maximum time that this process should stay alive
     //to avoid potential memory leaks, not a bad idea to shutdown
@@ -95,9 +97,9 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
 
     private final ConsumersManager consumersManager;
 
-    private final IStatusReporter reporter;
+    private final StatusReporter reporter;
 
-    private final IInterrupter interrupter;
+    private final Interrupter interrupter;
 
     private final ArrayBlockingQueue<FileStarted> timedOuts;
 
@@ -105,13 +107,14 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
 
     public BatchProcess(FileResourceCrawler fileResourceCrawler,
                         ConsumersManager consumersManager,
-                        IStatusReporter reporter,
-                        IInterrupter interrupter) {
+                        StatusReporter reporter,
+                        Interrupter interrupter) {
         this.fileResourceCrawler = fileResourceCrawler;
         this.consumersManager = consumersManager;
         this.reporter = reporter;
         this.interrupter = interrupter;
         timedOuts = new ArrayBlockingQueue<FileStarted>(consumersManager.getConsumers().size());
+        this.consumersManagerMaxMillis = consumersManager.getConsumersManagerMaxMillis();
     }
 
     /**
@@ -135,28 +138,46 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
         }
         System.setErr(System.out);
 
-        Runtime.getRuntime().addShutdownHook(getConsumersManagerShutdownThread());
+        ParallelFileProcessingResult result = null;
+        try {
+            int numConsumers = consumersManager.getConsumers().size();
+            // fileResourceCrawler, statusReporter, the Interrupter, timeoutChecker
+            int numNonConsumers = 4;
 
-        long start = new Date().getTime();
-        logger.info("BatchProcess starting up");
-        //TODO: hope that this doesn't hang. :)
-        consumersManager.init();
+            ExecutorService ex = Executors.newFixedThreadPool(numConsumers
+                    + numNonConsumers);
+            CompletionService<IFileProcessorFutureResult> completionService =
+                    new ExecutorCompletionService<IFileProcessorFutureResult>(
+                            ex);
+            TimeoutChecker timeoutChecker = new TimeoutChecker();
+
+            try {
+                startConsumersManager();
+            } catch (BatchNoRestartError e) {
+                return new
+                        ParallelFileProcessingResult(0, 0, 0,
+                        0, BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
+                        CAUSE_FOR_TERMINATION.CONSUMERS_MANAGER_DIDNT_INIT_IN_TIME_NO_RESTART.toString());
+
+            }
+
+            State state = mainLoop(completionService, timeoutChecker);
+            result = shutdown(ex, completionService, timeoutChecker, state);
+        } finally {
+            shutdownConsumersManager();
+        }
+        return result;
+    }
+
+
+    private State mainLoop(CompletionService<IFileProcessorFutureResult> completionService,
+                           TimeoutChecker timeoutChecker) {
         alreadyExecuted = true;
-        long started = new Date().getTime();
-        int considered = 0;
-        int added = 0;
-        int processed = 0;
-        int numConsumers = consumersManager.getConsumers().size();
-        // fileResourceCrawler, statusReporter, the Interrupter, timeoutChecker
-        int numNonConsumers = 4;
+        State state = new State();
+        logger.info("BatchProcess starting up");
 
-        ExecutorService ex = Executors.newFixedThreadPool(numConsumers
-                + numNonConsumers);
 
-        CompletionService<IFileProcessorFutureResult> completionService =
-                new ExecutorCompletionService<IFileProcessorFutureResult>(
-                        ex);
-        TimeoutChecker timeoutChecker = new TimeoutChecker();
+        state.start = new Date().getTime();
         completionService.submit(interrupter);
         completionService.submit(fileResourceCrawler);
         completionService.submit(reporter);
@@ -167,11 +188,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
             completionService.submit(consumer);
         }
 
-        int removed = 0;
-        int consumersRemoved = 0;
-        //room to grow...currently only one crawler
-        int crawlerRemoved = 0;
-
+        state.numConsumers = consumersManager.getConsumers().size();
         CAUSE_FOR_TERMINATION causeForTermination = null;
         //main processing loop
         while (true) {
@@ -180,13 +197,13 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                         completionService.poll(1, TimeUnit.SECONDS);
 
                 if (futureResult != null) {
-                    removed++;
+                    state.removed++;
                     IFileProcessorFutureResult result = futureResult.get();
                     if (result instanceof FileConsumerFutureResult) {
-                        consumersRemoved++;
-                        processed += ((FileConsumerFutureResult) result).getFilesProcessed();
+                        state.consumersRemoved++;
+                        state.processed += ((FileConsumerFutureResult) result).getFilesProcessed();
                     } else if (result instanceof FileResourceCrawlerFutureResult) {
-                        crawlerRemoved++;
+                        state.crawlersRemoved++;
                         if (fileResourceCrawler.wasTimedOut()) {
                             causeForTermination = CAUSE_FOR_TERMINATION.CRAWLER_TIMED_OUT;
                             break;
@@ -200,11 +217,11 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                     } //only thing left should be StatusReporterResult
                 }
 
-                if (consumersRemoved >= numConsumers) {
+                if (state.consumersRemoved >= state.numConsumers) {
                     causeForTermination = CAUSE_FOR_TERMINATION.COMPLETED_NORMALLY;
                     break;
                 }
-                if (aliveTooLong(started)) {
+                if (aliveTooLong(state.start)) {
                     causeForTermination = CAUSE_FOR_TERMINATION.BATCH_PROCESS_ALIVE_TOO_LONG;
                     break;
                 }
@@ -218,9 +235,17 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                 break;
             }
         }
+        state.causeForTermination = causeForTermination;
+        return state;
+    }
+
+    private ParallelFileProcessingResult shutdown(ExecutorService ex,
+        CompletionService<IFileProcessorFutureResult> completionService,
+        TimeoutChecker timeoutChecker, State state) {
+
         reporter.setIsShuttingDown(true);
-        added = fileResourceCrawler.getAdded();
-        considered = fileResourceCrawler.getConsidered();
+        int added = fileResourceCrawler.getAdded();
+        int considered = fileResourceCrawler.getConsidered();
 
         //TODO: figure out safe way to shutdown resource crawler
         //if it isn't.  Does it need to add poison at this point?
@@ -234,11 +259,12 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
         for (FileResourceConsumer consumer : consumersManager.getConsumers()) {
             consumer.pleaseShutdown();
         }
+        //The resourceCrawler should shutdown now.  No need for poison.
         fileResourceCrawler.shutDownNoPoison();
         //if there are any active/asked to shutdown consumers, await termination
         //this can happen if a user interrupts the process
         //of if the crawler stops early, or ...
-        politelyAwaitTermination(causeForTermination);
+        politelyAwaitTermination(state.causeForTermination);
 
         //Step 3: Gloves come off.  We've tried to ask kindly before.
         //Now it is time shut down. This will corrupt
@@ -247,14 +273,18 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
         logger.trace("About to shutdownNow()");
         List<Runnable> neverCalled = ex.shutdownNow();
         logger.trace("TERMINATED " + ex.isTerminated() + " : "
-                + consumersRemoved + " : " + crawlerRemoved);
+                + state.consumersRemoved + " : " + state.crawlersRemoved);
 
-        int end = numConsumers + numNonConsumers - removed - neverCalled.size();
+        int end = state.numConsumers + state.numNonConsumers - state.removed - neverCalled.size();
 
         for (int t = 0; t < end; t++) {
             Future<IFileProcessorFutureResult> future = null;
-            future = completionService.poll(10, TimeUnit.MILLISECONDS);
-
+            try {
+                future = completionService.poll(10, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                logger.warn("thread interrupt while polling in final shutdown loop");
+                break;
+            }
             logger.trace("In while future==null loop in final shutdown loop");
             if (future == null) {
                 break;
@@ -263,7 +293,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                 IFileProcessorFutureResult result = future.get();
                 if (result instanceof FileConsumerFutureResult) {
                     FileConsumerFutureResult consumerResult = (FileConsumerFutureResult) result;
-                    processed += consumerResult.getFilesProcessed();
+                    state.processed += consumerResult.getFilesProcessed();
                     FileStarted fileStarted = consumerResult.getFileStarted();
                     if (fileStarted != null
                             && fileStarted.getElapsedMillis() > timeoutThresholdMillis) {
@@ -284,18 +314,18 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
         }
         //do we need to restart?
         String restartMsg = null;
-        if (causeForTermination == CAUSE_FOR_TERMINATION.USER_INTERRUPTION
-                || causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART) {
+        if (state.causeForTermination == CAUSE_FOR_TERMINATION.USER_INTERRUPTION
+                || state.causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION_NO_RESTART) {
             //do not restart!!!
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION) {
+        } else if (state.causeForTermination == CAUSE_FOR_TERMINATION.MAIN_LOOP_EXCEPTION) {
             restartMsg = "Uncaught consumer throwable";
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.TIMED_OUT_CONSUMER) {
+        } else if (state.causeForTermination == CAUSE_FOR_TERMINATION.TIMED_OUT_CONSUMER) {
             if (areResourcesPotentiallyRemaining()) {
                 restartMsg = "Consumer timed out with resources remaining";
             }
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.BATCH_PROCESS_ALIVE_TOO_LONG) {
+        } else if (state.causeForTermination == CAUSE_FOR_TERMINATION.BATCH_PROCESS_ALIVE_TOO_LONG) {
             restartMsg = BATCH_CONSTANTS.BATCH_PROCESS_EXCEEDED_MAX_ALIVE_TIME.toString();
-        } else if (causeForTermination == CAUSE_FOR_TERMINATION.CRAWLER_TIMED_OUT) {
+        } else if (state.causeForTermination == CAUSE_FOR_TERMINATION.CRAWLER_TIMED_OUT) {
             restartMsg = "Crawler timed out.";
         } else if (fileResourceCrawler.wasTimedOut()) {
             restartMsg = "Crawler was timed out.";
@@ -305,7 +335,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
             restartMsg = "Resources still exist for processing";
         }
 
-        int exitStatus = getExitStatus(causeForTermination, restartMsg);
+        int exitStatus = getExitStatus(state.causeForTermination, restartMsg);
 
         //need to re-check, report, mark timed out consumers
         timeoutChecker.checkForTimedOutConsumers();
@@ -315,12 +345,73 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                     "< for " + fs.getElapsedMillis() + " milliseconds after it started." +
                     " This exceeds the maxTimeoutMillis parameter");
         }
-
-
-        double elapsed = ((double) new Date().getTime() - (double) start) / 1000.0;
+        double elapsed = ((double) new Date().getTime() - (double) state.start) / 1000.0;
         return new
-            ParallelFileProcessingResult(considered, added, processed,
-                elapsed, exitStatus, causeForTermination.toString());
+            ParallelFileProcessingResult(considered, added, state.processed,
+                elapsed, exitStatus, state.causeForTermination.toString());
+    }
+
+    private class State {
+        long start = -1;
+        int processed = 0;
+        int numConsumers = 0;
+        int numNonConsumers = 0;
+        int removed = 0;
+        int consumersRemoved = 0;
+        int crawlersRemoved = 0;
+        CAUSE_FOR_TERMINATION causeForTermination = null;
+    }
+
+    private void startConsumersManager() {
+        if (consumersManagerMaxMillis < 0) {
+            consumersManager.init();
+            return;
+        }
+        Thread timed = new Thread() {
+            public void run() {
+                logger.trace("about to start consumers manager");
+                consumersManager.init();
+                logger.trace("finished starting consumers manager");
+            }
+        };
+        //don't allow this thread to keep process alive
+        timed.setDaemon(true);
+        timed.start();
+        try {
+            timed.join(consumersManagerMaxMillis);
+        } catch (InterruptedException e) {
+            logger.warn("interruption exception during consumers manager shutdown");
+        }
+        if (timed.isAlive()) {
+            logger.fatal("ConsumersManager did not start within " + consumersManagerMaxMillis + "ms");
+            throw new BatchNoRestartError("ConsumersManager did not start within "+consumersManagerMaxMillis+"ms");
+        }
+    }
+
+    private void shutdownConsumersManager() {
+        if (consumersManagerMaxMillis < 0) {
+            consumersManager.shutdown();
+            return;
+        }
+        Thread timed = new Thread() {
+            public void run() {
+                logger.trace("starting to shutdown consumers manager");
+                consumersManager.shutdown();
+                logger.trace("finished shutting down consumers manager");
+            }
+        };
+        timed.setDaemon(true);
+        timed.start();
+        try {
+            timed.join(consumersManagerMaxMillis);
+        } catch (InterruptedException e) {
+            logger.warn("interruption exception during consumers manager shutdown");
+        }
+        if (timed.isAlive()) {
+            logger.error("ConsumersManager was still alive during shutdown!");
+            throw new BatchNoRestartError("ConsumersManager did not shutdown within: "+
+                    consumersManagerMaxMillis+"ms");
+        }
     }
 
     /**
@@ -338,7 +429,8 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
-                //swallow
+                logger.warn("Thread interrupted while trying to politelyAwaitTermination");
+                return;
             }
             long elapsed = new Date().getTime()-start;
             if (pauseOnEarlyTerminationMillis > -1 &&
@@ -452,35 +544,6 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
         this.maxAliveTimeSeconds = maxAliveTimeSeconds;
     }
 
-    public void setConsumersManagerShutdownMillis(long millis) {
-        consumersManagerShutdownMillis = millis;
-    }
-
-    private Thread getConsumersManagerShutdownThread() {
-        Thread thread =  new Thread() {
-            public void run() {
-                //start a new thread that can be timed
-                Thread timed = new Thread() {
-                    public void run() {
-                        logger.trace("starting to shutdown consumers manager");
-                        consumersManager.shutdown();
-                        logger.trace("finished shutting down consumers manager");
-                    };
-                };
-                timed.start();
-                try {
-                    timed.join(consumersManagerShutdownMillis);
-                } catch (InterruptedException e) {
-                    logger.warn("interruption exception during consumers manager shutdown");
-                }
-                if (timed.isAlive()) {
-                    logger.error("ConsumersManager was still alive during shutdown!");
-                }
-            }
-        };
-        return thread;
-    }
-
     private class TimeoutChecker implements Callable<IFileProcessorFutureResult> {
 
         @Override
@@ -495,7 +558,7 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                 }
                 checkForTimedOutConsumers();
                 if (countActiveConsumers() == 0) {
-                    logger.error("No activeConsumers in TimeoutChecker");
+                    logger.info("No activeConsumers in TimeoutChecker");
                     break;
                 }
             }

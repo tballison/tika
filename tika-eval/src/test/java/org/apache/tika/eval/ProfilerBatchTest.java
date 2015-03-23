@@ -59,7 +59,7 @@ public class ProfilerBatchTest extends FSBatchTestBase {
             }
         }
 
-        assertEquals(2, fNames.size());
+        assertEquals(3, fNames.size());
         assertTrue("file1.json", fNames.contains("file1.json"));
         assertTrue("file2.json", fNames.contains("file1.json"));
     }

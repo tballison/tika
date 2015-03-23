@@ -511,8 +511,9 @@ public class FileComparerResultDumper {
                 "TOKEN_COUNT_A as \"Token Count A\", " +
                 "TOKEN_COUNT_B as \"Token Count B\", " +
                 "(TOKEN_COUNT_B-TOKEN_COUNT_A) as \"Token Count B - Token Count A\", "+
-                "DEC_PATTERN(OVERLAP, '#.###') as Overlap, " +
-                "TOP_10_TOKEN_DIFFS as \"Top 10 Token Differences\""+
+                "DEC_PATTERN(OVERLAP, '#.###') as Overlap, "+
+                "TOP_10_MORE_IN_A as \"Top 10 Tokens with Higher Counts in A\", "+
+                "TOP_10_MORE_IN_B as \"Top 10 Tokens with Higher Counts in B\" "+
                 "from comparisons "+
                 "where (JSON_EX_A is null and JSON_EX_B is null and SORT_STACK_TRACE_A is null " +
                 "and SORT_STACK_TRACE_B is null) and "+

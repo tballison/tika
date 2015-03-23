@@ -33,6 +33,7 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.OutputStreamFactory;
 import org.apache.tika.batch.ParserFactory;
 import org.apache.tika.config.TikaConfig;
+import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
@@ -50,7 +51,7 @@ import org.xml.sax.helpers.DefaultHandler;
  * This tries to catch most of the common exceptions, log them and
  * store them in the metadata list output.
  */
-public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
+public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
 
 
     private final ParserFactory parserFactory;
@@ -85,18 +86,8 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
 //        }
 
         //try to open outputstream first
-        OutputStream os = null;
-        try {
-            os = fsOSFactory.getOutputStream(fileResource.getMetadata());
-        } catch (IOException e) {
-            //this is really, really bad
-            logWithResourceId(Level.FATAL, "ioe_opening_os",
-                    fileResource.getResourceId(), e);
-            throw new BatchNoRestartError("IOException trying to open output stream for "+
-                    fileResource.getResourceId() + " :: " + e.getMessage());
-        }
-        //os can be null if fsOSFactory is set to skip processing a file and the output
-        //file already exists
+        OutputStream os = getOutputStream(fsOSFactory, fileResource);
+
         if (os == null) {
             logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             return false;
@@ -106,13 +97,9 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         //if the parse hangs or throws a nasty exception, at least there will
         //be a zero byte file there so that the batchrunner can skip that problematic
         //file during the next run.
-        InputStream is = null;
-        try {
-            is = fileResource.openInputStream();
-        } catch (IOException e) {
-            logWithResourceId(Level.ERROR, "ioe_opening_is",
-                    fileResource.getResourceId(), e);
-            flushAndClose(os);
+        InputStream is = getInputStream(fileResource);
+        if (is == null) {
+            IOUtils.closeQuietly(os);
             return false;
         }
 
@@ -120,21 +107,13 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
         List<Metadata> metadataList = null;
         Metadata containerMetadata = fileResource.getMetadata();
         try {
-            parser.parse(is, new DefaultHandler(),
+            parse(fileResource.getResourceId(), parser, is, new DefaultHandler(),
                     containerMetadata, context);
             metadataList = parser.getMetadata();
         } catch (Throwable t) {
             thrown = t;
-            if (t instanceof Error) {
-                logWithResourceId(Level.FATAL, "parse_ex",
-                        fileResource.getResourceId(), t);
-            } else {
-                logWithResourceId(Level.ERROR, "parse_ex",
-                        fileResource.getResourceId(), t);
-            }
             metadataList = parser.getMetadata();
             if (metadataList == null) {
-                //if you've reached here, metadataList is null
                 metadataList = new LinkedList<Metadata>();
             }
             Metadata m = null;
@@ -148,7 +127,7 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             m.add(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime", stackTrace);
             metadataList.add(0, m);
         } finally {
-            close(is);
+            IOUtils.closeQuietly(is);
         }
 
         Writer writer = null;
@@ -167,7 +146,6 @@ public class RecursiveParserWrapperFSConsumer extends FileResourceConsumer {
             if (thrown instanceof Error) {
                 throw (Error) thrown;
             } else {
-                incrementHandledExceptions();
                 return false;
             }
         }

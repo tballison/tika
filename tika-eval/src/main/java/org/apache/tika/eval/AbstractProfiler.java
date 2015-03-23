@@ -68,6 +68,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public enum HEADERS {
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
         FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
+        TIMEOUT_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
+        OOM_ERROR(new ColInfo(-1, Types.BOOLEAN)),
         JSON_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
         JSON_EX(new ColInfo(-1, Types.VARCHAR, 512)),
@@ -113,12 +115,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     private final static Pattern CAUSED_BY_SNIPPER =
             Pattern.compile("(Caused by: [^:]+):[^\\r\\n]+");
     private final static Pattern OBJECT_ID_SNIPPER =
-            Pattern.compile("(?s)^(org.apache.tika.exception.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
+            Pattern.compile("(?s)^(org\\.apache\\.tika\\.exception\\.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
 
     private final static Pattern ACCESS_PERMISSION_EXCEPTION =
-            Pattern.compile("org.apache.tika.exception.AccessPermissionException");
+            Pattern.compile("org\\.apache\\.tika\\.exception\\.AccessPermissionException");
     private final static Pattern ENCRYPTION_EXCEPTION =
-            Pattern.compile("org.apache.tika.exception.EncryptedDocumentException");
+            Pattern.compile("org\\.apache\\.tika.exception\\.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     protected TableWriter writer;
@@ -208,39 +210,45 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     void getExceptionStrings(List<Metadata> metadataList, String extension, Map<String, String> data) {
 
-        if (metadataList == null) {
+        if (metadataList == null || metadataList.size() == 0) {
             return;
         }
-        for (Metadata m : metadataList) {
-            String fullTrace = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX+"runtime");
-            if (fullTrace != null) {
-                data.put(HEADERS.ORIG_STACK_TRACE+extension, fullTrace);
-                //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
-                //org.apache.tika.exception.TikaException: TIKA-198: Illegal
-                //IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
-                //For reporting purposes, let's snip off the object id so that we can more
-                //easily count exceptions.
-                String sortTrace = fullTrace;
-                Matcher matcher = OBJECT_ID_SNIPPER.matcher(sortTrace);
-                if (matcher.find()) {
-                    sortTrace = matcher.group(1) + matcher.group(2);
-                }
-                matcher = CAUSED_BY_SNIPPER.matcher(sortTrace);
-                sortTrace = matcher.replaceAll("$1");
-                sortTrace = sortTrace.replaceAll("org.apache.tika.", "o.a.t.");
-                data.put(HEADERS.SORT_STACK_TRACE + extension, sortTrace);
+        //for now just take the exception from the parent document;
+        Metadata m = metadataList.get(0);
+        String fullTrace = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX + "runtime");
+        if (fullTrace != null) {
+            //check for "expected" exceptions...exceptions
+            //that can't be fixed.
+            //Do not store trace for "expected" exceptions
 
-                matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
-                if (matcher.find()) {
-                    data.put(HEADERS.ACCESS_PERMISSION_EXCEPTION.name(), "true");
-                }
-
-                matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
-                if (matcher.find()) {
-                    data.put(HEADERS.ENCRYPTED_EXCEPTION.name(), "true");
-                }
+            Matcher matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
+            if (matcher.find()) {
+                data.put(HEADERS.ACCESS_PERMISSION_EXCEPTION.name()+extension, "true");
+                return;
             }
+            matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
+            if (matcher.find()) {
+                data.put(HEADERS.ENCRYPTED_EXCEPTION.name()+extension, "true");
+                return;
+            }
+
+            data.put(HEADERS.ORIG_STACK_TRACE + extension, fullTrace);
+            //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
+            //org.apache.tika.exception.TikaException: TIKA-198: Illegal
+            //IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
+            //For reporting purposes, let's snip off the object id so that we can more
+            //easily count exceptions.
+            String sortTrace = fullTrace;
+            matcher = OBJECT_ID_SNIPPER.matcher(sortTrace);
+            if (matcher.find()) {
+                sortTrace = matcher.group(1) + matcher.group(2);
+            }
+            matcher = CAUSED_BY_SNIPPER.matcher(sortTrace);
+            sortTrace = matcher.replaceAll("$1");
+            sortTrace = sortTrace.replaceAll("org.apache.tika.", "o.a.t.");
+            data.put(HEADERS.SORT_STACK_TRACE + extension, sortTrace);
         }
+
     }
 
     protected static String getContent(List<Metadata> metadataList, int maxLength) {

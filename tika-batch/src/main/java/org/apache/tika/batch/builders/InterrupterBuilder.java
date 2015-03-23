@@ -17,13 +17,17 @@ package org.apache.tika.batch.builders;
  * limitations under the License.
  */
 
-import org.apache.tika.sax.ContentHandlerFactory;
-import org.w3c.dom.Node;
-
 import java.util.Map;
 
-public interface ContentHandlerFactoryBuilder extends ObjectFromDOMBuilder<ContentHandlerFactory> {
+import org.apache.tika.batch.Interrupter;
+import org.w3c.dom.Node;
 
-  public ContentHandlerFactory build(Node node, Map<String, String> attributes);
+/**
+ * Builds an Interrupter
+ */
+public class InterrupterBuilder {
 
+    public Interrupter build(Node n, Map<String, String> commandlineArguments) {
+        return new Interrupter();
+    }
 }

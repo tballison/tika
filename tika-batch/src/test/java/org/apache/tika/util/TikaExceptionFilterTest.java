@@ -30,6 +30,7 @@ public class TikaExceptionFilterTest extends TikaTest {
         try {
             getXML("null_pointer.xml");
         } catch (Throwable t2) {
+            assertContains("Unexpected RuntimeException", t2.getMessage());
             t = filter.filter(t2);
         }
         assertEquals("another null pointer exception", t.getMessage());

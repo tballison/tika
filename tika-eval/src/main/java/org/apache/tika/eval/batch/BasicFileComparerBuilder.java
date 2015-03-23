@@ -57,8 +57,8 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.setLangModelDir(langModelDir);
-        long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1);
-        long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1);
+        long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
+        long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
 
 
         TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName,
