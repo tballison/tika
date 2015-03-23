@@ -1,5 +1,23 @@
 Release 1.8 - Current Development
 
+  * Translator.translate() Exceptions are now restricted to
+    TikaException and IOException (TIKA-1416).
+
+  * Tika now supports MIME detection for Microsoft Extended 
+    Makefiles (EMF) (TIKA-1554).
+
+  * Tika has improved delineation in XML and HTML MIME detection
+    (TIKA-1365).
+
+  * Upgraded the Drew Noakes metadata-extractor to version 2.7.2
+    (TIKA-1576).
+
+  * Added basic style support for ODF documents, contributed by
+    Axel Dörfler (TIKA-1063).
+
+  * Move Tika server resources and writers to separate
+    org.apache.tika.server.resource and writer packages (TIKA-1564).
+
   * Upgrade UCAR dependencies to 4.5.5 (TIKA-1571)
   
   * Fix Paths in Tika server welcome page (TIKA-1567).
