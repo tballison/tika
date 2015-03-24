@@ -162,9 +162,17 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         this.writer = writer;
     }
 
-    public static void setLangModelDir(File langModelDir) {
+    /**
+     * Initialize cybozu's DetectorFactory
+     * @param langModelDir directory that contains the language models
+     * @param seed any seed to assure consistent langid across runs
+     */
+    public static void initLangDetectorFactory(File langModelDir, Long seed) {
         try {
             DetectorFactory.loadProfile(langModelDir);
+            if (seed != null) {
+                DetectorFactory.setSeed(seed);
+            }
         } catch (LangDetectException e) {
             throw new BatchNoRestartError(e);
         }

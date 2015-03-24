@@ -27,10 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import com.cybozu.labs.langdetect.DetectorFactory;
-import com.cybozu.labs.langdetect.LangDetectException;
 import org.apache.lucene.util.PriorityQueue;
-import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
@@ -137,14 +134,6 @@ public class BasicFileComparer extends AbstractProfiler {
     private static void addHeader(Map<String, ColInfo> headers, COMPARISON_HEADERS header) {
         headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
-    }
-
-    public static void setLangModelDir(File langModelDir) {
-        try {
-            DetectorFactory.loadProfile(langModelDir);
-        } catch (LangDetectException e) {
-            throw new BatchNoRestartError(e);
-        }
     }
 
     @Override

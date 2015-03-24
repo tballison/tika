@@ -53,7 +53,7 @@ public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
         File dbDir = getFile(localAttrs, "dbDir");
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
-        BasicFileComparer.setLangModelDir(langModelDir);
+        BasicFileComparer.initLangDetectorFactory(langModelDir, 31415962L);
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
         TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName, append);
 
