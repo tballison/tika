@@ -2,7 +2,6 @@ package org.apache.tika.eval;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.io.File;
@@ -16,7 +15,7 @@ import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Test;
 
 //These tests ensure that the comparer is extracting the right information
-//into a Map<String,String>.  A full integration test should in ComparerBatchTest
+//into a Map<String,String>.  A full integration test
 //should also ensure that the elements are properly being written to the db
 
 public class SimpleComparerTest extends TikaTest {
@@ -25,22 +24,63 @@ public class SimpleComparerTest extends TikaTest {
     public void testBasic() throws Exception {
         BasicFileComparer.init(new File("testA"), new File("testB"));
         BasicFileComparer comparer = new BasicFileComparer(null, -1, -1);
-        Map<String, String> data = comparer.compareFiles("relPath",
-                getResourceAsFile("/test-documents/testA/file1.json"),
-                getResourceAsFile("/test-documents/testB/file1.json"));
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_A").startsWith("over: 1"));
-        assertTrue(data.get("TOP_10_UNIQUE_TOKEN_DIFFS_B").startsWith("aardvark: 3 | bear: 2"));
+
+        Map<String, String> data = comparer.compareFiles("file1.pdf.json",
+                getResourceAsFile("/test-documents/testA/file1.pdf.json"),
+                getResourceAsFile("/test-documents/testB/file1.pdf.json"));
+        assertEquals("file1.pdf", data.get(AbstractProfiler.HEADERS.FILE_PATH.name()));
+
+        assertTrue(
+                data.get(BasicFileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS+"_A")
+                        .startsWith("over: 1"));
+
+        assertTrue(
+                data.get(BasicFileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_B")
+                        .startsWith("aardvark: 3 | bear: 2"));
+
         assertEquals("aardvark: 3 | bear: 2",
                 data.get(BasicFileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.toString()));
         assertEquals("fox: 2 | lazy: 1 | over: 1",
                 data.get(BasicFileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.toString()));
-        assertEquals("13", data.get("TOKEN_COUNT_B"));
-        assertEquals("12", data.get("TOKEN_COUNT_A"));
-        assertEquals("8", data.get("NUM_UNIQUE_TOKENS_A"));
-        assertEquals("9", data.get("NUM_UNIQUE_TOKENS_B"));
+        assertEquals("12", data.get(BasicFileComparer.HEADERS.TOKEN_COUNT+"_A"));
+        assertEquals("13", data.get(BasicFileComparer.HEADERS.TOKEN_COUNT+"_B"));
+        assertEquals("8", data.get(BasicFileComparer.HEADERS.NUM_UNIQUE_TOKENS+"_A"));
+        assertEquals("9", data.get(BasicFileComparer.HEADERS.NUM_UNIQUE_TOKENS+"_B"));
 
-        assertEquals("OVERLAP", 0.64f, Float.parseFloat(data.get("OVERLAP")), 0.0001f);
-        assertEquals("DICE_COEFFICIENT", 0.8235294f, Float.parseFloat(data.get("DICE_COEFFICIENT")), 0.0001f);
+        assertEquals(BasicFileComparer.COMPARISON_HEADERS.OVERLAP.name(),
+                0.64f, Float.parseFloat(data.get("OVERLAP")), 0.0001f);
+
+        assertEquals(BasicFileComparer.COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
+                0.8235294f, Float.parseFloat(data.get("DICE_COEFFICIENT")), 0.0001f);
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A", 3.83333d,
+                Double.parseDouble(
+                        data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A")), 0.0001d);
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B", 4.923d,
+                Double.parseDouble(
+                        data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B")), 0.0001d);
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A", 1.0298d,
+                Double.parseDouble(
+                        data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A")), 0.0001d);
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B", 1.9774d,
+                Double.parseDouble(data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B")), 0.0001d);
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_SUM+"_A", 46,
+                Integer.parseInt(
+                        data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_SUM+"_A")));
+
+        assertEquals(BasicFileComparer.HEADERS.TOKEN_LENGTH_SUM+"_B", 64,
+                Integer.parseInt(data.get(BasicFileComparer.HEADERS.TOKEN_LENGTH_SUM+"_B")));
+
+        assertEquals("TOKEN_ENTROPY_RATE_A", 0.237949,
+                Double.parseDouble(data.get("TOKEN_ENTROPY_RATE_A")), 0.0001d);
+
+        assertEquals("TOKEN_ENTROPY_RATE_B", 0.232845,
+                Double.parseDouble(data.get("TOKEN_ENTROPY_RATE_B")), 0.0001d);
+
     }
 
     @Test
@@ -48,10 +88,10 @@ public class SimpleComparerTest extends TikaTest {
         BasicFileComparer.init(new File("testA"), new File("testB"));
         BasicFileComparer comparer = new BasicFileComparer(null, -1, -1);
         Map<String, String> data = comparer.compareFiles("relPath",
-                getResourceAsFile("/test-documents/testA/file1.json"),
+                getResourceAsFile("/test-documents/testA/file1.pdf.json"),
                 getResourceAsFile("/test-documents/testB/empty.json"));
         assertTrue(data.get("JSON_EX_B").startsWith("Error with json parsing"));
-   }
+    }
 
     @Test
     public void testGetContent() throws Exception {
@@ -108,10 +148,23 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("true", data.get(AbstractProfiler.HEADERS.ACCESS_PERMISSION_EXCEPTION.toString() + "_A"));
         assertEquals("true", data.get(AbstractProfiler.HEADERS.ACCESS_PERMISSION_EXCEPTION.toString() + "_B"));
         assertNull(data.get(AbstractProfiler.HEADERS.JSON_EX.toString() + "_A"));
-        assertNull(data.get(AbstractProfiler.HEADERS.JSON_EX.toString()+"_B"));
-        assertNull(data.get(AbstractProfiler.HEADERS.ORIG_STACK_TRACE.toString()+"_A"));
-        assertNull(data.get(AbstractProfiler.HEADERS.ORIG_STACK_TRACE.toString()+"_B"));
-        assertNull(data.get(AbstractProfiler.HEADERS.SORT_STACK_TRACE.toString()+"_A"));
-        assertNull(data.get(AbstractProfiler.HEADERS.SORT_STACK_TRACE.toString()+"_B"));
+        assertNull(data.get(AbstractProfiler.HEADERS.JSON_EX.toString() + "_B"));
+        assertNull(data.get(AbstractProfiler.HEADERS.ORIG_STACK_TRACE.toString() + "_A"));
+        assertNull(data.get(AbstractProfiler.HEADERS.ORIG_STACK_TRACE.toString() + "_B"));
+        assertNull(data.get(AbstractProfiler.HEADERS.SORT_STACK_TRACE.toString() + "_A"));
+        assertNull(data.get(AbstractProfiler.HEADERS.SORT_STACK_TRACE.toString() + "_B"));
+    }
+
+    @Test
+    public void testDebug() throws Exception {
+        BasicFileComparer.init(new File("testA"), new File("testB"));
+        BasicFileComparer comparer = new BasicFileComparer(null, -1, -1);
+        Map<String, String> data = comparer.compareFiles("relPath",
+                getResourceAsFile("/test-documents/testA/file1.pdf.json"),
+                getResourceAsFile("/test-documents/testB/file1.pdf.json"));
+        for (Map.Entry<String, String> e : data.entrySet()) {
+            System.out.println(e.getKey() + " : " + e.getValue());
+        }
+
     }
 }

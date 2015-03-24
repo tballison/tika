@@ -56,7 +56,7 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
         String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
 
-        BasicFileComparer.setLangModelDir(langModelDir);
+        BasicFileComparer.initLangDetectorFactory(langModelDir, 31415962L);
 
 
         TableWriter writer = buildTableWriter(outputFile, dbDir, tableName);

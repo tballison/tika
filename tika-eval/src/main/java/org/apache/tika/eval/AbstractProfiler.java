@@ -91,7 +91,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         LANG_ID2(new ColInfo(-1, Types.VARCHAR, 12)),
         LANG_ID_PROB2(new ColInfo(-1, Types.FLOAT)),
         LANG_ID3(new ColInfo(-1, Types.VARCHAR, 12)),
-        LANG_ID_PROB3(new ColInfo(-1, Types.FLOAT));
+        LANG_ID_PROB3(new ColInfo(-1, Types.FLOAT)),
+        TOKEN_ENTROPY_RATE(new ColInfo(-1, Types.FLOAT)),
+        TOKEN_LENGTH_SUM(new ColInfo(-1, Types.INTEGER)),
+        TOKEN_LENGTH_MEAN(new ColInfo(-1, Types.FLOAT)),
+        TOKEN_LENGTH_STD_DEV(new ColInfo(-1, Types.FLOAT));
 
         private final ColInfo colInfo;
 

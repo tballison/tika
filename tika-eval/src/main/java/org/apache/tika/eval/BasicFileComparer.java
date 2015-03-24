@@ -26,7 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
@@ -60,7 +64,7 @@ public class BasicFileComparer extends AbstractProfiler {
     }
 
     public static Map<String, ColInfo> headers;
-
+    private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
 
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
@@ -107,6 +111,10 @@ public class BasicFileComparer extends AbstractProfiler {
         addHeaders(headers, HEADERS.NUM_EN_STOPS_TOP_N, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.LANG_ID1, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.LANG_ID_PROB1, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.TOKEN_ENTROPY_RATE, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.TOKEN_LENGTH_SUM, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.TOKEN_LENGTH_MEAN, thisExtension, thatExtension);
+        addHeaders(headers, HEADERS.TOKEN_LENGTH_STD_DEV, thisExtension, thatExtension);
 
     }
 
@@ -172,7 +180,12 @@ public class BasicFileComparer extends AbstractProfiler {
 
     protected Map<String, String> compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
         Map<String, String> output = new HashMap<String, String>();
-        output.put(HEADERS.FILE_PATH.name(), relativePath);
+
+        String origFileName = relativePath;
+        Matcher m = FILE_NAME_CLEANER.matcher(origFileName);
+        origFileName = m.replaceAll("");
+
+        output.put(HEADERS.FILE_PATH.name(), origFileName);
         output.put(HEADERS.JSON_FILE_LENGTH+thisExtension, Long.toString(thisFile.length()));
         output.put(HEADERS.JSON_FILE_LENGTH+thatExtension, Long.toString(thatFile.length()));
 
@@ -252,7 +265,71 @@ public class BasicFileComparer extends AbstractProfiler {
         countTokens(thatMetadata, thoseTokens);
 
         compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
+
+        calcTokenStats(tokens, theseTokens.getTokenCount(), thoseTokens.getTokenCount(), output);
         return output;
+    }
+
+    private void calcTokenStats(Map<String, PairCount> tokens, int
+            thisTokenCount, int thatTokenCount, Map<String, String> output) {
+        double entA = 0.0d;
+        double entB = 0.0d;
+        double p = 0.0d;
+        double base = 2.0;
+        SummaryStatistics summStatsA = new SummaryStatistics();
+        SummaryStatistics summStatsB = new SummaryStatistics();
+        for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
+            String token = e.getKey();
+            int a = e.getValue().a;
+            int b = e.getValue().b;
+            if (a > 0) {
+                //if a > 0 but thisTokenCount==0, something has gone
+                //horribly wrong and a div/0 exception should be thrown!
+
+                //byte length, not codepoint length!
+                int len = token.length();
+                for (int i = 0; i < a; i++) {
+                    summStatsA.addValue(len);
+                }
+                p = (double)a/(double)thisTokenCount;
+                entA += p* FastMath.log(base, p);
+            }
+            if (b > 0) {
+                int len = token.length();
+                for (int i = 0; i < b; i++) {
+                    summStatsB.addValue(len);
+                }
+                p = (double)b/(double)thatTokenCount;
+                entB += p*FastMath.log(base, p);
+            }
+        }
+
+        if (thisTokenCount > 0) {
+            entA = (-1.0d/(double)thisTokenCount)*entA;
+            output.put(HEADERS.TOKEN_ENTROPY_RATE+thisExtension,
+                    Double.toString(entA));
+        }
+        if (thatTokenCount > 0) {
+            entB = (-1.0d/(double)thatTokenCount)*entB;
+            output.put(HEADERS.TOKEN_ENTROPY_RATE+thatExtension,
+                    Double.toString(entB));
+        }
+
+        output.put(HEADERS.TOKEN_LENGTH_SUM+thisExtension,
+                Integer.toString((int) summStatsA.getSum()));
+        output.put(HEADERS.TOKEN_LENGTH_SUM+thatExtension,
+                Integer.toString((int)summStatsB.getSum()));
+
+        output.put(HEADERS.TOKEN_LENGTH_MEAN+thisExtension,
+                Double.toString(summStatsA.getMean()));
+        output.put(HEADERS.TOKEN_LENGTH_MEAN+thatExtension,
+                Double.toString(summStatsB.getMean()));
+
+        output.put(HEADERS.TOKEN_LENGTH_STD_DEV+thisExtension,
+                Double.toString(summStatsA.getStandardDeviation()));
+        output.put(HEADERS.TOKEN_LENGTH_STD_DEV+thatExtension,
+                Double.toString(summStatsB.getStandardDeviation()));
+
     }
 
 
