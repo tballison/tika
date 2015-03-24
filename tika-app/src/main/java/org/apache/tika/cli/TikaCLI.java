@@ -110,8 +110,6 @@ import org.xml.sax.helpers.DefaultHandler;
  * Simple command line interface for Apache Tika.
  */
 public class TikaCLI {
-
-
     private File extractDir = new File(".");
 
     private static final Log logger = LogFactory.getLog(TikaCLI.class);
@@ -135,8 +133,8 @@ public class TikaCLI {
         Logger.getRootLogger().setLevel(Level.INFO);
 
         if (args.length > 0) {
-            for (String arg : args) {
-                cli.process(arg);
+            for (int i = 0; i < args.length; i++) {
+                cli.process(args[i]);
             }
             if (cli.pipeMode) {
                 cli.process("-");
@@ -155,8 +153,6 @@ public class TikaCLI {
             }
         }
     }
-
-
 
     private class OutputType {
 
@@ -538,8 +534,8 @@ public class TikaCLI {
         out.println("    -d  or --detect        Detect document type");
         out.println("    -eX or --encoding=X    Use output encoding X");
         out.println("    -pX or --password=X    Use document password X");
-        out.println("    -z  or --extract       Extract all attachments into current directory");
-        out.println("    --extract-dir=<dir>    Specify output directory for -z");
+        out.println("    -z  or --extract       Extract all attachements into current directory");
+        out.println("    --extract-dir=<dir>    Specify target directory for -z");
         out.println("    -r  or --pretty-print  For JSON, XML and XHTML outputs, adds newlines and");
         out.println("                           whitespace, for better readability");
         out.println();
@@ -614,11 +610,40 @@ public class TikaCLI {
         out.println();
         out.println("    To modify child process jvm args, prepend \"J\" as in:");
         out.println("    -JXmx4g or -JDlog4j.configuration=file:log4j.xml.");
+
     }
 
     private void version() {
         System.out.println(new Tika().toString());
     }
+
+    private boolean testForHelp(String[] args) {
+        for (String s : args) {
+            if (s.equals("-?") || s.equals("--help")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean testForBatch(String[] args) {
+        if (args.length == 2 && ! args[0].startsWith("-")
+                && ! args[1].startsWith("-")) {
+            File inputCand = new File(args[0]);
+            File outputCand = new File(args[1]);
+            if (inputCand.isDirectory() && !outputCand.isFile()) {
+                return true;
+            }
+        }
+
+        for (String s : args) {
+            if (s.equals("-inputDir") || s.equals("--inputDir") || s.equals("-i")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
 
     private void configure(String configFilePath) throws Exception {
@@ -889,35 +914,6 @@ public class TikaCLI {
         }
     }
 
-    private boolean testForHelp(String[] args) {
-        for (String s : args) {
-            if (s.equals("-?") || s.equals("--help")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean testForBatch(String[] args) {
-        if (args.length == 2 && ! args[0].startsWith("-")
-                && ! args[1].startsWith("-")) {
-            File inputCand = new File(args[0]);
-            File outputCand = new File(args[1]);
-            if (inputCand.isDirectory() && !outputCand.isFile()) {
-                return true;
-            }
-        }
-
-        for (String s : args) {
-            if (s.equals("-inputDir") || s.equals("--inputDir") || s.equals("-i")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-
     /**
      * Returns a output writer with the given encoding.
      *
@@ -926,7 +922,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return output writer
-     * @throws java.io.UnsupportedEncodingException
+     * @throws UnsupportedEncodingException
      *         if the given encoding is not supported
      */
     private static Writer getOutputWriter(OutputStream output, String encoding)
@@ -953,7 +949,7 @@ public class TikaCLI {
      * @param encoding output encoding,
      *                 or <code>null</code> for the platform default
      * @return {@link System#out} transformer handler
-     * @throws javax.xml.transform.TransformerConfigurationException
+     * @throws TransformerConfigurationException
      *         if the transformer can not be created
      */
     private static TransformerHandler getTransformerHandler(

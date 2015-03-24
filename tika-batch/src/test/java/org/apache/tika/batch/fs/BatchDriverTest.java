@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcessDriverCLI;
 import org.apache.tika.io.IOUtils;

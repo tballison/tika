@@ -157,13 +157,12 @@ public class BatchProcessTest extends FSBatchTestBase {
 
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
-        assertEquals(2, files.length);
         File test2 = new File(outputDir, "test2_norestart.xml.xml");
         assertTrue("test2_norestart.xml", test2.exists());
         File test3 = new File(outputDir, "test3_ok.xml.xml");
         assertFalse("test3_ok.xml", test3.exists());
         assertEquals(0, test3.length());
-        assertContains("exitStatus=" + BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
+        assertContains("exitStatus="+ BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE,
                 streamStrings.getOutString());
         assertContains("causeForTermination='MAIN_LOOP_EXCEPTION_NO_RESTART'",
                 streamStrings.getOutString());
