@@ -29,17 +29,17 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.binding.BindingFactoryManager;
 import org.apache.cxf.jaxrs.JAXRSBindingFactory;
 import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
 import org.apache.cxf.jaxrs.lifecycle.ResourceProvider;
 import org.apache.cxf.jaxrs.lifecycle.SingletonResourceProvider;
 import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NavigatorCLI {
-    private static final Log logger = LogFactory.getLog(NavigatorCLI.class);
+    private static final Logger logger = LoggerFactory.getLogger(NavigatorCLI.class);
     public static final int DEFAULT_PORT = 9998;
     public static final String DEFAULT_HOST = "localhost";
     public static final Set<String> LOG_LEVELS =
@@ -125,7 +125,7 @@ public class NavigatorCLI {
             sf.create();
             logger.info("Started");
         } catch (Exception ex) {
-            logger.fatal("Can't start", ex);
+            logger.error("Can't start", ex);
             System.exit(-1);
         }
     }

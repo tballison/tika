@@ -63,6 +63,6 @@ public class ComparerBatchTest extends FSBatchTestBase {
             }
         }
         assertEquals(3, fileNames.size());
-        assertTrue(fileNames.contains("file1.pdf.json"));
+        assertTrue(fileNames.contains("file1.pdf"));
     }
 }

@@ -136,7 +136,7 @@ public class FileComparerResultDumper {
                 "sum(ifnull(NUM_METADATA_VALUES_A, 0)) as NUM_METADATA_VALUES_TOTAL, " +
                 detected_types_A_table +".NUM_FILES as TOTAL_FILES, "+
                 "DEC_PATTERN(" +
-                "(1.0*sum(ifnull(NUM_METADATA_VALUES_A, 0))/"+detected_types_A_table+".NUM_FILES)" +
+                "(1.0*sum(ifnull(NUM_METADATA_VALUES_A, 0))/ifnull("+detected_types_A_table+".NUM_FILES,1))" +
                 ", '#.##' ) as "+
                 "\"Average number of metadata values per file\" "+
                 "from comparisons " +
@@ -152,9 +152,9 @@ public class FileComparerResultDumper {
 
         sql = "SELECT comparisons.detected_content_type_B as \"Detected Content Type B\", " +
                 "DEC_PATTERN(sum(ifnull(NUM_METADATA_VALUES_B, 0)), '###,###') as \"Total Number of Metadata Values\", " +
-                "DEC_PATTERN("+detected_types_B_table +".NUM_FILES, '###,###') as \"Total Number of Files\", "+
+                "DEC_PATTERN(ifnull("+detected_types_B_table +".NUM_FILES,0), '###,###') as \"Total Number of Files\", "+
                 "DEC_PATTERN(" +
-                "(1.0*sum(ifnull(NUM_METADATA_VALUES_B, 0))/"+detected_types_B_table+".NUM_FILES)"+
+                "(1.0*sum(ifnull(NUM_METADATA_VALUES_B, 0))/ifnull("+detected_types_B_table+".NUM_FILES,1))"+
                 ", '###,###') as "+
                 "\"Average Number of Metadata Values per File\" "+
                 "from comparisons " +
@@ -447,10 +447,10 @@ public class FileComparerResultDumper {
                 "from comparisons "+
                 "where SORT_STACK_TRACE_A is not null "+
                 "group by DETECTED_FILE_EXTENSION_A, SORT_STACK_TRACE_A "+
-                "order by DETECTED_FILE_EXTENSION_A, COUNT desc "+
-                "LIMIT 50;";
+                "order by DETECTED_FILE_EXTENSION_A, COUNT desc; ";
+//                "LIMIT 50;";
         dumpTable(exceptionsDir, "stack_traces_in_A_ordered_by_file_extension.html",
-                "Top 50 most common stacktraces in " + dirNameA + " ordered by file extension",
+                "Stacktraces in " + dirNameA + " ordered by file extension",
                 sql, st);
 
         sql = "select DETECTED_FILE_EXTENSION_B, " +
@@ -458,10 +458,10 @@ public class FileComparerResultDumper {
                 "from comparisons "+
                 "where SORT_STACK_TRACE_B is not null "+
                 "group by DETECTED_FILE_EXTENSION_B, SORT_STACK_TRACE_B "+
-                "order by DETECTED_FILE_EXTENSION_B, COUNT desc "+
-                "LIMIT 50;";
+                "order by DETECTED_FILE_EXTENSION_B, COUNT desc;";// "+
+//                "LIMIT 50;";
         dumpTable(exceptionsDir, "stack_traces_in_B_ordered_by_file_extension.html",
-                "Top 50 most common stacktraces in " + dirNameB + " ordered by file extension",
+                "Stacktraces in " + dirNameB + " ordered by file extension",
                 sql, st);
 
         sql = "select DETECTED_FILE_EXTENSION_A, " +
@@ -501,7 +501,7 @@ public class FileComparerResultDumper {
                 "(overlap < 0.90 or abs(TOKEN_COUNT_A - TOKEN_COUNT_B) > 100) " +
                 "group by FILE_EXTENSION "+
                 "order by COUNT desc";
-        dumpTable(contentDir, "content_diffs_a_and_b_by_extension.html",
+        dumpTable(contentDir, "content_diffs_A_and_B_by_extension.html",
                 "Files with content differing by more than the overlap threshold in " + dirNameA + " and " + dirNameB,
                 sql, st);
 
@@ -522,7 +522,7 @@ public class FileComparerResultDumper {
                 "order by FILE_EXTENSION, " +
                 "overlap desc," +
                 "abs(TOKEN_COUNT_A-TOKEN_COUNT_B) desc";
-        dumpTable(contentDir, "content_diffs_a_and_b_per_file.html",
+        dumpTable(contentDir, "content_diffs_A_and_B_per_file.html",
                 "Files with content differing by more than the overlap threshold in " + dirNameA + " and " + dirNameB,
                 sql, st);
     }
@@ -653,7 +653,7 @@ public class FileComparerResultDumper {
                 "as \"Number of attachments total\", " +
                 detected_types_A_table +".NUM_FILES as TOTAL_FILES, "+
                 "DEC_PATTERN(" +
-                "(1.0*sum(ifnull(NUM_ATTACHMENTS_A, 0))/"+detected_types_A_table+".NUM_FILES)"+
+                "(1.0*sum(ifnull(NUM_ATTACHMENTS_A, 0))/ifnull("+detected_types_A_table+".NUM_FILES,1))"+
                 ", '###,###.##')"+
                 " as \"Average number of attachments per file\" "+
                 "from comparisons " +
@@ -670,7 +670,7 @@ public class FileComparerResultDumper {
                 "as \"Number of attachments total\", " +
                 detected_types_B_table +".NUM_FILES as TOTAL_FILES, "+
                 "DEC_PATTERN(" +
-                "(1.0*sum(ifnull(NUM_ATTACHMENTS_B, 0))/"+detected_types_B_table+".NUM_FILES)"+
+                "(1.0*sum(ifnull(NUM_ATTACHMENTS_B, 0))/ifnull("+detected_types_B_table+".NUM_FILES,1))"+
                 ", '###,###.##')"+
                 " as \"Average number of attachments per file\" "+
                 "from comparisons " +
