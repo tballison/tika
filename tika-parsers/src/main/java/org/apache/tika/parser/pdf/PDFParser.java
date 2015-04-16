@@ -155,7 +155,8 @@ public class PDFParser extends AbstractParser {
         } catch (IOException e) {
             //nonseq parser throws IOException for bad password
             //At the Tika level, we want the same exception to be thrown
-            if (e.getMessage().contains("Error (CryptographyException)")) {
+            if (e.getMessage() != null && 
+                    e.getMessage().contains("Error (CryptographyException)")) {
                 metadata.set("pdf:encrypted", Boolean.toString(true));
                 throw new EncryptedDocumentException(e);
             }
@@ -284,7 +285,9 @@ public class PDFParser extends AbstractParser {
                 xmp.addXMLNSMapping(XMPSchemaPDFAId.NAMESPACE, XMPSchemaPDFAId.class);
                 XMPSchemaPDFAId pdfaxmp = (XMPSchemaPDFAId) xmp.getSchemaByClass(XMPSchemaPDFAId.class);
                 if( pdfaxmp != null ) {
-                    metadata.set("pdfaid:part", Integer.toString(pdfaxmp.getPart()));
+                    if (pdfaxmp.getPart() != null) {
+                        metadata.set("pdfaid:part", Integer.toString(pdfaxmp.getPart()));
+                    }
                     if (pdfaxmp.getConformance() != null) {
                         metadata.set("pdfaid:conformance", pdfaxmp.getConformance());
                         String version = "A-"+pdfaxmp.getPart()+pdfaxmp.getConformance().toLowerCase(Locale.ROOT);
