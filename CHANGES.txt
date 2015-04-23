@@ -1,3 +1,11 @@
+Release 1.9 - Current Development
+
+  * Improvements to detect CBOR files by extension (TIKA-1610).
+
+  * Change xerial.org's sqlite-jdbc jar to "provided" (TIKA-1511).
+    Users will now need to add sqlite-jdbc to their classpath for
+    the Sqlite3Parser to work.
+
 Release 1.8 - 4/13/2015
 
   * Fix null pointer when processing ODT footer styles (TIKA-1600).
@@ -78,10 +86,9 @@ Release 1.8 - 4/13/2015
   * Increased the speed of language identification by 
     a factor of two -- contributed by Toke Eskildsen (TIKA-1549).
 
-  * Added parser for Sqlite3 db files. BEWARE: the org.xerial 
-    dependency includes native libs. Some users may need to 
-    exclude this dependency or configure it specially for 
-    their environment (TIKA-1511).
+  * Added parser for Sqlite3 db files. Some users will need to 
+    exclude the dependency on xerial.org's sqlite-jdbc because
+    it contains native libs (TIKA-1511).
 
   * Use POST instead of PUT for tika-server form methods
     (TIKA-1547).
