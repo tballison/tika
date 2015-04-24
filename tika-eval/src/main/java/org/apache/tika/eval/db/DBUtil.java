@@ -34,7 +34,6 @@ public abstract class DBUtil {
     public static Logger logger = Logger.getLogger(DBUtil.class);
     public abstract String getJDBCDriverClass();
     public abstract boolean dropTableIfExists(Connection conn, String tableName) throws SQLException;
-    public abstract void shutDownDB(Connection conn) throws IOException;
 
     /**
      * This is intended for a file/directory based db.

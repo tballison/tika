@@ -23,14 +23,13 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
-import org.apache.commons.math3.util.FastMath;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
@@ -39,8 +38,11 @@ import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class BasicFileComparer extends AbstractProfiler {
+
+    public static final String COMPARISONS_TABLE = "comparisons";
 
     public enum COMPARISON_HEADERS {
         DIFF_NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
@@ -64,15 +66,14 @@ public class BasicFileComparer extends AbstractProfiler {
     }
 
     public static Map<String, ColInfo> headers;
-    private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
 
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
     private static File thisRootDir;
     private static File thatRootDir;
-    private final static String thisExtension = "_A";
-    private final static String thatExtension = "_B";
+    public final static String thisExtension = "_A";
+    public final static String thatExtension = "_B";
     private static int thisDirLen;
 
     private final long minJsonLength;
@@ -86,12 +87,9 @@ public class BasicFileComparer extends AbstractProfiler {
         headers = new HashMap<String, ColInfo>();
         addHeader(headers, HEADERS.FILE_PATH);
         addHeader(headers, HEADERS.FILE_LENGTH);
+        addHeader(headers, HEADERS.EMBEDDED_FILE_PATH);
         addHeaders(headers, HEADERS.JSON_FILE_LENGTH, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.ORIG_STACK_TRACE, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.SORT_STACK_TRACE, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.ENCRYPTED_EXCEPTION, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.ACCESS_PERMISSION_EXCEPTION, thisExtension, thatExtension);
         addHeader(headers, HEADERS.FILE_EXTENSION);
         addHeaders(headers, HEADERS.DETECTED_CONTENT_TYPE, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.DETECTED_FILE_EXTENSION, thisExtension, thatExtension);
@@ -119,8 +117,8 @@ public class BasicFileComparer extends AbstractProfiler {
     }
 
     public BasicFileComparer(ArrayBlockingQueue<FileResource> queue,
-                             long minJsonLength, long maxJsonLength) {
-        super(queue);
+                             boolean crawlingInputDir, long minJsonLength, long maxJsonLength) {
+        super(queue, crawlingInputDir);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
     }
@@ -164,8 +162,7 @@ public class BasicFileComparer extends AbstractProfiler {
         }
 
         try {
-            Map<String, String> output = compareFiles(relativePath, thisFile, thatFile);
-            writer.writeRow(output);
+            compareFiles(relativePath, thisFile, thatFile);
         } catch (Throwable e) {
             e.printStackTrace();
             //this should be cataclysmic...
@@ -178,158 +175,206 @@ public class BasicFileComparer extends AbstractProfiler {
         return headers;
     }
 
-    protected Map<String, String> compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
+    private void compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
+        List<Metadata> thisMetadataList = getMetadata(thisFile);
+        List<Metadata> thatMetadataList = getMetadata(thatFile);
+        //array indices for those metadata items handled in
+        //"that"
+        Set<Integer> handledThat = new HashSet<Integer>();
         Map<String, String> output = new HashMap<String, String>();
-
-        String origFileName = relativePath;
-        Matcher m = FILE_NAME_CLEANER.matcher(origFileName);
-        origFileName = m.replaceAll("");
-
-        output.put(HEADERS.FILE_PATH.name(), origFileName);
-        output.put(HEADERS.JSON_FILE_LENGTH+thisExtension, Long.toString(thisFile.length()));
-        output.put(HEADERS.JSON_FILE_LENGTH+thatExtension, Long.toString(thatFile.length()));
-
-        List<Metadata> thisMetadata = getMetadata(thisFile);
-        String lenString = null;
-        if (thisMetadata != null && thisMetadata.size() > 0) {
-            lenString = thisMetadata.get(0).get(Metadata.CONTENT_LENGTH);
-        }
-
-        if (thisMetadata == null) {
+        String thisJsonLength = Long.toString(thisFile.length());
+        String thatJsonLength = Long.toString(thatFile.length());
+        if (thisMetadataList == null && thatMetadataList == null) {
+            output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
+            output.put(HEADERS.FILE_EXTENSION.name(),
+                    FilenameUtils.getExtension(output.get(HEADERS.FILE_PATH.name())));
+            output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
+            output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
+            output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
             output.put(HEADERS.JSON_EX + thisExtension,
-                    "Error with json parsing");
+                    JSON_PARSE_EXCEPTION);
+            output.put(HEADERS.JSON_EX + thatExtension,
+                    JSON_PARSE_EXCEPTION);
+            writer.writeRow(COMPARISONS_TABLE, output);
+            return;
         }
-
-        getExceptionStrings(thisMetadata, thisExtension, output);
-
-        output.put(HEADERS.FILE_EXTENSION.name(),
-                getOriginalFileExtension(thisFile.getName()));
-
-        getFileTypes(thisMetadata, thisExtension, output);
-
-        int thisNumAttachments = (thisMetadata == null) ? 0 : thisMetadata.size() - 1;
-        output.put(HEADERS.NUM_ATTACHMENTS + thisExtension,
-                Integer.toString(thisNumAttachments));
-
-        int thisNumMetadataValues = countMetadataValues(thisMetadata);
-        output.put(HEADERS.NUM_METADATA_VALUES + thisExtension,
-                Integer.toString(thisNumMetadataValues));
-
-
-
-        output.put(HEADERS.ELAPSED_TIME_MILLIS + thisExtension,
-                getTime(thisMetadata));
-
-        langid(thisMetadata, thisExtension, output);
-
-        //prep the token counting
-        Map<String, PairCount> tokens = new HashMap<String, PairCount>();
-        TokenCounter theseTokens = new CounterA(tokens);
-        TokenCounter thoseTokens = new CounterB(tokens);
-        countTokens(thisMetadata, theseTokens);
-
-        //free this up
-        thisMetadata = null;
 
         //now get that metadata
-        List<Metadata> thatMetadata = getMetadata(thatFile);
-        if (thatMetadata == null) {
-            output.put(HEADERS.JSON_EX + thatExtension,
-                    "Error with json parsing");
+        if (thisMetadataList != null) {
+            for (int i = 0; i < thisMetadataList.size(); i++) {
+                output.clear();
+
+                Metadata thisMetadata = thisMetadataList.get(i);
+                Metadata thatMetadata = null;
+                int matchIndex = getMatch(i, thisMetadataList, thatMetadataList);
+
+                if (matchIndex > -1) {
+                    thatMetadata = thatMetadataList.get(matchIndex);
+                    handledThat.add(matchIndex);
+                }
+                output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
+                output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
+                output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
+                String lenString = thisMetadata.get(Metadata.CONTENT_LENGTH);
+                if (lenString != null) {
+                    output.put(HEADERS.FILE_LENGTH.name(), lenString);
+                }
+                if (thatMetadataList == null) {
+                    output.put(HEADERS.JSON_EX + thatExtension,
+                            JSON_PARSE_EXCEPTION);
+                }
+                //overall/container document
+                if (i == 0) {
+                    output.put(HEADERS.FILE_EXTENSION.name(),
+                            getOriginalFileExtension(output.get(HEADERS.FILE_PATH.name())));
+                    //num attachments
+                    int thisNumAttachments = (thisMetadataList == null) ? 0 : thisMetadataList.size() - 1;
+                    output.put(HEADERS.NUM_ATTACHMENTS + thisExtension,
+                            Integer.toString(thisNumAttachments));
+
+                    int thatNumAttachments = (thatMetadataList == null) ? 0 : thatMetadataList.size() - 1;
+                    output.put(HEADERS.NUM_ATTACHMENTS + thatExtension,
+                            Integer.toString(thatNumAttachments));
+                    output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
+                            Integer.toString(thatNumAttachments - thisNumAttachments));
+                    output.put(HEADERS.IS_EMBEDDED.name(), "false");
+                } else { //embedded document
+                    output.put(HEADERS.IS_EMBEDDED.name(), "true");
+                    output.put(HEADERS.EMBEDDED_FILE_PATH.name(),
+                            thisMetadata.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
+                    output.put(HEADERS.FILE_EXTENSION.name(),
+                            FilenameUtils.getExtension(output.get(HEADERS.EMBEDDED_FILE_PATH.name())));
+
+                }
+
+                //prep the token counting
+                Map<String, PairCount> tokens = new HashMap<String, PairCount>();
+                TokenCounter theseTokens = new CounterA(tokens);
+                TokenCounter thoseTokens = new CounterB(tokens);
+                countTokens(thisMetadata, theseTokens);
+                countTokens(thatMetadata, thoseTokens);
+
+                addSingleFileStats(thisMetadata, tokens.keySet(), theseTokens, thisExtension, output);
+                addSingleFileStats(thatMetadata, tokens.keySet(), thoseTokens, thatExtension, output);
+
+                //y, double counting metadata values...improve
+                output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
+                        Integer.toString(countMetadataValues(thisMetadata) -
+                                countMetadataValues(thatMetadata)));
+
+                compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
+
+                writer.writeRow(COMPARISONS_TABLE, output);
+
+            }
         }
-        if (lenString == null && thatMetadata != null && thatMetadata.size() > 0) {
-            lenString = thatMetadata.get(0).get(Metadata.CONTENT_LENGTH);
+        //now try to get any Metadata objects in "that"
+        //that haven't yet been handled.
+        if (thatMetadataList != null) {
+            for (int i = 0; i < thatMetadataList.size(); i++) {
+                if (handledThat.contains(i)) {
+                    continue;
+                }
+                output.clear();
+                Metadata thatMetadata = thatMetadataList.get(i);
+                if (thatMetadata == null) {
+                    throw new RuntimeException("NULL metadata in list");
+                }
+                output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
+                output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
+                output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
+                String lenString = thatMetadata.get(Metadata.CONTENT_LENGTH);
+                if (lenString != null) {
+                    output.put(HEADERS.FILE_LENGTH.name(), lenString);
+                }
+                if (thisMetadataList == null) {
+                    output.put(HEADERS.JSON_EX + thisExtension,
+                            JSON_PARSE_EXCEPTION);
+                }
+
+                //overall/container document
+                if (i == 0) {
+                    output.put(HEADERS.FILE_EXTENSION.name(),
+                            getOriginalFileExtension(output.get(HEADERS.FILE_PATH.name())));
+
+                    //num attachments
+                    output.put(HEADERS.NUM_ATTACHMENTS + thisExtension, "0");
+
+                    int thatNumAttachments = thatMetadataList.size() - 1;
+                    output.put(HEADERS.NUM_ATTACHMENTS + thatExtension,
+                            Integer.toString(thatNumAttachments));
+                    output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
+                            Integer.toString(thatNumAttachments));
+                    output.put(HEADERS.IS_EMBEDDED.name(), "false");
+                } else { //embedded document
+                    output.put(HEADERS.IS_EMBEDDED.name(), "true");
+                    output.put(HEADERS.EMBEDDED_FILE_PATH.name(),
+                            thatMetadata.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
+                    output.put(HEADERS.FILE_EXTENSION.name(),
+                            FilenameUtils.getExtension(output.get(HEADERS.EMBEDDED_FILE_PATH.name())));
+                }
+
+                //prep the token counting
+                Map<String, PairCount> tokens = new HashMap<String, PairCount>();
+                TokenCounter theseTokens = new CounterA(tokens);
+                TokenCounter thoseTokens = new CounterB(tokens);
+                countTokens(thatMetadata, thoseTokens);
+
+                addSingleFileStats(thatMetadata, tokens.keySet(), thoseTokens, thatExtension, output);
+                addSingleFileStats(null, tokens.keySet(), theseTokens, thisExtension, output);
+                compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
+
+                //y, double counting metadata values...improve
+                output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
+                        Integer.toString(0 -
+                                countMetadataValues(thatMetadata)));
+                writer.writeRow(COMPARISONS_TABLE, output);
+            }
+
+
         }
-        if (lenString != null) {
-            output.put(HEADERS.FILE_LENGTH.name(), lenString);
-        }
-        getExceptionStrings(thatMetadata, thatExtension, output);
-        getFileTypes(thatMetadata, thatExtension, output);
-        int thatNumAttachments = (thatMetadata == null) ? 0 : thatMetadata.size() - 1;
-        output.put(HEADERS.ELAPSED_TIME_MILLIS + thatExtension,
-                getTime(thatMetadata));
-        int thatNumMetadataValues = countMetadataValues(thatMetadata);
-        output.put(HEADERS.NUM_ATTACHMENTS + thatExtension,
-                Integer.toString(thatNumAttachments));
-
-        output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
-                Integer.toString(thatNumAttachments - thisNumAttachments));
-        output.put(HEADERS.NUM_METADATA_VALUES + thatExtension,
-                Integer.toString(thatNumMetadataValues));
-        output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
-                Integer.toString(thatNumMetadataValues - thisNumMetadataValues));
-
-        langid(thatMetadata, thatExtension, output);
-
-
-        countTokens(thatMetadata, thoseTokens);
-
-        compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
-
-        calcTokenStats(tokens, theseTokens.getTokenCount(), thoseTokens.getTokenCount(), output);
-        return output;
     }
 
-    private void calcTokenStats(Map<String, PairCount> tokens, int
-            thisTokenCount, int thatTokenCount, Map<String, String> output) {
-        double entA = 0.0d;
-        double entB = 0.0d;
-        double p = 0.0d;
-        double base = 2.0;
-        SummaryStatistics summStatsA = new SummaryStatistics();
-        SummaryStatistics summStatsB = new SummaryStatistics();
-        for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
-            String token = e.getKey();
-            int a = e.getValue().a;
-            int b = e.getValue().b;
-            if (a > 0) {
-                //if a > 0 but thisTokenCount==0, something has gone
-                //horribly wrong and a div/0 exception should be thrown!
+    /**
+     * Try to find the matching metadata based on the RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH
+     * If you can't find it, return -1;
+     *
+     * @param i                index for match in thisMetadataList
+     * @param thisMetadataList
+     * @param thatMetadataList
+     * @return
+     */
 
-                //byte length, not codepoint length!
-                int len = token.length();
-                for (int i = 0; i < a; i++) {
-                    summStatsA.addValue(len);
-                }
-                p = (double)a/(double)thisTokenCount;
-                entA += p* FastMath.log(base, p);
+    private int getMatch(int i,
+                         List<Metadata> thisMetadataList,
+                         List<Metadata> thatMetadataList) {
+        if (thatMetadataList == null || thatMetadataList.size() == 0) {
+            return -1;
+        }
+        if (i == 0) {
+            return 0;
+        }
+        if (thisMetadataList.size() == thatMetadataList.size()) {
+            //assume no rearrangments if lists are the same size
+            return i;
+        }
+
+        Metadata thisMetadata = thisMetadataList.get(i);
+        String embeddedPath = thisMetadata.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
+        if (embeddedPath == null) {
+            return -1;
+        }
+        if (i < thatMetadataList.size()) {
+        }
+
+        for (int j = 0; j < thatMetadataList.size(); j++) {
+            String thatEmbeddedPath = thatMetadataList.get(j).get(
+                    RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
+            if (embeddedPath.equals(thatEmbeddedPath)) {
+                return j;
             }
-            if (b > 0) {
-                int len = token.length();
-                for (int i = 0; i < b; i++) {
-                    summStatsB.addValue(len);
-                }
-                p = (double)b/(double)thatTokenCount;
-                entB += p*FastMath.log(base, p);
-            }
         }
-
-        if (thisTokenCount > 0) {
-            entA = (-1.0d/(double)thisTokenCount)*entA;
-            output.put(HEADERS.TOKEN_ENTROPY_RATE+thisExtension,
-                    Double.toString(entA));
-        }
-        if (thatTokenCount > 0) {
-            entB = (-1.0d/(double)thatTokenCount)*entB;
-            output.put(HEADERS.TOKEN_ENTROPY_RATE+thatExtension,
-                    Double.toString(entB));
-        }
-
-        output.put(HEADERS.TOKEN_LENGTH_SUM+thisExtension,
-                Integer.toString((int) summStatsA.getSum()));
-        output.put(HEADERS.TOKEN_LENGTH_SUM+thatExtension,
-                Integer.toString((int)summStatsB.getSum()));
-
-        output.put(HEADERS.TOKEN_LENGTH_MEAN+thisExtension,
-                Double.toString(summStatsA.getMean()));
-        output.put(HEADERS.TOKEN_LENGTH_MEAN+thatExtension,
-                Double.toString(summStatsB.getMean()));
-
-        output.put(HEADERS.TOKEN_LENGTH_STD_DEV+thisExtension,
-                Double.toString(summStatsA.getStandardDeviation()));
-        output.put(HEADERS.TOKEN_LENGTH_STD_DEV+thatExtension,
-                Double.toString(summStatsB.getStandardDeviation()));
-
+        return -1;
     }
 
 
@@ -350,6 +395,7 @@ public class BasicFileComparer extends AbstractProfiler {
 
         float dice = (float) diceNum / (float) diceDenom;
         float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + thoseTokens.getTokenCount());
+
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thisExtension,
                 Integer.toString(theseTokens.getUniqueTokenCount()));
         data.put(HEADERS.NUM_UNIQUE_TOKENS + thatExtension,
@@ -358,15 +404,9 @@ public class BasicFileComparer extends AbstractProfiler {
                 Float.toString(dice));
         data.put(COMPARISON_HEADERS.OVERLAP.name(), Float.toString(overlap));
 
-        data.put(HEADERS.TOKEN_COUNT + thisExtension, Integer.toString(theseTokens.getTokenCount()));
-        data.put(HEADERS.TOKEN_COUNT + thatExtension, Integer.toString(thoseTokens.getTokenCount()));
-
-        handleWordCounts(data, theseTokens, thisExtension);
-        handleWordCounts(data, thoseTokens, thatExtension);
 
         handleUniques(data, tokens, thisExtension, true);
         handleUniques(data, tokens, thatExtension, false);
-
         handleDiffs(data, tokens);
     }
 
@@ -445,7 +485,7 @@ public class BasicFileComparer extends AbstractProfiler {
             for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
                 if (e.getValue().b == 0) {
                     if (queue.top() == null || queue.size() < topNUniques ||
-                            e.getValue().a >= queue.top().getValue()){
+                            e.getValue().a >= queue.top().getValue()) {
                         queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().a));
                     }
                 }
@@ -454,7 +494,7 @@ public class BasicFileComparer extends AbstractProfiler {
             for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
                 if (e.getValue().a == 0) {
                     if (queue.top() == null || queue.size() < topNUniques ||
-                            e.getValue().a >= queue.top().getValue()){
+                            e.getValue().a >= queue.top().getValue()) {
                         queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().b));
                     }
                 }
@@ -489,12 +529,12 @@ public class BasicFileComparer extends AbstractProfiler {
         protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
             int v1 = Math.abs(arg0.getValue());
             int v2 = Math.abs(arg1.getValue());
-            if (v1 < v2){
+            if (v1 < v2) {
                 return true;
             } else if (v1 == v2) {
                 if (arg0.getValue() < arg1.getValue()) {
                     return true;
-                } else if(arg0.getToken().compareTo(arg1.getToken()) > 0) {
+                } else if (arg0.getToken().compareTo(arg1.getToken()) > 0) {
                     return true;
                 }
             }
@@ -502,6 +542,7 @@ public class BasicFileComparer extends AbstractProfiler {
         }
 
     }
+
     class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
 
         MutableValueIntPriorityQueue(int maxSize) {
@@ -510,7 +551,7 @@ public class BasicFileComparer extends AbstractProfiler {
 
         @Override
         protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
-            if (arg0.getValue() < arg1.getValue()){
+            if (arg0.getValue() < arg1.getValue()) {
                 return true;
             } else if (arg0.getValue() == arg1.getValue() &&
                     arg0.getToken().compareTo(arg1.getToken()) < 0) {
@@ -529,7 +570,7 @@ public class BasicFileComparer extends AbstractProfiler {
         }
 
         @Override
-        public void increment (String s){
+        public void increment(String s) {
             PairCount p = m.get(s);
             if (p == null) {
                 p = new PairCount();
@@ -557,12 +598,13 @@ public class BasicFileComparer extends AbstractProfiler {
     class CounterB extends TokenCounter {
 
         private final Map<String, PairCount> m;
+
         CounterB(Map<String, PairCount> m) {
             this.m = m;
         }
 
         @Override
-        public void increment(String s){
+        public void increment(String s) {
             PairCount p = m.get(s);
             if (p == null) {
                 p = new PairCount();

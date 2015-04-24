@@ -55,12 +55,12 @@ public class ProfilerBatchTest extends FSBatchTestBase {
                 st.close();
             }
             if (conn != null) {
-                dbUtil.shutDownDB(conn);
+               conn.close();
             }
         }
 
         assertEquals(3, fNames.size());
         assertTrue("file1.pdf.json", fNames.contains("file1.pdf.json"));
-        assertTrue("file2.doc.json", fNames.contains("file1.pdf.json"));
+        assertTrue("file2_attachANotB.doc.json", fNames.contains("file1.pdf.json"));
     }
 }

@@ -20,8 +20,6 @@
             description="number of fileConsumers threads"/>
     <option opt="thisDir" hasArg="true"
             description="this dir for analysis" required="false"/>
-    <option opt="outputFile" hasArg="true"
-            description="name of file to which to write results"/>
     <option opt="dbDir" hasArg="true"
             description="name of db directory or file to which to write results"/>
     </commandline>
@@ -40,14 +38,9 @@
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
         />
- <!--   srcDir="src/test/resources/test-documents/testA"-->
-
-
-    <!--              outputFile="target/test-classes/test-output-results_all.csv" -->
 
     <consumers builderClass="org.apache.tika.eval.batch.SingleFileProfilerBuilder"
                thisDir="src/test/resources/test-documents/testA"
-               tableName="comparisons"
                langModelDir="src/test/resources/langmodels"/>
 
 

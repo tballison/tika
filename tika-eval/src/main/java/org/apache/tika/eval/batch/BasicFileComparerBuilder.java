@@ -18,6 +18,8 @@ package org.apache.tika.eval.batch;
  */
 
 import java.io.File;
+import java.sql.Types;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +30,12 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.BasicFileComparer;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
-import org.apache.tika.eval.io.JDBCTableWriter;
-import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.eval.io.EvalDBWriter;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
@@ -48,51 +51,58 @@ public class BasicFileComparerBuilder extends AbstractConsumersBuilder {
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
         File thisRootDir = getNonNullFile(localAttrs, "thisDir");
         File thatRootDir = getNonNullFile(localAttrs, "thatDir");
-        boolean append = PropsUtil.getBoolean(localAttrs.get("append"), false);
+        boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
+        boolean crawlingInputDir = PropsUtil.getBoolean(localAttrs.get("crawlingInputDir"), false);
 
         //make sure to init BasicFileComparer _before_ building writer!
         BasicFileComparer.init(thisRootDir, thatRootDir);
-        File outputFile = getFile(localAttrs, "outputFile");
         File dbDir = getFile(localAttrs, "dbDir");
-        String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.initLangDetectorFactory(langModelDir, 31415962L);
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
 
 
-        TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName,
-                thisRootDir, thatRootDir, append);
-
+        EvalDBWriter writer = buildDBWriter(dbDir, append);
 
         for (int i = 0; i < numConsumers; i++) {
-            BasicFileComparer consumer = new BasicFileComparer(queue, minJsonLength, maxJsonLength);
+            BasicFileComparer consumer = new BasicFileComparer(queue, crawlingInputDir,
+                    minJsonLength, maxJsonLength);
             consumer.setTableWriter(writer);
             consumers.add(consumer);
         }
         return new BasicFileComparerManager(consumers, writer);
     }
 
-    private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
-                                         String tableName, File thisRootDir, File thatRootDir, boolean append) {
-        if (dbDir != null && tableName != null) {
-            return buildDBWriter(whichDB, dbDir, tableName, thisRootDir, thatRootDir, append);
-        }
-        throw new RuntimeException("Must specify a database directory and table name.");
-    }
 
-    private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName,
-                                      File thisRootDir, File thatRootDir, boolean append) {
-        TableWriter writer = null;
+    private EvalDBWriter buildDBWriter(File dbDir, boolean append) {
+        if (dbDir == null) {
+            throw new RuntimeException("Must specify a database directory and table name.");
+        }
+        EvalDBWriter writer = null;
         try {
             DBUtil util = new H2Util();
 
-            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), util, dbDir, tableName, append);
-            ((JDBCTableWriter)writer).addPairTable(thisRootDir.getName(), thatRootDir.getName());
+            Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
+            tableInfo.put(BasicFileComparer.COMPARISONS_TABLE, BasicFileComparer.getHeaders());
+            tableInfo.put(BasicFileComparer.PAIR_NAMES_TABLE, getPairNamesCols());
+            tableInfo.put(BasicFileComparer.EXCEPTIONS_TABLE+BasicFileComparer.thisExtension,
+                    AbstractProfiler.getExceptionHeaders());
+            tableInfo.put(BasicFileComparer.EXCEPTIONS_TABLE+BasicFileComparer.thatExtension,
+                    AbstractProfiler.getExceptionHeaders());
+            writer = new EvalDBWriter(tableInfo, util, dbDir, append);
         } catch (Exception e){
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
         return writer;
+    }
+
+    public Map<String, ColInfo> getPairNamesCols() {
+        Map<String, ColInfo> m = new HashMap<String, ColInfo>();
+        m.put("DIR_NAME_A", new ColInfo(1, Types.VARCHAR, 128));
+        m.put("DIR_NAME_B", new ColInfo(2, Types.VARCHAR, 128));
+        return m;
     }
 
     private File getNonNullFile(Map<String, String> attrs, String key) {

@@ -22,31 +22,21 @@ import java.util.List;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.eval.io.EvalDBWriter;
 
 
 public class BasicFileComparerManager extends ConsumersManager {
 
-    private final TableWriter writer;
+    private final EvalDBWriter writer;
 
-    public BasicFileComparerManager(List<FileResourceConsumer> consumers, TableWriter writer) {
+    public BasicFileComparerManager(List<FileResourceConsumer> consumers, EvalDBWriter writer) {
         super(consumers);
         this.writer = writer;
     }
 
-    @Override
-    public void init() {
-        try {
-            writer.writeHeaders();
-            writer.init();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void shutdown() {
-        writer.shutdown();
         try {
             writer.close();
         } catch (IOException e) {

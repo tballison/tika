@@ -27,8 +27,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.tika.eval.BasicFileComparer;
 import org.apache.tika.eval.db.H2Util;
-import org.apache.tika.eval.io.JDBCTableWriter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.ToHTMLContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -891,7 +891,7 @@ public class FileComparerResultDumper {
 
     private String[] getDirNames(Connection connection) throws SQLException {
         Statement st = connection.createStatement();
-        String sql = "select DIR_NAME_A, DIR_NAME_B from "+ JDBCTableWriter.PAIR_NAMES_TABLE;
+        String sql = "select DIR_NAME_A, DIR_NAME_B from "+ BasicFileComparer.PAIR_NAMES_TABLE;
         ResultSet rs = st.executeQuery(sql);
         rs.next();
         String[] ret = new String[2];

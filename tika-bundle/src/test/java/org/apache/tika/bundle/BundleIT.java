@@ -195,7 +195,7 @@ public class BundleIT {
         context.set(Parser.class, parser);
 
         InputStream stream
-                = new FileInputStream("src/test/resources/test-documents.zip");
+                = new FileInputStream("src/test/resources/test-dirs.zip");
         try {
             parser.parse(stream, handler, new Metadata(), context);
         } finally {

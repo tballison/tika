@@ -1,5 +1,4 @@
-package org.apache.tika.eval.batch;
-
+package org.apache.tika.eval.tokens;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,32 +15,24 @@ package org.apache.tika.eval.batch;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import java.io.IOException;
-import java.util.List;
-
-import org.apache.tika.batch.ConsumersManager;
-import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.io.EvalDBWriter;
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 
-public class SingleFileProfilerManager extends ConsumersManager {
+public class TokenStats {
+    private final double entropy;
+    private final SummaryStatistics summaryStatistics;
 
-    private final EvalDBWriter writer;
-
-    public SingleFileProfilerManager(List<FileResourceConsumer> consumers, EvalDBWriter writer) {
-        super(consumers);
-        this.writer = writer;
+    public TokenStats(double entropy, SummaryStatistics summaryStatistics) {
+        this.entropy = entropy;
+        this.summaryStatistics = summaryStatistics;
     }
 
+    public SummaryStatistics getSummaryStatistics() {
+        return summaryStatistics;
+    }
 
-    @Override
-    public void shutdown() {
-        try {
-            writer.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public double getEntropy() {
 
+        return entropy;
     }
 }

@@ -1,21 +1,11 @@
 package org.apache.tika.eval;
 
-import java.io.File;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResource;
-import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
-import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.eval.batch.BasicFileComparerManager;
-import org.apache.tika.eval.db.H2Util;
-import org.apache.tika.eval.io.JDBCTableWriter;
-import org.apache.tika.eval.io.TableWriter;
-import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
 
 /*
@@ -39,9 +29,13 @@ import org.w3c.dom.Node;
  *
  * This is a toy dev class!!!
  *
- * */
+ */
 public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
-
+    @Override
+    public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
+        return null;
+    }
+/*
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
         List<FileResourceConsumer> consumers = new LinkedList<FileResourceConsumer>();
@@ -79,7 +73,7 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
     private TableWriter buildDBWriter(File dbDir, String tableName) {
         TableWriter writer;
         try {
-            writer = new JDBCTableWriter(BasicFileComparer.getHeaders(), new H2Util(), dbDir, tableName, false);
+            writer = new EvalDBWriter(BasicFileComparer.getHeaders(), new H2Util(), dbDir, tableName, false);
         } catch (Exception e){
             throw new RuntimeException(e);
         }
@@ -101,5 +95,5 @@ public class GeneralConsumersManagerBuilder extends AbstractConsumersBuilder {
         }
         return new File(filePath);
     }
-
+*/
 }

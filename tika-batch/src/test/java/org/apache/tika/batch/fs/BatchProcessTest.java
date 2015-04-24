@@ -18,21 +18,22 @@ package org.apache.tika.batch.fs;
 
 
 import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.BatchProcess;
 import org.apache.tika.batch.BatchProcessDriverCLI;
+import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
+import org.apache.tika.batch.testutils.StreamStrings;
 import org.apache.tika.io.IOUtils;
 import org.junit.Test;
 
 public class BatchProcessTest extends FSBatchTestBase {
+    public final static String FS_BATCH_PROCESS_CLASS = "org.apache.tika.batch.fs.FSBatchProcessCLI";
 
     @Test(timeout = 15000)
     public void oneHeavyHangTest() throws Exception {
@@ -40,7 +41,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         File outputDir = getNewOutputDir("one_heavy_hang-");
 
         Map<String, String> args = getDefaultArgs("one_heavy_hang", outputDir);
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
         assertEquals(5, outputDir.listFiles().length);
         File hvyHang = new File(outputDir, "test0_heavy_hang.xml.xml");
@@ -57,7 +58,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         //all timedouts and shuts down.
         File outputDir = getNewOutputDir("allHeavyHangs-");
         Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", outputDir);
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
 
         assertEquals(3, outputDir.listFiles().length);
@@ -75,7 +76,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         File outputDir = getNewOutputDir("allHeavyHangsCrazyNumberConsumers-");
         Map<String, String> args = getDefaultArgs("heavy_heavy_hangs", outputDir);
         args.put("numConsumers", "100");
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
         assertEquals(7, outputDir.listFiles().length);
 
@@ -104,7 +105,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("numConsumers", "2");
         args.put("maxQueueSize", "2");
         args.put("timeoutThresholdMillis", "100000000");//make sure that the batch process doesn't time out
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
         assertEquals(2, outputDir.listFiles().length);
 
@@ -132,7 +133,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("numConsumers", "3");
         args.put("timeoutThresholdMillis", "30000");
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
 
         assertEquals(4, outputDir.listFiles().length);
@@ -153,7 +154,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         Map<String, String> args = getDefaultArgs("no_restart", outputDir);
         args.put("numConsumers", "1");
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
 
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
@@ -185,7 +186,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("timeoutThresholdMillis", "300000");//effectively never
         args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
 
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
@@ -209,7 +210,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("timeoutThresholdMillis", "10000");
         args.put("pauseOnEarlyTerminationMillis", "20000");//let the parser have up to 20 seconds
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
@@ -228,7 +229,7 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("numConsumers", "1");
         args.put("maxAliveTimeSeconds", "20");//main process loop should stop after 5 seconds
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args);
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args);
         StreamStrings streamStrings = ex.execute();
         File[] files = outputDir.listFiles();
         assertEquals(1, files.length);
@@ -245,7 +246,8 @@ public class BatchProcessTest extends FSBatchTestBase {
         Map<String, String> args = getDefaultArgs("noisy_parsers", outputDir);
         args.put("numConsumers", "1");
         args.put("hangOnInit", "true");
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args, "/tika-batch-config-MockConsumersBuilder.xml");
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args,
+                "/tika-batch-config-MockConsumersBuilder.xml");
         StreamStrings streamStrings = ex.execute();
         assertEquals(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE, ex.getExitValue());
         assertContains("causeForTermination='CONSUMERS_MANAGER_DIDNT_INIT_IN_TIME_NO_RESTART'", streamStrings.getOutString());
@@ -259,85 +261,11 @@ public class BatchProcessTest extends FSBatchTestBase {
         args.put("numConsumers", "1");
         args.put("hangOnShutdown", "true");
 
-        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(args, "/tika-batch-config-MockConsumersBuilder.xml");
+        BatchProcessTestExecutor ex = new BatchProcessTestExecutor(FS_BATCH_PROCESS_CLASS, args,
+                "/tika-batch-config-MockConsumersBuilder.xml");
         StreamStrings streamStrings = ex.execute();
         assertEquals(BatchProcessDriverCLI.PROCESS_NO_RESTART_EXIT_CODE, ex.getExitValue());
         assertContains("ConsumersManager did not shutdown within", streamStrings.getOutString());
     }
 
-    private class BatchProcessTestExecutor {
-        private final Map<String, String> args;
-        private final String configPath;
-        private int exitValue = Integer.MIN_VALUE;
-
-        public BatchProcessTestExecutor(Map<String, String> args) {
-            this(args, "/tika-batch-config-test.xml");
-        }
-
-        public BatchProcessTestExecutor(Map<String, String> args, String configPath) {
-            this.args = args;
-            this.configPath = configPath;
-        }
-
-        private StreamStrings execute() {
-            Process p = null;
-            try {
-                ProcessBuilder b = getNewBatchRunnerProcess(configPath, args);
-                p = b.start();
-                StringStreamGobbler errorGobbler = new StringStreamGobbler(p.getErrorStream());
-                StringStreamGobbler outGobbler = new StringStreamGobbler(p.getInputStream());
-                Thread errorThread = new Thread(errorGobbler);
-                Thread outThread = new Thread(outGobbler);
-                errorThread.start();
-                outThread.start();
-                while (true) {
-                    try {
-                        exitValue = p.exitValue();
-                        break;
-                    } catch (IllegalThreadStateException e) {
-                        //still going;
-                    }
-                }
-                errorGobbler.stopGobblingAndDie();
-                outGobbler.stopGobblingAndDie();
-                errorThread.interrupt();
-                outThread.interrupt();
-                return new StreamStrings(outGobbler.toString(), errorGobbler.toString());
-            } catch (IOException e) {
-                fail();
-            } finally {
-                destroyProcess(p);
-            }
-            return null;
-        }
-
-        private int getExitValue() {
-            return exitValue;
-        }
-
-    }
-
-    private class StreamStrings {
-        private final String outString;
-        private final String errString;
-
-        private StreamStrings(String outString, String errString) {
-            this.outString = outString;
-            this.errString = errString;
-        }
-
-        private String getOutString() {
-            return outString;
-        }
-
-        private String getErrString() {
-            return errString;
-        }
-
-        @Override
-        public String toString() {
-            return "OUT>>"+outString+"<<\n"+
-                    "ERR>>"+errString+"<<\n";
-        }
-    }
 }

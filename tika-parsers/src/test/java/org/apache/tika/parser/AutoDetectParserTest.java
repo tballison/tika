@@ -457,7 +457,7 @@ public class AutoDetectParserTest {
          *
          * <pre>
          * Test parameters:
-         *   resourceRealName        = /test-documents/testEXCEL.xls
+         *   resourceRealName        = /test-dirs/testEXCEL.xls
          *   resourceStatedName      = null
          *   realType                = application/vnd.ms-excel
          *   statedType              = null

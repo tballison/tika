@@ -30,11 +30,6 @@ public class H2Util extends DBUtil {
     }
 
     @Override
-    public void shutDownDB(Connection conn) throws IOException {
-        //no-op should work when all connections are closed
-    }
-
-    @Override
     public String getConnectionString(File dbFile) {
         return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(dbFile.getAbsolutePath());
     }

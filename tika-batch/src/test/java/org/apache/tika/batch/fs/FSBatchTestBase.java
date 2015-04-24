@@ -81,17 +81,6 @@ public abstract class FSBatchTestBase extends TikaTest {
         }
     }
 
-    protected void destroyProcess(Process p) {
-        if (p == null)
-            return;
-
-        try {
-            p.exitValue();
-        } catch (IllegalThreadStateException e) {
-            p.destroy();
-        }
-    }
-
     File getNewOutputDir(String subdirPrefix) throws IOException {
         File outputDir = File.createTempFile(subdirPrefix, "", outputRoot);
         outputDir.delete();
@@ -144,43 +133,6 @@ public abstract class FSBatchTestBase extends TikaTest {
         return runner;
     }
 
-    public ProcessBuilder getNewBatchRunnerProcess(String testConfig, Map<String, String> args) {
-        List<String> argList = new ArrayList<String>();
-        for (Map.Entry<String, String> e : args.entrySet()) {
-            argList.add("-"+e.getKey());
-            argList.add(e.getValue());
-        }
-
-        String[] fullCommandLine = commandLine(testConfig, argList.toArray(new String[argList.size()]));
-        return new ProcessBuilder(fullCommandLine);
-    }
-
-    private String[] commandLine(String testConfig, String[] args) {
-        List<String> commandLine = new ArrayList<String>();
-        commandLine.add("java");
-        commandLine.add("-Dlog4j.configuration=file:"+
-            this.getClass().getResource("/log4j_process.properties").getFile());
-        commandLine.add("-Xmx128m");
-        commandLine.add("-cp");
-        String cp = System.getProperty("java.class.path");
-        //need to test for " " on *nix, can't just add double quotes
-        //across platforms.
-        if (cp.contains(" ")){
-            cp = "\""+cp+"\"";
-        }
-        commandLine.add(cp);
-        commandLine.add("org.apache.tika.batch.fs.FSBatchProcessCLI");
-
-        String configFile = this.getClass().getResource(testConfig).getFile();
-        commandLine.add("-bc");
-
-        commandLine.add(configFile);
-
-        for (String s : args) {
-            commandLine.add(s);
-        }
-        return commandLine.toArray(new String[commandLine.size()]);
-    }
 
     public BatchProcessDriverCLI getNewDriver(String testConfig,
                                               String[] args) throws Exception {

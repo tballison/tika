@@ -36,7 +36,7 @@ public class TypeDetectionBenchmark {
             }
         } else {
             benchmark(new File(
-                    "../tika-parsers/src/test/resources/test-documents")); 
+                    "../tika-parsers/src/test/resources/test-dirs"));
         }
         System.out.println(
                 "Total benchmark time: "

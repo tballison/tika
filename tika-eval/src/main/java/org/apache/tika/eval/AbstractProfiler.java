@@ -25,8 +25,11 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -38,6 +41,8 @@ import com.cybozu.labs.langdetect.Language;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -49,9 +54,10 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
-import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.eval.io.EvalDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
+import org.apache.tika.eval.tokens.TokenStats;
 import org.apache.tika.eval.util.MimeUtil;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
@@ -60,23 +66,46 @@ import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.mime.MimeTypeException;
 import org.apache.tika.parser.RecursiveParserWrapper;
+import org.apache.tika.utils.ExceptionUtils;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
+    public static final String PAIR_NAMES_TABLE = "pair_names";
+    public static final String EXCEPTIONS_TABLE = "exceptions";
+    public static final String JSON_PARSE_EXCEPTION = "Json parse exception";
+
     private final static String UNKNOWN_EXTENSION = "unk";
+
+    public enum EXCEPTION_HEADERS {
+        FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        EMBEDDED_FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        TIMEOUT_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
+        OOM_ERROR(new ColInfo(-1, Types.BOOLEAN)),
+        ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
+        SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
+        ENCRYPTED_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
+        ACCESS_PERMISSION_EXCEPTION(new ColInfo(-1, Types.BOOLEAN));
+
+        private final ColInfo colInfo;
+
+        EXCEPTION_HEADERS(ColInfo colInfo) {
+            this.colInfo = colInfo;
+        }
+
+        public ColInfo getColInfo() {
+            return colInfo;
+        }
+    }
 
     public enum HEADERS {
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
         FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
-        TIMEOUT_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
-        OOM_ERROR(new ColInfo(-1, Types.BOOLEAN)),
+        EMBEDDED_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
+        IS_EMBEDDED(new ColInfo(-1, Types.BOOLEAN)),
+        EMBEDDED_FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        JSON_EX(new ColInfo(-1, Types.VARCHAR, 512)),
         JSON_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
-        JSON_EX(new ColInfo(-1, Types.VARCHAR, 512)),
-        ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
-        SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
-        ENCRYPTED_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
-        ACCESS_PERMISSION_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
         DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 128)),
         DETECTED_FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 32)),
         ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
@@ -106,7 +135,23 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         protected ColInfo getColInfo() {
             return colInfo;
         }
-    };
+    }
+    private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
+    private static Map<String, ColInfo> EXCEPTION_HEADERS_MAP = new HashMap<String, ColInfo>();
+
+    static {
+        for (EXCEPTION_HEADERS header : EXCEPTION_HEADERS.values()) {
+            EXCEPTION_HEADERS_MAP.put(header.name(), new ColInfo(EXCEPTION_HEADERS_MAP.size() + 1,
+                    header.getColInfo().getType(), header.getColInfo().getPrecision()));
+
+        }
+        EXCEPTION_HEADERS_MAP = Collections.unmodifiableMap(EXCEPTION_HEADERS_MAP);
+    }
+
+    public static Map<String, ColInfo> getExceptionHeaders() {
+        return EXCEPTION_HEADERS_MAP;
+    }
+
 
 
     final static int MAX_TOKENS = 100000;
@@ -118,8 +163,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     //that actual causes can be counted.
     private final static Pattern CAUSED_BY_SNIPPER =
             Pattern.compile("(Caused by: [^:]+):[^\\r\\n]+");
-    private final static Pattern OBJECT_ID_SNIPPER =
-            Pattern.compile("(?s)^(org\\.apache\\.tika\\.exception\\.TikaException[^\\r\\n]+?)@[a-f0-9]+(\\s*[\\r\\n].*$)");
 
     private final static Pattern ACCESS_PERMISSION_EXCEPTION =
             Pattern.compile("org\\.apache\\.tika\\.exception\\.AccessPermissionException");
@@ -127,18 +170,25 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("org\\.apache\\.tika.exception\\.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
-    protected TableWriter writer;
+    protected EvalDBWriter writer;
+    private final boolean crawlingInputDir;
 
-
-    public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue) {
+    public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue, boolean crawlingInputDir) {
         super(fileQueue);
+        this.crawlingInputDir = crawlingInputDir;
     }
 
-
+    public String getInputFileName(String fName) {
+        if (crawlingInputDir) {
+            return fName;
+        }
+        Matcher m = FILE_NAME_CLEANER.matcher(fName);
+        return m.replaceAll("");
+    }
 
     List<Metadata> getMetadata(File thisFile) {
         Reader reader = null;
-        List<Metadata> metadataList = new ArrayList<Metadata>();
+        List<Metadata> metadataList = null;
         try {
             InputStream is = new FileInputStream(thisFile);
             if (thisFile.getName().endsWith("bz2")) {
@@ -162,7 +212,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return metadataList;
     }
 
-    public void setTableWriter(TableWriter writer) {
+    public void setTableWriter(EvalDBWriter writer) {
         this.writer = writer;
     }
 
@@ -183,6 +233,9 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     String getOriginalFileExtension(String fName) {
+        if (fName == null) {
+            return "";
+        }
         Matcher m = Pattern.compile("\\.([^\\.]+)\\.json(?:\\.(?:bz2|gz(?:ip)?|zip))?$").matcher(fName);
         if (m.find()) {
             return m.group(1);
@@ -190,44 +243,31 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return "";
     }
 
-    String getTime(List<Metadata> metadatas) {
-        if (metadatas == null) {
-            return "";
-        }
+    String getTime(Metadata m) {
         String elapsed = "-1";
 
-        for (Metadata m : metadatas) {
-            String v = m.get(RecursiveParserWrapper.PARSE_TIME_MILLIS);
-            if (v != null) {
-                return v;
-            }
+        String v = m.get(RecursiveParserWrapper.PARSE_TIME_MILLIS);
+        if (v != null) {
+            return v;
         }
         return elapsed;
     }
 
 
-    int countMetadataValues(List<Metadata> metadatas) {
-        if (metadatas == null) {
+    int countMetadataValues(Metadata m) {
+        if (m == null) {
             return 0;
         }
-
         int i = 0;
-        for (Metadata m : metadatas) {
-            for (String n : m.names()) {
-                i += m.getValues(n).length;
-            }
+        for (String n : m.names()) {
+            i += m.getValues(n).length;
         }
         return i;
     }
 
-    void getExceptionStrings(List<Metadata> metadataList, String extension, Map<String, String> data) {
+    void getExceptionStrings(Metadata metadata, Map<String, String> data) {
 
-        if (metadataList == null || metadataList.size() == 0) {
-            return;
-        }
-        //for now just take the exception from the parent document;
-        Metadata m = metadataList.get(0);
-        String fullTrace = m.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX + "runtime");
+        String fullTrace = metadata.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX + "runtime");
         if (fullTrace != null) {
             //check for "expected" exceptions...exceptions
             //that can't be fixed.
@@ -235,66 +275,46 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
             Matcher matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(HEADERS.ACCESS_PERMISSION_EXCEPTION.name()+extension, "true");
+                data.put(EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name(), "true");
                 return;
             }
             matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(HEADERS.ENCRYPTED_EXCEPTION.name()+extension, "true");
+                data.put(EXCEPTION_HEADERS.ENCRYPTED_EXCEPTION.name(), "true");
                 return;
             }
 
-            data.put(HEADERS.ORIG_STACK_TRACE + extension, fullTrace);
+            data.put(EXCEPTION_HEADERS.ORIG_STACK_TRACE.name(), fullTrace);
             //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
             //org.apache.tika.exception.TikaException: TIKA-198: Illegal
             //IOException from org.apache.tika.parser.microsoft.OfficeParser@2b1ea6ee
             //For reporting purposes, let's snip off the object id so that we can more
             //easily count exceptions.
-            String sortTrace = fullTrace;
-            matcher = OBJECT_ID_SNIPPER.matcher(sortTrace);
-            if (matcher.find()) {
-                sortTrace = matcher.group(1) + matcher.group(2);
-            }
+            String sortTrace = ExceptionUtils.trimMessage(fullTrace);
+
             matcher = CAUSED_BY_SNIPPER.matcher(sortTrace);
             sortTrace = matcher.replaceAll("$1");
             sortTrace = sortTrace.replaceAll("org.apache.tika.", "o.a.t.");
-            data.put(HEADERS.SORT_STACK_TRACE + extension, sortTrace);
+            data.put(EXCEPTION_HEADERS.SORT_STACK_TRACE.name(), sortTrace);
         }
 
     }
 
-    protected static String getContent(List<Metadata> metadataList, int maxLength) {
+    protected static String getContent(Metadata metadata, int maxLength) {
         StringBuilder content = new StringBuilder();
-        if (metadataList == null) {
+        String c = metadata.get(RecursiveParserWrapper.TIKA_CONTENT);
+        if (c == null) {
             return "";
         }
-        for (Metadata m : metadataList) {
-            String c = m.get(RecursiveParserWrapper.TIKA_CONTENT);
-            if (c == null) {
-                continue;
-            }
-            int localLen = c.length();
-            if (content.length()+localLen > maxLength) {
-                int allowedAmount = maxLength-content.length();
-                if (allowedAmount <= 0) {
-                    return content.toString();
-                }
-                String substr = c.substring(0,allowedAmount);
-                content.append(substr);
-                return content.toString();
-            } else {
-                content.append(c);
-            }
+        if (c.length() > maxLength) {
+            c = c.substring(0, maxLength);
         }
-        return content.toString();
+        return c;
     }
 
-    void langid(List<Metadata> metadataList, String extension, Map<String, String> data) {
-        String content = getContent(metadataList, MAX_LEN_FOR_LANG_ID);
-        langid(content, extension, data);
-    }
 
-    void langid(String content, String extension, Map<String, String> data) {
+    void langid(Metadata metadata, String extension, Map<String, String> data) {
+        String content = getContent(metadata, MAX_LEN_FOR_LANG_ID);
         if (content.length() < 200) {
             return;
         }
@@ -333,11 +353,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    void getFileTypes(List<Metadata> metadata, String extension, Map<String, String> output) {
-        if (metadata == null || metadata.size() == 0) {
+    void getFileTypes(Metadata metadata, String extension, Map<String, String> output) {
+        if (metadata == null) {
             return;
         }
-        String type = metadata.get(0).get(Metadata.CONTENT_TYPE);
+        String type = metadata.get(Metadata.CONTENT_TYPE);
         if (type == null) {
             return;
         }
@@ -391,28 +411,17 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
 
         data.put(HEADERS.TOP_N_WORDS+extension, sb.toString());
-        data.put(HEADERS.NUM_EN_STOPS_TOP_N+extension, Integer.toString(stops));
+        data.put(HEADERS.NUM_EN_STOPS_TOP_N + extension, Integer.toString(stops));
     }
 
-    void countTokens(final List<Metadata> metadataList, final TokenCounter counter) throws IOException {
-        Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
-        TokenCounter tokens;
-        if (metadataList == null){
+    void countTokens(final Metadata metadata, final TokenCounter counter) throws IOException {
+        if (metadata == null){
             return;
         }
-        int contentLength = 0;
-        for (Metadata m : metadataList) {
-            String content = m.get(RecursiveParserWrapper.TIKA_CONTENT);
-            if (content == null) {
-                continue;
-            }
-            contentLength += content.length();
-            addTokens(content, analyzer, counter);
-            if (contentLength > MAX_STRING_LENGTH || counter.getUniqueTokenCount() > MAX_TOKENS) {
-                //log this
-                return;
-            }
-        }
+        Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
+        TokenCounter tokens;
+        String content = getContent(metadata, MAX_STRING_LENGTH);
+        addTokens(content, analyzer, counter);
         return;
     }
 
@@ -435,6 +444,84 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         stream.end();
         stream.close();
         return;
+    }
+
+    protected void addSingleFileStats(Metadata metadata, Set<String> tokens,
+                                      TokenCounter tokenCounter, String extension, Map<String, String> output) throws IOException {
+        if (metadata == null) {
+            return;
+        }
+        handleExceptionStrings(metadata, extension, output);
+        getFileTypes(metadata, extension, output);
+
+        int numMetadataValues = countMetadataValues(metadata);
+        output.put(HEADERS.NUM_METADATA_VALUES + extension,
+                Integer.toString(numMetadataValues));
+
+        output.put(HEADERS.ELAPSED_TIME_MILLIS + extension,
+                getTime(metadata));
+
+        langid(metadata, extension, output);
+        output.put(HEADERS.NUM_UNIQUE_TOKENS + extension,
+                Integer.toString(tokenCounter.getUniqueTokenCount()));
+
+        TokenStats tokenStats = calcTokenStats(tokens, tokenCounter);
+
+        output.put(HEADERS.TOKEN_ENTROPY_RATE + extension,
+                Double.toString(tokenStats.getEntropy()));
+        SummaryStatistics summStats = tokenStats.getSummaryStatistics();
+        output.put(HEADERS.TOKEN_LENGTH_SUM + extension,
+                Integer.toString((int) summStats.getSum()));
+
+        output.put(HEADERS.TOKEN_LENGTH_MEAN + extension,
+                Double.toString(summStats.getMean()));
+
+        output.put(HEADERS.TOKEN_LENGTH_STD_DEV + extension,
+                Double.toString(summStats.getStandardDeviation()));
+
+        output.put(HEADERS.TOKEN_COUNT + extension, Integer.toString(tokenCounter.getTokenCount()));
+
+        handleWordCounts(output, tokenCounter, extension);
+
+    }
+
+    protected void handleExceptionStrings(Metadata metadata,
+                                          String extension, Map<String, String> output) throws IOException {
+        Map<String, String> excOutput = new HashMap<String, String>();
+        getExceptionStrings(metadata, excOutput);
+        if(excOutput.size() > 0) {
+            excOutput.put(HEADERS.FILE_PATH.name(), output.get(HEADERS.FILE_PATH.name()));
+            excOutput.put(HEADERS.EMBEDDED_FILE_PATH.name(), output.get(HEADERS.EMBEDDED_FILE_PATH.name()));
+            writer.writeRow(BasicFileComparer.EXCEPTIONS_TABLE + extension, excOutput);
+        }
+    }
+
+    private TokenStats calcTokenStats(Set<String> tokens, TokenCounter counter) {
+        double ent = 0.0d;
+        double p = 0.0d;
+        double base = 2.0;
+        int tokenCount = counter.getTokenCount();
+        SummaryStatistics summStats = new SummaryStatistics();
+        for (String token : tokens) {
+            int a = counter.getCount(token);
+            if (a < 1) {
+                //this can happen because of the way that tokens are stored
+                continue;
+            }
+            int len = token.length();
+            for (int i = 0; i < a; i++) {
+                summStats.addValue(len);
+            }
+            p = (double)a/(double)tokenCount;
+            ent += p* FastMath.log(base, p);
+        }
+
+        if (tokenCount > 0) {
+            ent = (-1.0d/(double)tokenCount)*ent;
+        }
+
+        return new TokenStats(ent, summStats);
+
     }
 
 

@@ -262,7 +262,7 @@ public class SQLite3ParserTest extends TikaTest {
     //code used for creating the test file
 /*
     private Connection getConnection(String dbFileName) throws Exception {
-        File testDirectory = new File(this.getClass().getResource("/test-documents").toURI());
+        File testDirectory = new File(this.getClass().getResource("/test-dirs").toURI());
         System.out.println("Writing to: " + testDirectory.getAbsolutePath());
         File testDB = new File(testDirectory, dbFileName);
         Connection c = null;
@@ -312,7 +312,7 @@ public class SQLite3ParserTest extends TikaTest {
         ps.setString(7, "2015-01-02");
         ps.setString(8, "2015-01-03 15:17:03");
 //        ps.setClob(9, new StringReader(clobString));
-        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-documents/testWORD_1img.doc")));//contains "quick brown fox"
+        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-dirs/testWORD_1img.doc")));//contains "quick brown fox"
         ps.executeUpdate();
         ps.clearParameters();
 
@@ -325,7 +325,7 @@ public class SQLite3ParserTest extends TikaTest {
         ps.setString(7, "2015-01-04");
         ps.setString(8, "2015-01-03 15:17:03");
         //ps.setClob(9, new StringReader("consectetur adipiscing elit"));
-        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-documents/testWORD_1img.docx")));//contains "The end!"
+        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-dirs/testWORD_1img.docx")));//contains "The end!"
 
         ps.executeUpdate();
 

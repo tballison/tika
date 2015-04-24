@@ -18,6 +18,7 @@ package org.apache.tika.eval.batch;
  */
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -28,12 +29,13 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.BasicFileComparer;
 import org.apache.tika.eval.SingleFileProfiler;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
-import org.apache.tika.eval.io.JDBCTableWriter;
-import org.apache.tika.eval.io.TableWriter;
+import org.apache.tika.eval.io.EvalDBWriter;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
 import org.w3c.dom.Node;
@@ -43,41 +45,45 @@ public class SingleFileProfilerBuilder extends AbstractConsumersBuilder {
 
     @Override
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes, ArrayBlockingQueue<FileResource> queue) {
+
         List<FileResourceConsumer> consumers = new LinkedList<FileResourceConsumer>();
         int numConsumers = BatchProcessBuilder.getNumConsumers(runtimeAttributes);
 
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
         File thisRootDir = getNonNullFile(localAttrs, "thisDir");
 
-        File outputFile = getFile(localAttrs, "outputFile");
         File dbDir = getFile(localAttrs, "dbDir");
-        String tableName = localAttrs.get("tableName");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
         BasicFileComparer.initLangDetectorFactory(langModelDir, 31415962L);
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
-        TableWriter writer = buildTableWriter(outputFile, WHICH_DB, dbDir, tableName, append);
+        boolean crawlingInputDir = PropsUtil.getBoolean(localAttrs.get("crawlingInputDir"), false);
+
+        EvalDBWriter writer = buildTableWriter(dbDir, append);
 
         for (int i = 0; i < numConsumers; i++) {
-            SingleFileProfiler consumer = new SingleFileProfiler(queue, thisRootDir);
+            SingleFileProfiler consumer = new SingleFileProfiler(queue, crawlingInputDir, thisRootDir);
             consumer.setTableWriter(writer);
             consumers.add(consumer);
         }
         return new SingleFileProfilerManager(consumers, writer);
     }
 
-    private TableWriter buildTableWriter(File outputFile, String whichDB, File dbDir,
-                                         String tableName, boolean append) {
-        if (dbDir != null && tableName != null) {
-            return buildDBWriter(whichDB, dbDir, tableName, append);
+    private EvalDBWriter buildTableWriter(File dbDir, boolean append) {
+        if (dbDir != null) {
+            return buildDBWriter(dbDir, append);
         }
-        throw new RuntimeException("Must specify a database directory and table name.");
+        throw new RuntimeException("Must specify a database directory.");
     }
 
-    private TableWriter buildDBWriter(String whichDB, File dbDir, String tableName, boolean append) {
-        TableWriter writer = null;
+    private EvalDBWriter buildDBWriter(File dbDir, boolean append) {
+        EvalDBWriter writer = null;
         try {
             DBUtil util = new H2Util();
-            writer = new JDBCTableWriter(SingleFileProfiler.getHeaders(), util, dbDir, tableName, append);
+            Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
+            tableInfo.put(BasicFileComparer.COMPARISONS_TABLE, BasicFileComparer.getHeaders());
+            tableInfo.put(BasicFileComparer.EXCEPTIONS_TABLE, AbstractProfiler.getExceptionHeaders());
+
+            writer = new EvalDBWriter(tableInfo, util, dbDir, append);
         } catch (Exception e){
             throw new RuntimeException(e);
         }

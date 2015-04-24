@@ -66,8 +66,8 @@ class XMLFatalLogUpdater {
         try {
             is = new FileInputStream(xmlLogFile);
             reader.read(is, new FatalMsgUpdater(AbstractProfiler.HEADERS.FILE_PATH.name(),
-                    AbstractProfiler.HEADERS.OOM_ERROR.name()+columnSuffix,
-                    AbstractProfiler.HEADERS.TIMEOUT_EXCEPTION.name()+columnSuffix));
+                    AbstractProfiler.EXCEPTION_HEADERS.OOM_ERROR.name()+columnSuffix,
+                    AbstractProfiler.EXCEPTION_HEADERS.TIMEOUT_EXCEPTION.name()+columnSuffix));
         } catch (IOException e) {
             throw new RuntimeException("Doh!");
         } finally {

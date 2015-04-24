@@ -291,7 +291,7 @@ public class TestContainerAwareDetector {
     @Test
     public void testRemovalTempfiles() throws Exception {
         assertRemovalTempfiles("testWORD.docx");
-        assertRemovalTempfiles("test-documents.zip");
+        assertRemovalTempfiles("test-dirs.zip");
     }
 
     private int countTemporaryFiles() {
@@ -338,7 +338,7 @@ public class TestContainerAwareDetector {
      
     @Test
     public void testDetectZip() throws Exception {
-        assertTypeByData("test-documents.zip", "application/zip");
+        assertTypeByData("test-dirs.zip", "application/zip");
         assertTypeByData("test-zip-of-zip.zip", "application/zip");
         
         // JAR based formats

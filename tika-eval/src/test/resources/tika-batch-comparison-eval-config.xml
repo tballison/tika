@@ -5,7 +5,7 @@
         pauseOnEarlyTerminationMillis = "500"
         timeoutCheckPulseMillis="1000"
         maxQueueSize="10000"
-        numConsumers="5"
+        numConsumers="1"
         timeoutThresholdMillis="300000"
         >
 
@@ -22,10 +22,10 @@
             description="this dir for analysis" required="false"/>
     <option opt="thatDir" hasArg="true"
             description="thatDir for analysis"/>
-    <option opt="outputFile" hasArg="true"
-            description="name of file to which to write results"/>
     <option opt="dbDir" hasArg="true"
             description="name of db directory or file to which to write results"/>
+    <option opt="includeFilePat" hasArg="true"
+                description="regex for files to include"/>
     </commandline>
 
 
@@ -34,6 +34,7 @@
         child directory of the srcDir directory.
     -->
 	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
+        inputDir="src/test/resources/test-dirs/testA"
 		crawlOrder="sorted"
         maxConsecWaitMillis="5000"
 		maxFilesToAdd="-1" 
@@ -42,17 +43,12 @@
 		excludeFilePat=""
 		maxFileSizeBytes="-1"
         />
-<!--    inputDir="src/test/resources/test-documents/testA"-->
-
-
-<!--              outputFile="target/test-classes/test-output-results_all.csv" -->
 
     <consumers builderClass="org.apache.tika.eval.batch.BasicFileComparerBuilder"
-               thisDir="src/test/resources/test-documents/testA"
-               thatDir="src/test/resources/test-documents/testB"
-               dbDir="target/test-classes/test-output/comparisons.db"
+               thisDir="src/test/resources/test-dirs/testA"
+               thatDir="src/test/resources/test-dirs/testB"
                dbAppend="false"
-               tableName="comparisons"
+               crawlingInputDir="false"
                langModelDir="src/test/resources/langmodels"
                minJsonFileSizeBytes="-1"
                maxJsonFileSizeBytes="2000000"

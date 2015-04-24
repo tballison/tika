@@ -24,7 +24,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -43,37 +46,50 @@ import org.apache.tika.io.IOExceptionWithCause;
  *
  * Beware, this deletes the db file with each initialization.
  */
-public class JDBCTableWriter implements TableWriter {
+public class EvalDBWriter {
 
 
-    public static final String PAIR_NAMES_TABLE = "pair_names";
-    private static Logger logger = Logger.getLogger(TableWriter.class);
+    private static Logger logger = Logger.getLogger(EvalDBWriter.class);
     private final AtomicLong insertedRows = new AtomicLong();
     private final DBUtil dbUtil;
     private final Long commitEveryX = 1000L;
     private final Connection conn;
-    private final Map<String, ColInfo> sortedHeaders;
-    private final String tableName;
+    //map of table names with a map of colname/colInfo
+    private final Map<String, Map<String, ColInfo>> tableInfo;
+    //<tableName, preparedStatement>
+    private final Map<String, PreparedStatement> inserts = new HashMap<String, PreparedStatement>();
 
-    public JDBCTableWriter(Map<String, ColInfo> headers, DBUtil dbUtil,
-                           File dbFile, String tableName, boolean append) throws Exception {
-        this.sortedHeaders = new TreeMap<String, ColInfo>(new ValueComparator(headers));
-        sortedHeaders.putAll(headers);
+    public EvalDBWriter(Map<String, Map<String, ColInfo>> tableInfo, DBUtil dbUtil,
+                        File dbFile, boolean append) throws Exception {
+        this.tableInfo = tableInfo;
         this.dbUtil = dbUtil;
-        this.tableName = tableName;
-        conn = createDB(dbFile, tableName, append);
+
+        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
+            Map<String, ColInfo> cols = table.getValue();
+            Map<String, ColInfo> sorted = new TreeMap<String,ColInfo>(new ValueComparator(cols));
+            sorted.putAll(cols);
+            tableInfo.put(table.getKey(), sorted);
+        }
+        conn = createDB(dbFile, append);
+        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
+            List<String> colNames = new ArrayList<String>();
+            colNames.addAll(table.getValue().keySet());
+            PreparedStatement st = createPreparedInsert(table.getKey(), colNames);
+            inserts.put(table.getKey(), st);
+        }
+
     }
 
-    private PreparedStatement createPreparedInsert(String tableName) throws SQLException {
+    private PreparedStatement createPreparedInsert(String tableName, List<String> colNames) throws SQLException {
         StringBuilder sb = new StringBuilder();
         sb.append("INSERT INTO ").append(tableName);
         sb.append("(");
         int i = 0;
-        for (String k : sortedHeaders.keySet()) {
+        for (String c : colNames) {
             if (i++ > 0) {
                 sb.append(", ");
             }
-            sb.append(k);
+            sb.append(c);
         }
         sb.append(") ");
 
@@ -90,7 +106,7 @@ public class JDBCTableWriter implements TableWriter {
         return conn.prepareStatement(sb.toString());
     }
 
-    private Connection createDB(File dbFile, String tableName, boolean append) throws Exception {
+    private Connection createDB(File dbFile, boolean append) throws Exception {
         Class.forName(dbUtil.getJDBCDriverClass());
 
         //if this is a single file type db, first
@@ -101,14 +117,26 @@ public class JDBCTableWriter implements TableWriter {
         Connection c = dbUtil.getConnection(dbFile);
 
         Set<String> tables = dbUtil.getTables(c);
-        if (append && tables.contains(tableName.toUpperCase(Locale.ROOT))){
-            return c;
+
+        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
+
+            if (append && tables.contains(table.getKey().toUpperCase(Locale.ROOT))) {
+                continue;
+            }
+            if (! append) {
+                dbUtil.dropTableIfExists(c, table.getKey());
+            }
+            createTable(c, table.getKey(), table.getValue());
+
         }
 
-        if (! append) {
-            dbUtil.dropTableIfExists(c, tableName);
-        }
 
+        return c;
+
+    }
+
+    private void createTable(Connection conn, String tableName,
+                             Map<String, ColInfo> sortedHeaders) throws SQLException {
         StringBuilder createSql = new StringBuilder();
         createSql.append("CREATE TABLE "+tableName);
         createSql.append("(");
@@ -129,29 +157,21 @@ public class JDBCTableWriter implements TableWriter {
         }
         createSql.append(")");
 
-        Statement st = c.createStatement();
+        Statement st = conn.createStatement();
         st.execute(createSql.toString());
+
         st.close();
-        c.commit();
-        return c;
+        conn.commit();
 
     }
 
-    @Override
-    public void writeHeaders() {
-        //no-op
-    }
-
-    @Override
-    public void init() throws IOException {
-        //no-op for now
-    }
-
-    @Override
-    public void writeRow(Map<String, String> data) throws IOException {
+    public void writeRow(String tableName, Map<String, String> data) throws IOException {
         try {
-            PreparedStatement p = createPreparedInsert(tableName);
-            DBUtil.insert(p, sortedHeaders, data);
+            PreparedStatement p = inserts.get(tableName);
+            if (p == null) {
+                throw new RuntimeException("Failed to create prepared statement for: "+tableName);
+            }
+            DBUtil.insert(p, tableInfo.get(tableName), data);
             long rows = insertedRows.incrementAndGet();
             if (rows % commitEveryX == 0) {
                 logger.info("writer is committing after "+ rows + " rows");
@@ -162,48 +182,24 @@ public class JDBCTableWriter implements TableWriter {
         }
     }
 
-    @Override
     public void close() throws IOException {
-        System.out.println("about to close in JDBCTableWriter");
         if (conn != null) {
             try {
                 conn.commit();
-                System.out.println("COMMITTED: ");
             } catch (SQLException e) {
                 throw new IOExceptionWithCause(e);
             }
-            System.out.println("about to shutdown db");
-            dbUtil.shutDownDB(conn);
-            System.out.println("successfully shutdown db");
+
+            try {
+                conn.close();
+            } catch (SQLException e) {
+                throw new IOExceptionWithCause(e);
+            }
+
         }
     }
 
-    @Override
-    public void shutdown() {
-        //no-op
-    }
 
-    public void addPairTable(String thisDir, String thatDir) throws IOException {
-        String sql = "DROP TABLE IF EXISTS "+PAIR_NAMES_TABLE;
-
-        try {
-            Statement st = conn.createStatement();
-            st.execute(sql);
-            sql = "CREATE table " +PAIR_NAMES_TABLE +" (" +
-                    "DIR_NAME_A VARCHAR(128)," +
-                    "DIR_NAME_B VARCHAR(128));";
-
-            st.execute(sql);
-            conn.commit();
-            sql = "INSERT INTO "+PAIR_NAMES_TABLE+
-                    " VALUES ('"+thisDir+"', '"+thatDir+"');";
-            st.execute(sql);
-            conn.commit();
-            st.close();
-        } catch (SQLException e) {
-            throw new IOExceptionWithCause(e);
-        }
-    }
 
     class ValueComparator implements Comparator<String> {
 

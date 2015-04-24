@@ -1,5 +1,4 @@
-package org.apache.tika.eval.io;
-
+package org.apache.tika.batch.testutils;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,31 +16,26 @@ package org.apache.tika.eval.io;
  * limitations under the License.
  */
 
-import java.io.IOException;
-import java.util.Map;
+public class StreamStrings {
+    private final String outString;
+    private final String errString;
 
-/**
- * Common interface for writing output.  Currently relying on ThreadSafeCSVWrapper,
- * but it would be better to be able to specify a db.
- */
-public interface TableWriter {
-    /**
-     * if the writer needs to write headers, call this
-     */
-    public void writeHeaders() throws IOException;
+    public StreamStrings(String outString, String errString) {
+        this.outString = outString;
+        this.errString = errString;
+    }
 
-    public void init() throws IOException;
+    public String getOutString() {
+        return outString;
+    }
 
-    public void writeRow(Map<String, String> data) throws IOException;
+    public String getErrString() {
+        return errString;
+    }
 
-    /**
-     * give hint to stop processing, no more input available
-     */
-    public void shutdown();
-
-    /**
-     * now actually close all resources
-     * @throws IOException
-     */
-    public void close() throws IOException;
+    @Override
+    public String toString() {
+        return "OUT>>"+outString+"<<\n"+
+                "ERR>>"+errString+"<<\n";
+    }
 }
