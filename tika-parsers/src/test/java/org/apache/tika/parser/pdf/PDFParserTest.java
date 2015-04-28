@@ -697,7 +697,7 @@ public class PDFParserTest extends TikaTest {
                 assertEquals(f.getName(), sequentialMetadata, nonSequentialMetadata);
             }
         }
-        //make sure nothing went wrong with getting the resource to test-dirs
+        //make sure nothing went wrong with getting the resource to test-documents
         //must have tested >= 15 pdfs
         boolean ge15 = (pdfs >= 15);
         assertTrue("Number of pdf files tested >= 15 in non-sequential parser test", ge15);
@@ -712,7 +712,7 @@ public class PDFParserTest extends TikaTest {
 /*    public void testAcroForm() throws Exception{
        Parser p = new AutoDetectParser();
        ParseContext context = new ParseContext();
-       InputStream stream = getResourceAsStream("/test-dirs/testPDF_acroForm1.pdf");
+       InputStream stream = getResourceAsStream("/test-documents/testPDF_acroForm1.pdf");
        String txt = getText(stream, p, context);
        stream.close();
 
@@ -724,7 +724,7 @@ public class PDFParserTest extends TikaTest {
        //this guarantees that the form processor
        //worked recursively at least once...i.e. it didn't just
        //take the first form
-       stream = getResourceAsStream("/test-dirs/testPDF_acroForm2.pdf");
+       stream = getResourceAsStream("/test-documents/testPDF_acroForm2.pdf");
        txt = getText(stream, p, context);
        stream.close();
        assertContains("123 Main St.", txt);
@@ -734,7 +734,7 @@ public class PDFParserTest extends TikaTest {
        PDFParserConfig config = new PDFParserConfig();
        config.setUseNonSequentialParser(true);
        context.set(PDFParserConfig.class, config);
-       stream = getResourceAsStream("/test-dirs/testPDF_acroForm1.pdf");
+       stream = getResourceAsStream("/test-documents/testPDF_acroForm1.pdf");
        txt = getText(stream, p, context);
        stream.close();
        
@@ -746,7 +746,7 @@ public class PDFParserTest extends TikaTest {
        //this guarantees that the form processor
        //worked recursively at least once...i.e. it didn't just
        //take the first form
-       stream = getResourceAsStream("/test-dirs/testPDF_acroForm2.pdf");
+       stream = getResourceAsStream("/test-documents/testPDF_acroForm2.pdf");
        txt = getText(stream, p, context);
        assertContains("123 Main St.", txt);
        stream.close();     

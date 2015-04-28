@@ -26,11 +26,11 @@ public class SQLLiteParserTest extends TikaTest {
 
         //test different types of input streams
         InputStream[] streams = new InputStream[3];
-        streams[0] = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+        streams[0] = getResourceAsStream("/test-documents/testSQLLite3b.db");
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        IOUtils.copy(getResourceAsStream("/test-dirs/testSQLLite3b.db"), bos);
+        IOUtils.copy(getResourceAsStream("/test-documents/testSQLLite3b.db"), bos);
         streams[1] = new ByteArrayInputStream(bos.toByteArray());
-        streams[2] = TikaInputStream.get(getResourceAsFile("/test-dirs/testSQLLite3b.db"));
+        streams[2] = TikaInputStream.get(getResourceAsFile("/test-documents/testSQLLite3b.db"));
         int tests = 0;
         for (InputStream stream : streams) {
             Metadata metadata = new Metadata();
@@ -77,7 +77,7 @@ public class SQLLiteParserTest extends TikaTest {
         ParseContext ctx = new ParseContext();
         ctx.set(Parser.class, p);
         try {
-            stream = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+            stream = getResourceAsStream("/test-documents/testSQLLite3b.db");
             p.parse(stream, handler, metadata, ctx);
         } finally {
             stream.close();
@@ -93,7 +93,7 @@ public class SQLLiteParserTest extends TikaTest {
     public void testNotAddingEmbeddedParserToParseContext() throws Exception {
         Parser p = new AutoDetectParser();
 
-        InputStream is = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+        InputStream is = getResourceAsStream("/test-documents/testSQLLite3b.db");
         Metadata metadata = new Metadata();
         metadata.set(Metadata.RESOURCE_NAME_KEY, "testSQLLite3b.db");
         ContentHandler handler = new ToXMLContentHandler();
@@ -119,7 +119,7 @@ public class SQLLiteParserTest extends TikaTest {
         RecursiveParserWrapper wrapper =
                 new RecursiveParserWrapper(p, new BasicContentHandlerFactory(
                         BasicContentHandlerFactory.HANDLER_TYPE.BODY, -1));
-        InputStream is = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+        InputStream is = getResourceAsStream("/test-documents/testSQLLite3b.db");
         Metadata metadata = new Metadata();
         metadata.set(Metadata.RESOURCE_NAME_KEY, "testSQLLite3b.db");
         wrapper.parse(is, new BodyContentHandler(-1), metadata, new ParseContext());
@@ -151,7 +151,7 @@ public class SQLLiteParserTest extends TikaTest {
 
         ParserContainerExtractor ex = new ParserContainerExtractor();
         ByteCopyingHandler byteCopier = new ByteCopyingHandler();
-        InputStream is = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+        InputStream is = getResourceAsStream("/test-documents/testSQLLite3b.db");
         Metadata metadata = new Metadata();
         metadata.set(Metadata.RESOURCE_NAME_KEY, "testSQLLite3b.db");
         ex.extract(TikaInputStream.get(is), ex, byteCopier);
@@ -199,7 +199,7 @@ public class SQLLiteParserTest extends TikaTest {
 
         ParserContainerExtractor ex = new ParserContainerExtractor();
         InputStreamResettingHandler byteCopier = new InputStreamResettingHandler();
-        InputStream is = getResourceAsStream("/test-dirs/testSQLLite3b.db");
+        InputStream is = getResourceAsStream("/test-documents/testSQLLite3b.db");
         Metadata metadata = new Metadata();
         metadata.set(Metadata.RESOURCE_NAME_KEY, "testSQLLite3b.db");
         ex.extract(TikaInputStream.get(is), ex, byteCopier);
@@ -239,7 +239,7 @@ public class SQLLiteParserTest extends TikaTest {
     //code used for creating the test file
 /*
     private Connection getConnection(String dbFileName) throws Exception {
-        File testDirectory = new File(this.getClass().getResource("/test-dirs").toURI());
+        File testDirectory = new File(this.getClass().getResource("/test-documents").toURI());
         System.out.println("Writing to: " + testDirectory.getAbsolutePath());
         File testDB = new File(testDirectory, dbFileName);
         Connection c = null;
@@ -289,7 +289,7 @@ public class SQLLiteParserTest extends TikaTest {
         ps.setString(7, "2015-01-02");
         ps.setString(8, "2015-01-03 15:17:03");
 //        ps.setClob(9, new StringReader(clobString));
-        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-dirs/testWORD_1img.doc")));//contains "quick brown fox"
+        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-documents/testWORD_1img.doc")));//contains "quick brown fox"
         ps.executeUpdate();
         ps.clearParameters();
 
@@ -302,7 +302,7 @@ public class SQLLiteParserTest extends TikaTest {
         ps.setString(7, "2015-01-04");
         ps.setString(8, "2015-01-03 15:17:03");
         //ps.setClob(9, new StringReader("consectetur adipiscing elit"));
-        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-dirs/testWORD_1img.docx")));//contains "The end!"
+        ps.setBytes(9, getByteArray(this.getClass().getResourceAsStream("/test-documents/testWORD_1img.docx")));//contains "The end!"
 
         ps.executeUpdate();
 

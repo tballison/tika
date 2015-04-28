@@ -351,14 +351,14 @@ public class TestMimeTypes {
        // Check the mime magic patterns for them work too
        assertTypeByData("application/x-archive", "testARofText.ar");
        assertTypeByData("application/x-archive", "testARofSND.ar"); 
-       assertTypeByData("application/zip",    "test-dirs.zip");
-       assertTypeByData("application/x-gtar",  "test-dirs.tar"); // GNU TAR
-       assertTypeByData("application/gzip", "test-dirs.tgz"); // See GZIP, not tar contents of it
-       assertTypeByData("application/x-cpio", "test-dirs.cpio");
+       assertTypeByData("application/zip",    "test-documents.zip");
+       assertTypeByData("application/x-gtar",  "test-documents.tar"); // GNU TAR
+       assertTypeByData("application/gzip", "test-documents.tgz"); // See GZIP, not tar contents of it
+       assertTypeByData("application/x-cpio", "test-documents.cpio");
        
        // For spanned zip files, the .zip file doesn't have the header, it's the other parts
-       assertTypeByData("application/octet-stream", "test-dirs-spanned.zip");
-       assertTypeByData("application/zip",          "test-dirs-spanned.z01");
+       assertTypeByData("application/octet-stream", "test-documents-spanned.zip");
+       assertTypeByData("application/zip",          "test-documents-spanned.z01");
     }
     
     @Test
@@ -553,7 +553,7 @@ public class TestMimeTypes {
     
     @Test
     public void testJavaDetection() throws Exception {
-        // TODO Classloader doesn't seem to find the .class file in test-dirs
+        // TODO Classloader doesn't seem to find the .class file in test-documents
         //assertTypeDetection("AutoDetectParser.class", "application/java-vm");
         
         // OSX Native Extension
@@ -739,7 +739,7 @@ public class TestMimeTypes {
     @Test
     public void testMimeDeterminationForTestDocuments() throws Exception {
         assertType("text/html", "testHTML.html");
-        assertType("application/zip", "test-dirs.zip");
+        assertType("application/zip", "test-documents.zip");
 
         assertType("text/html", "testHTML_utf8.html");
         assertType(
@@ -759,9 +759,9 @@ public class TestMimeTypes {
     
     @Test
     public void test7ZipDetection() throws Exception {
-       assertTypeByName("application/x-7z-compressed","test-dirs.7z");
-       assertTypeByData("application/x-7z-compressed","test-dirs.7z");
-       assertTypeByNameAndData("application/x-7z-compressed", "test-dirs.7z");
+       assertTypeByName("application/x-7z-compressed","test-documents.7z");
+       assertTypeByData("application/x-7z-compressed","test-documents.7z");
+       assertTypeByNameAndData("application/x-7z-compressed", "test-documents.7z");
    }
 
     @Test

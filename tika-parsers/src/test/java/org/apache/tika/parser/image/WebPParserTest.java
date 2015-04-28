@@ -34,7 +34,7 @@ public class WebPParserTest {
 
     Parser parser = new AutoDetectParser();
 /*
-    Two photos in test-dirs (testWebp_Alpha_Lossy.webp and testWebp_Alpha_Lossless.webp)
+    Two photos in test-documents (testWebp_Alpha_Lossy.webp and testWebp_Alpha_Lossless.webp)
     are in the public domain.  These files were retrieved from:
     https://github.com/drewnoakes/metadata-extractor-images/tree/master/webp
     These photos are also available here:
