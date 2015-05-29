@@ -47,7 +47,7 @@ import org.xml.sax.SAXException;
  * This class enables mocking of parser behavior for use in testing
  * wrappers and drivers of parsers.
  * <p>
- * See resources/test-dirs/mock/example.xml in tika-parsers/test for the documentation
+ * See resources/test-documents/mock/example.xml in tika-parsers/test for the documentation
  * of all the options for this MockParser.
  * <p>
  * Tests for this class are in tika-parsers.

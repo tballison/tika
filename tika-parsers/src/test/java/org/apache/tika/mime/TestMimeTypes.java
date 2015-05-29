@@ -501,10 +501,17 @@ public class TestMimeTypes {
 
     @Test
     public void testPdfDetection() throws Exception {
-        assertType("application/pdf", "testPDF.pdf");
-        assertTypeByData("application/pdf", "testPDF.pdf");
+        // PDF extension by name is enough
         assertTypeByName("application/pdf", "x.pdf");
         assertTypeByName("application/pdf", "x.PDF");
+
+        // For normal PDFs, can get by name or data or both
+        assertType("application/pdf", "testPDF.pdf");
+        assertTypeByData("application/pdf", "testPDF.pdf");
+
+        // PDF with a BoM works both ways too
+        assertType("application/pdf", "testPDF_bom.pdf");
+        assertTypeByData("application/pdf", "testPDF_bom.pdf");
     }
 
     @Test
@@ -913,6 +920,24 @@ public class TestMimeTypes {
     public void testCBOR() throws IOException {
         assertTypeByNameAndData("application/cbor", "NUTCH-1997.cbor");
         assertTypeByData("application/cbor", "NUTCH-1997.cbor");
+    }
+    
+    @Test
+    public void testZLIB() throws IOException {
+        // ZLIB encoded versions of testTXT.txt
+        assertTypeByData("application/zlib", "testTXT.zlib");
+        assertTypeByData("application/zlib", "testTXT.zlib0");
+        assertTypeByData("application/zlib", "testTXT.zlib5");
+        assertTypeByData("application/zlib", "testTXT.zlib9");
+    }
+    
+    @Test
+    public void testCodeFormats() throws Exception {
+        assertType("text/x-csrc", "testC.c");
+        
+        assertType("text/x-matlab", "testMATLAB.m");
+        assertType("text/x-matlab", "testMATLAB_wtsgaus.m");
+        assertType("text/x-matlab", "testMATLAB_barcast.m");
     }
 
     private void assertText(byte[] prefix) throws IOException {

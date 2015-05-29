@@ -5,9 +5,9 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -89,8 +89,8 @@ public class WordParserTest extends TikaTest {
         Metadata metadata = result.metadata;
 
         assertEquals(
-                     "application/msword",
-                     metadata.get(Metadata.CONTENT_TYPE));
+                "application/msword",
+                metadata.get(Metadata.CONTENT_TYPE));
         assertEquals("Sample Word Document", metadata.get(TikaCoreProperties.TITLE));
         assertEquals("Keith Bennett", metadata.get(TikaCoreProperties.CREATOR));
         assertEquals("Keith Bennett", metadata.get(Metadata.AUTHOR));
@@ -117,9 +117,9 @@ public class WordParserTest extends TikaTest {
         xml = getXML("testWORD_3imgs.doc").xml;
 
         // Images 1-3
-        assertTrue("Image not found in:\n"+xml, xml.contains("src=\"embedded:image1.png\""));
-        assertTrue("Image not found in:\n"+xml, xml.contains("src=\"embedded:image2.jpg\""));
-        assertTrue("Image not found in:\n"+xml, xml.contains("src=\"embedded:image3.png\""));
+        assertTrue("Image not found in:\n" + xml, xml.contains("src=\"embedded:image1.png\""));
+        assertTrue("Image not found in:\n" + xml, xml.contains("src=\"embedded:image2.jpg\""));
+        assertTrue("Image not found in:\n" + xml, xml.contains("src=\"embedded:image3.png\""));
 
         // Text too
         assertTrue(xml.contains("<p>The end!"));
@@ -131,7 +131,7 @@ public class WordParserTest extends TikaTest {
         // Make sure bold text arrived as single
         // contiguous string even though Word parser
         // handled this as 3 character runs
-        assertTrue("Bold text wasn't contiguous: "+xml, xml.contains("F<b>oob</b>a<b>r</b>"));
+        assertTrue("Bold text wasn't contiguous: " + xml, xml.contains("F<b>oob</b>a<b>r</b>"));
 
         // TIKA-692: test document containing multiple
         // character runs within a bold tag:
@@ -140,7 +140,7 @@ public class WordParserTest extends TikaTest {
         // Make sure bold text arrived as single
         // contiguous string even though Word parser
         // handled this as 3 character runs
-        assertTrue("Bold text wasn't contiguous: "+xml, xml.contains("F<b>oob</b>a<b>r</b>"));
+        assertTrue("Bold text wasn't contiguous: " + xml, xml.contains("F<b>oob</b>a<b>r</b>"));
     }
 
     @Test
@@ -277,19 +277,19 @@ public class WordParserTest extends TikaTest {
      */
     @Test
     public void testNoFormat() throws Exception {
-       ContentHandler handler = new BodyContentHandler();
-       Metadata metadata = new Metadata();
+        ContentHandler handler = new BodyContentHandler();
+        Metadata metadata = new Metadata();
 
-       InputStream stream = WordParserTest.class.getResourceAsStream(
-               "/test-documents/testWORD_no_format.doc");
-       try {
-           new OfficeParser().parse(stream, handler, metadata, new ParseContext());
-       } finally {
-           stream.close();
-       }
+        InputStream stream = WordParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_no_format.doc");
+        try {
+            new OfficeParser().parse(stream, handler, metadata, new ParseContext());
+        } finally {
+            stream.close();
+        }
 
-       String content = handler.toString();
-       assertContains("Will generate an exception", content);
+        String content = handler.toString();
+        assertContains("Will generate an exception", content);
     }
 
     /**
@@ -297,55 +297,55 @@ public class WordParserTest extends TikaTest {
      */
     @Test
     public void testCustomProperties() throws Exception {
-       InputStream input = WordParserTest.class.getResourceAsStream(
-             "/test-documents/testWORD_custom_props.doc");
-       Metadata metadata = new Metadata();
+        InputStream input = WordParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_custom_props.doc");
+        Metadata metadata = new Metadata();
 
-       try {
-          ContentHandler handler = new BodyContentHandler(-1);
-          ParseContext context = new ParseContext();
-          context.set(Locale.class, Locale.US);
-          new OfficeParser().parse(input, handler, metadata, context);
-       } finally {
-          input.close();
-       }
+        try {
+            ContentHandler handler = new BodyContentHandler(-1);
+            ParseContext context = new ParseContext();
+            context.set(Locale.class, Locale.US);
+            new OfficeParser().parse(input, handler, metadata, context);
+        } finally {
+            input.close();
+        }
 
-       assertEquals("application/msword",   metadata.get(Metadata.CONTENT_TYPE));
-       assertEquals("EJ04325S",             metadata.get(TikaCoreProperties.CREATOR));
-       assertEquals("Etienne Jouvin",       metadata.get(TikaCoreProperties.MODIFIER));
-       assertEquals("Etienne Jouvin",       metadata.get(Metadata.LAST_AUTHOR));
-       assertEquals("2012-01-03T22:14:00Z", metadata.get(TikaCoreProperties.MODIFIED));
-       assertEquals("2012-01-03T22:14:00Z", metadata.get(Metadata.DATE));
-       assertEquals("2010-10-05T09:03:00Z", metadata.get(TikaCoreProperties.CREATED));
-       assertEquals("2010-10-05T09:03:00Z", metadata.get(Metadata.CREATION_DATE));
-       assertEquals("Microsoft Office Word",metadata.get(OfficeOpenXMLExtended.APPLICATION));
-       assertEquals("1",                    metadata.get(Office.PAGE_COUNT));
-       assertEquals("2",                    metadata.get(Office.WORD_COUNT));
-       assertEquals("My Title",             metadata.get(TikaCoreProperties.TITLE));
-       assertEquals("My Keyword",           metadata.get(TikaCoreProperties.KEYWORDS));
-       assertEquals("Normal.dotm",          metadata.get(OfficeOpenXMLExtended.TEMPLATE));
-       assertEquals("My Comments",          metadata.get(TikaCoreProperties.COMMENTS));
-       // TODO: Move to OO subject in Tika 2.0
-       assertEquals("My subject",           metadata.get(Metadata.SUBJECT));
-       assertEquals("My subject",           metadata.get(OfficeOpenXMLCore.SUBJECT));
-       assertEquals("EDF-DIT",              metadata.get(OfficeOpenXMLExtended.COMPANY));
-       assertEquals("MyStringValue",        metadata.get("custom:MyCustomString"));
-       assertEquals("2010-12-30T23:00:00Z", metadata.get("custom:MyCustomDate"));
+        assertEquals("application/msword", metadata.get(Metadata.CONTENT_TYPE));
+        assertEquals("EJ04325S", metadata.get(TikaCoreProperties.CREATOR));
+        assertEquals("Etienne Jouvin", metadata.get(TikaCoreProperties.MODIFIER));
+        assertEquals("Etienne Jouvin", metadata.get(Metadata.LAST_AUTHOR));
+        assertEquals("2012-01-03T22:14:00Z", metadata.get(TikaCoreProperties.MODIFIED));
+        assertEquals("2012-01-03T22:14:00Z", metadata.get(Metadata.DATE));
+        assertEquals("2010-10-05T09:03:00Z", metadata.get(TikaCoreProperties.CREATED));
+        assertEquals("2010-10-05T09:03:00Z", metadata.get(Metadata.CREATION_DATE));
+        assertEquals("Microsoft Office Word", metadata.get(OfficeOpenXMLExtended.APPLICATION));
+        assertEquals("1", metadata.get(Office.PAGE_COUNT));
+        assertEquals("2", metadata.get(Office.WORD_COUNT));
+        assertEquals("My Title", metadata.get(TikaCoreProperties.TITLE));
+        assertEquals("My Keyword", metadata.get(TikaCoreProperties.KEYWORDS));
+        assertEquals("Normal.dotm", metadata.get(OfficeOpenXMLExtended.TEMPLATE));
+        assertEquals("My Comments", metadata.get(TikaCoreProperties.COMMENTS));
+        // TODO: Move to OO subject in Tika 2.0
+        assertEquals("My subject", metadata.get(Metadata.SUBJECT));
+        assertEquals("My subject", metadata.get(OfficeOpenXMLCore.SUBJECT));
+        assertEquals("EDF-DIT", metadata.get(OfficeOpenXMLExtended.COMPANY));
+        assertEquals("MyStringValue", metadata.get("custom:MyCustomString"));
+        assertEquals("2010-12-30T23:00:00Z", metadata.get("custom:MyCustomDate"));
     }
 
     @Test
     public void testExceptions1() throws Exception {
-      XMLResult xml;
-      Level logLevelStart = Logger.getRootLogger().getLevel();
-      Logger.getRootLogger().setLevel(Level.ERROR);
-      try {
-        xml = getXML("testException1.doc");
-        assertContains("total population", xml.xml);
-        xml = getXML("testException2.doc");
-        assertContains("electric charge", xml.xml);
-      } finally {
-        Logger.getRootLogger().setLevel(logLevelStart);
-      }
+        XMLResult xml;
+        Level logLevelStart = Logger.getRootLogger().getLevel();
+        Logger.getRootLogger().setLevel(Level.ERROR);
+        try {
+            xml = getXML("testException1.doc");
+            assertContains("total population", xml.xml);
+            xml = getXML("testException2.doc");
+            assertContains("electric charge", xml.xml);
+        } finally {
+            Logger.getRootLogger().setLevel(logLevelStart);
+        }
     }
 
     @Test
@@ -364,8 +364,8 @@ public class WordParserTest extends TikaTest {
         Metadata metadata = result.metadata;
 
         assertEquals(
-                     "application/msword",
-                     metadata.get(Metadata.CONTENT_TYPE));
+                "application/msword",
+                metadata.get(Metadata.CONTENT_TYPE));
         assertEquals("Lutz Theurer", metadata.get(TikaCoreProperties.CREATOR));
         assertContains("example.com", xml);
 
@@ -381,7 +381,7 @@ public class WordParserTest extends TikaTest {
 
     @Test
     public void testControlCharacter() throws Exception {
-      assertContains("1. Introduzione<b> </a></b> </p>", getXML("testControlCharacters.doc").xml.replaceAll("\\s+", " "));
+        assertContains("1. Introduzione<b> </a></b> </p>", getXML("testControlCharacters.doc").xml.replaceAll("\\s+", " "));
     }
 
     @Test
@@ -424,4 +424,78 @@ public class WordParserTest extends TikaTest {
         XMLResult result = getXML("testWORD_hyperLinkCarriageReturn.doc");
         assertContains("href=\"http://www.nib.org", result.xml);
     }
+
+    @Test
+    public void testDOCParagraphNumbering() throws Exception {
+        String xml = getXML("testWORD_numbered_list.doc").xml;
+        assertContains("1) This", xml);
+        assertContains("a) Is", xml);
+        assertContains("i) A multi", xml);
+        assertContains("ii) Level", xml);
+        assertContains("1. Within cell 1", xml);
+        assertContains("b. Cell b", xml);
+        assertContains("iii) List", xml);
+        assertContains("2) foo", xml);
+        assertContains("ii) baz", xml);
+        assertContains("ii) foo", xml);
+        assertContains("II. bar", xml);
+        assertContains("6. six", xml);
+        assertContains("7. seven", xml);
+        assertContains("a. seven a", xml);
+        assertContains("e. seven e", xml);
+        assertContains("2. A ii 2", xml);
+        assertContains("3. page break list 3", xml);
+        assertContains("Some-1-CrazyFormat Greek numbering with crazy format - alpha", xml);
+        assertContains("1.1.1. 1.1.1", xml);
+        assertContains("1.1. 1.2-&gt;1.1  //set the value", xml);
+
+        assertContains("add a list here", xml);
+        //TODO: not currently pulling numbers out of comments
+        assertContains(">comment list 1", xml);
+
+    }
+
+    @Test
+    public void testDOCOverrideParagraphNumbering() throws Exception {
+        String xml = getXML("testWORD_override_list_numbering.doc").xml;
+
+        //Test 1
+        assertContains("1.1.1.1...1 1.1.1.1...1", xml);
+        assertContains("1st.2.3someText 1st.2.3someText", xml);
+        assertContains("1st.2.2someOtherText.1 1st.2.2someOtherText.1", xml);
+        assertContains("5th 5th", xml);
+
+
+        //Test 2
+        assertContains("1.a.I 1.a.I", xml);
+        //test no reset because level 2 is not sufficient to reset
+        assertContains("1.b.III 1.b.III", xml);
+        //test restarted because of level 0's increment to 2
+        assertContains("2.a.I 2.a.I", xml);
+        //test handling of skipped level
+        assertContains("2.b 2.b", xml);
+
+        //Test 3
+        assertContains("(1)) (1))", xml);
+        //tests start level 1 at 17 and
+        assertContains("2.17 2.17", xml);
+        //tests that isLegal turns everything into decimal
+        assertContains("2.18.2.1 2.18.2.1", xml);
+        assertContains(">2 2", xml);
+
+        //Test4
+        assertContains(">1 1", xml);
+        assertContains(">A A", xml);
+        assertContains(">B B", xml);
+        assertContains(">C C", xml);
+        assertContains(">4 4", xml);
+
+        //Test5
+        assertContains(">00 00", xml);
+        assertContains(">01 01", xml);
+        assertContains(">01. 01.", xml);
+        assertContains(">01..1 01..1", xml);
+        assertContains(">02 02", xml);
+    }
 }
+

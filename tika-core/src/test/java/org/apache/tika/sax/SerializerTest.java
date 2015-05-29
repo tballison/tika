@@ -17,8 +17,6 @@
 package org.apache.tika.sax;
 
 import static org.junit.Assert.assertEquals;
-
-import org.apache.tika.io.IOUtils;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
@@ -43,7 +41,7 @@ public class SerializerTest {
         assertStartDocument("", new ToXMLContentHandler());
         assertStartDocument(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-                new ToXMLContentHandler(IOUtils.UTF_8.name()));
+                new ToXMLContentHandler("UTF-8"));
         assertCharacters("content", new ToXMLContentHandler());
         assertCharacterEscaping("&lt;&amp;\"&gt;", new ToXMLContentHandler());
         assertIgnorableWhitespace(" \t\r\n", new ToXMLContentHandler());

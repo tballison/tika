@@ -47,6 +47,14 @@
     <glob pattern="*.aw"/>
   </mime-type>
 
+  <mime-type type="text/iso19139+xml">
+	  <root-XML localName="MD_metadata"/>
+	  <root-XML localName="MD_metadata" namespaceURI="http://www.isotc211.org/2005/gmd"/>
+	  <glob pattern="*.iso19139"/>
+	  <sub-class-of type="application/xml"/>
+   </mime-type>
+
+  
   <mime-type type="application/atom+xml">
     <root-XML localName="feed" namespaceURI="http://purl.org/atom/ns#"/>
     <root-XML localName="feed" namespaceURI="http://www.w3.org/2005/Atom"/>
@@ -473,7 +481,15 @@
     <tika:link>http://www.adobe.com/devnet/pdf/pdf_reference_archive.html</tika:link>
     <tika:uti>com.adobe.pdf</tika:uti>
     <magic priority="50">
+      <!-- Normally just %PDF- -->
       <match value="%PDF-" type="string" offset="0"/>
+      <!-- Sometimes has a UTF-8 Byte Order Mark first -->
+      <match value="\xef\xbb\xbf%PDF-" type="string" offset="0"/>
+    </magic>
+    <magic priority="20">
+      <!-- Low priority match for %PDF near the start of the file -->
+      <!-- Can trigger false positives, so set the priority rather low here -->
+      <match value="%PDF-" type="string" offset="1:512"/>
     </magic>
     <glob pattern="*.pdf"/>
   </mime-type>
@@ -3989,6 +4005,22 @@
     <glob pattern="*.zip"/>
   </mime-type>
 
+  <mime-type type="application/zlib">
+    <alias type="application/x-deflate"/>
+    <_comment>ZLIB Compressed Data Format</_comment>
+    <tika:link>http://tools.ietf.org/html/rfc1950</tika:link>
+    <magic priority="45">
+      <!-- Low/No compression -->
+      <match value="\x78\x01" type="string" offset="0" />
+      <!-- Medium compression -->
+      <match value="\x78\x5e" type="string" offset="0" />
+      <!-- Default compression -->
+      <match value="\x78\x9c" type="string" offset="0" />
+      <!-- Best compression -->
+      <match value="\x78\xda" type="string" offset="0" />
+    </magic>
+  </mime-type>
+
   <mime-type type="application/x-7z-compressed">
     <acronym>7zip</acronym>
     <_comment>7-zip archive</_comment>
@@ -5150,7 +5182,7 @@
   <mime-type type="multipart/signed"/>
   <mime-type type="multipart/voice-message"/>
 
-  <mime-type type="text/dif+xml">
+  <mime-type type="application/dif+xml">
     <root-XML localName="DIF"/>
     <root-XML localName="DIF" namespaceURI="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/"/>
     <glob pattern="*.dif"/>
@@ -5161,13 +5193,6 @@
     <_comment>ActionScript source code</_comment>
     <glob pattern="*.as"/>
     <sub-class-of type="text/plain"/>
-  </mime-type>
-
-  <mime-type type="text/dif+xml">
-    <root-XML localName="DIF"/>
-    <root-XML localName="DIF" namespaceURI="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/"/>
-    <glob pattern="*.dif"/>
-    <sub-class-of type="application/xml"/>
   </mime-type>
 
   <mime-type type="text/x-ada">
@@ -5727,8 +5752,22 @@
 
   <mime-type type="text/x-matlab">
     <_comment>Matlab source code</_comment>
+    <!-- Multiple-output function definition -->
     <magic priority="50">
       <match value="function [" type="string" offset="0"/>
+    </magic>
+    <!-- Single-output or no output function definition -->
+    <magic priority="40">
+      <match value="function [a-zA-Z][A-Za-z0-9_]{0,5}" type="regex" offset="0"/>
+    </magic>
+    <!-- Two matlab-style comments fairly early in the file -->
+    <magic priority="25">
+      <match value="%" type="string" offset="0">
+         <match value="\n%" type="string" offset="2:120"/>
+      </match>
+      <match value="%" type="string" offset="0">
+         <match value="\r%" type="string" offset="2:120"/>
+      </match>
     </magic>
     <!-- <glob pattern="*.m"/> - conflicts with text/x-objcsrc -->
     <sub-class-of type="text/plain"/>

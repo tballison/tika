@@ -58,9 +58,8 @@ public class Lingo24Translator implements Translator {
         Properties config = new Properties();
         try {
             config.load(Lingo24Translator.class
-                    .getClassLoader()
                     .getResourceAsStream(
-                            "org/apache/tika/language/translate/translator.lingo24.properties"));
+                            "translator.lingo24.properties"));
             this.userKey = config.getProperty("translator.user-key");
             if (this.userKey.equals(DEFAULT_KEY))
                 this.isAvailable = false;

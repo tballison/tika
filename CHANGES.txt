@@ -1,10 +1,61 @@
 Release 1.9 - Current Development
 
+  * The EXIFTool was added as an External parser
+    (TIKA-1639).
+
+  * If FFMPEG is installed and on the PATH, it is a 
+    usable Parser in Tika now (TIKA-1510).
+
+  * Fixes have been applied to the ExternalParser to make
+    it functional (TIKA-1638).
+
+  * Tika service loading can now be more verbose with the 
+    org.apache.tika.service.error.warn system property (TIKA-1636).
+
+  * Tika Server now allows for metadata extraction from remote
+    URLs and in addition it outputs the detected language as a
+    metadata field (TIKA-1625).
+
+  * OUTPUT_FILE_TOKEN not being replaced in ExternalParser 
+    contributed by Pascal Essiembre (TIKA-1620).
+
+  * Tika REST server now supports language identification
+    (TIKA-1622).
+
+  * All of the example code from the Tika in Action book has 
+    been donated to Tika and added to tika-examples (TIKA-1562).
+
+  * Tika server now logs errors determining ContentDisposition
+    (TIKA-1621).
+
+  * An algorithm for using Byte Histogram frequencies to construct
+    a Neural Network and to perform MIME detection was added
+    (TIKA-1582).
+
+  * A Bayesian algorithm for MIME detection by probabilistic
+    means was added (TIKA-1517).
+
+  * Tika now incorporates the Apache Spatial Information
+    System capability of parsing Geographic ISO 19139 
+    files (TIKA-443). It can also detect those files as
+    well.
+
+  * Update the MimeTypes code to support inheritance
+    (TIKA-1535).
+
+  * Provide ability to parse and identify Global Change 
+    Master Directory Interchange Format (GCMD DIF) 
+    scientific data files (TIKA-1532).
+
   * Improvements to detect CBOR files by extension (TIKA-1610).
 
   * Change xerial.org's sqlite-jdbc jar to "provided" (TIKA-1511).
     Users will now need to add sqlite-jdbc to their classpath for
     the Sqlite3Parser to work.
+
+  * ExternalParser.check now catches (suppresses) SecurityException
+    and returns false, so it's OK to run Tika with a security policy
+    that does not allow execution of external processes (TIKA-1628).
 
 Release 1.8 - 4/13/2015
 
