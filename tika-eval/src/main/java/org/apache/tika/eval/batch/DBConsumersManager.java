@@ -22,26 +22,39 @@ import java.util.List;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.io.EvalDBWriter;
+import org.apache.tika.eval.AbstractProfiler;
 
 
-public class SingleFileProfilerManager extends ConsumersManager {
+public class DBConsumersManager extends ConsumersManager {
 
-    private final EvalDBWriter writer;
+//    private final Connection conn;
 
-    public SingleFileProfilerManager(List<FileResourceConsumer> consumers, EvalDBWriter writer) {
+    public DBConsumersManager(List<FileResourceConsumer> consumers) {
         super(consumers);
-        this.writer = writer;
+  //      this.conn = conn;
     }
 
 
     @Override
     public void shutdown() {
-        try {
-            writer.close();
-        } catch (IOException e) {
+        for (FileResourceConsumer consumer : getConsumers()) {
+            if (consumer instanceof AbstractProfiler) {
+                try{
+                    ((AbstractProfiler)consumer).closeWriter();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+/*        try {
+            conn.commit();
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-
+        try {
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }*/
     }
 }

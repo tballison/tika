@@ -54,7 +54,7 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
-import org.apache.tika.eval.io.EvalDBWriter;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStats;
@@ -170,12 +170,14 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("org\\.apache\\.tika.exception\\.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
-    protected EvalDBWriter writer;
+    protected IDBWriter writer;
     private final boolean crawlingInputDir;
 
-    public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue, boolean crawlingInputDir) {
+    public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue, boolean crawlingInputDir,
+                            IDBWriter writer) {
         super(fileQueue);
         this.crawlingInputDir = crawlingInputDir;
+        this.writer = writer;
     }
 
     public String getInputFileName(String fName) {
@@ -210,10 +212,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             IOUtils.closeQuietly(reader);
         }
         return metadataList;
-    }
-
-    public void setTableWriter(EvalDBWriter writer) {
-        this.writer = writer;
     }
 
     /**
@@ -297,10 +295,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             sortTrace = sortTrace.replaceAll("org.apache.tika.", "o.a.t.");
             data.put(EXCEPTION_HEADERS.SORT_STACK_TRACE.name(), sortTrace);
         }
-
     }
 
     protected static String getContent(Metadata metadata, int maxLength) {
+        if (metadata == null) {
+            return "";
+        }
         StringBuilder content = new StringBuilder();
         String c = metadata.get(RecursiveParserWrapper.TIKA_CONTENT);
         if (c == null) {
@@ -492,7 +492,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if(excOutput.size() > 0) {
             excOutput.put(HEADERS.FILE_PATH.name(), output.get(HEADERS.FILE_PATH.name()));
             excOutput.put(HEADERS.EMBEDDED_FILE_PATH.name(), output.get(HEADERS.EMBEDDED_FILE_PATH.name()));
-            writer.writeRow(BasicFileComparer.EXCEPTIONS_TABLE + extension, excOutput);
+            writer.writeRow(FileComparer.EXCEPTIONS_TABLE + extension, excOutput);
         }
     }
 
@@ -522,6 +522,10 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         return new TokenStats(ent, summStats);
 
+    }
+
+    public void closeWriter() throws IOException {
+        writer.close();
     }
 
 

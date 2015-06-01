@@ -30,6 +30,7 @@ import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.serialization.JsonMetadataList;
@@ -49,8 +50,8 @@ public class SingleFileProfiler extends AbstractProfiler {
     }
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
-                              boolean crawlingInputDir, File rootDir) {
-        super(queue, crawlingInputDir);
+                              boolean crawlingInputDir, File rootDir, IDBWriter dbWriter) {
+        super(queue, crawlingInputDir, dbWriter);
         this.rootDir = rootDir;
     }
 
@@ -59,14 +60,20 @@ public class SingleFileProfiler extends AbstractProfiler {
         Metadata metadata = fileResource.getMetadata();
         String relativePath = metadata.get(FSProperties.FS_REL_PATH);
         File thisFile = new File(rootDir, relativePath);
-
+        System.err.println("trying to get: "+thisFile.getAbsolutePath());
         List<Metadata> metadataList = getMetadata(thisFile);
-
 
         Map<String, String> output = new HashMap<String, String>();
         Map<String, String> excOutput = new HashMap<String, String>();
         if (metadataList == null) {
+            output.put(HEADERS.FILE_PATH.name(), relativePath);
             output.put(HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
+            try {
+                writer.writeRow(MAIN_TABLE, output);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
             return true;
         }
 
@@ -110,6 +117,7 @@ public class SingleFileProfiler extends AbstractProfiler {
                 e.printStackTrace();
             }
             try {
+                System.err.println("INSERTING: "+relativePath + " into "+MAIN_TABLE);
                 writer.writeRow(MAIN_TABLE, output);
             } catch (IOException e) {
                 throw new RuntimeException(e);

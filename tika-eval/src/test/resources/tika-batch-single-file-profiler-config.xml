@@ -30,6 +30,7 @@
         child directory of the inputDir directory.
     -->
 	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
+             inputDir="src/test/resources/test-dirs/testA"
 		crawlOrder="sorted"
         maxConsecWaitMillis="5000"
 		maxFilesToAdd="-1" 
@@ -39,8 +40,9 @@
 		maxFileSizeBytes="-1"
         />
 
-    <consumers builderClass="org.apache.tika.eval.batch.SingleFileProfilerBuilder"
-               thisDir="src/test/resources/test-documents/testA"
+    <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
+               consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
+               thisDir="src/test/resources/test-dirs/testA"
                langModelDir="src/test/resources/langmodels"/>
 
 

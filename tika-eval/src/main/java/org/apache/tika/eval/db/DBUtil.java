@@ -1,4 +1,3 @@
-package org.apache.tika.eval.db;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,13 +15,18 @@ package org.apache.tika.eval.db;
  * limitations under the License.
  */
 
+package org.apache.tika.eval.db;
+
+
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,6 +38,10 @@ public abstract class DBUtil {
     public static Logger logger = Logger.getLogger(DBUtil.class);
     public abstract String getJDBCDriverClass();
     public abstract boolean dropTableIfExists(Connection conn, String tableName) throws SQLException;
+    private final File dbFile;
+    public DBUtil(File dbFile) {
+        this.dbFile = dbFile;
+    }
 
     /**
      * This is intended for a file/directory based db.
@@ -41,16 +49,15 @@ public abstract class DBUtil {
      * Override this any optimizations you want to do on the db
      * before writing/reading.
      *
-     * @param dbFile
      * @return
      * @throws IOException
      */
-    public Connection getConnection(File dbFile) throws IOException {
+    public Connection getConnection() throws IOException {
         String connectionString = getConnectionString(dbFile);
         Connection conn = null;
         try {
             try {
-                Class.forName("org.h2.Driver");
+                Class.forName(getJDBCDriverClass());
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -131,5 +138,61 @@ public abstract class DBUtil {
             st.setNull(colInfo.getDBColOffset(), colInfo.getType());
         }
     }
+
+    /**
+     *
+     * @param tableInfo
+     * @param append
+     * @return
+     * @throws Exception
+     */
+    public void createDB(Map<String, Map<String, ColInfo>> tableInfo,
+                               boolean append) throws SQLException, IOException {
+        Connection conn = getConnection();
+        Set<String> tables = getTables(conn);
+
+        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
+
+            if (append && tables.contains(table.getKey().toUpperCase(Locale.ROOT))) {
+                continue;
+            }
+            if (! append) {
+                dropTableIfExists(conn, table.getKey());
+            }
+            createTable(conn, table.getKey(), table.getValue());
+        }
+        conn.commit();
+        conn.close();
+    }
+
+    private void createTable(Connection conn, String tableName,
+                             Map<String, ColInfo> sortedHeaders) throws SQLException {
+        StringBuilder createSql = new StringBuilder();
+        createSql.append("CREATE TABLE "+tableName);
+        createSql.append("(");
+        int i = 0;
+
+        int last = 0;
+        for (Map.Entry<String, ColInfo> col : sortedHeaders.entrySet()) {
+            if (col.getValue().getDBColOffset()-last != 1) {
+                throw new IllegalArgumentException("Columns must be consecutive:" + last + " : " + col.getValue().getDBColOffset());
+            }
+            last++;
+            if (last > 1) {
+                createSql.append(", ");
+            }
+            createSql.append(col.getKey());
+            createSql.append(" ");
+            createSql.append(col.getValue().getSqlDef());
+        }
+        createSql.append(")");
+
+        Statement st = conn.createStatement();
+        st.execute(createSql.toString());
+
+        st.close();
+        conn.commit();
+    }
+
 
 }

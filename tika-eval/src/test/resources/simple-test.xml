@@ -2,7 +2,7 @@
 
 <tika-batch-config>
 	<consumersManager interface="org.apache.tika.batch.ConsumersManager"
-                      class="org.apache.tika.eval.batch.BasicFileComparerManager">
+                      class="org.apache.tika.eval.batch.DBConsumersManager">
         <file name="thisDir">thisDir</file>
         <file name="thatDir">thatDir</file>
         <tableWriter class="ThreadSafeCSVWrapper">

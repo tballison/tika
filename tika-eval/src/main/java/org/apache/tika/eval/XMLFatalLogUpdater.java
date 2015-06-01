@@ -43,7 +43,6 @@ import org.apache.tika.io.IOUtils;
  * the "comparisons" table.  It should not be run in a multithreaded environment.
  */
 class XMLFatalLogUpdater {
-    private DBUtil dbUtil = new H2Util();
     private Statement statement;
     private String tableName;
 
@@ -58,7 +57,8 @@ class XMLFatalLogUpdater {
     }
 
     private void execute(File xmlLogFile, File dbFile, String tableName, String columnSuffix) throws Exception {
-        Connection connection = dbUtil.getConnection(dbFile);
+        DBUtil dbUtil = new H2Util(dbFile);
+        Connection connection = dbUtil.getConnection();
         statement = connection.createStatement();
         this.tableName = tableName;
         XMLLogReader reader = new XMLLogReader();

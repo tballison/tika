@@ -1,4 +1,4 @@
-package org.apache.tika.eval.batch;
+package org.apache.tika.eval.io;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -18,30 +18,10 @@ package org.apache.tika.eval.batch;
  */
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Map;
 
-import org.apache.tika.batch.ConsumersManager;
-import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.io.EvalDBWriter;
+public interface IDBWriter {
 
-
-public class BasicFileComparerManager extends ConsumersManager {
-
-    private final EvalDBWriter writer;
-
-    public BasicFileComparerManager(List<FileResourceConsumer> consumers, EvalDBWriter writer) {
-        super(consumers);
-        this.writer = writer;
-    }
-
-
-    @Override
-    public void shutdown() {
-        try {
-            writer.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-    }
+    public void writeRow(String tableName, Map<String, String> data) throws IOException;
+    public void close() throws IOException;
 }

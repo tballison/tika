@@ -35,12 +35,13 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
-public class BasicFileComparer extends AbstractProfiler {
+public class FileComparer extends AbstractProfiler {
 
     public static final String COMPARISONS_TABLE = "comparisons";
 
@@ -70,20 +71,16 @@ public class BasicFileComparer extends AbstractProfiler {
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
-    private static File thisRootDir;
-    private static File thatRootDir;
     public final static String thisExtension = "_A";
     public final static String thatExtension = "_B";
-    private static int thisDirLen;
+
+    private final File thisRootDir;
+    private final File thatRootDir;
 
     private final long minJsonLength;
     private final long maxJsonLength;
 
-    public static void init(File thsRootDir, File thtRootDir) {
-        thisRootDir = thsRootDir;
-        thatRootDir = thtRootDir;
-
-        thisDirLen = thsRootDir.getAbsolutePath().length() + 1;
+    static  {
         headers = new HashMap<String, ColInfo>();
         addHeader(headers, HEADERS.FILE_PATH);
         addHeader(headers, HEADERS.FILE_LENGTH);
@@ -116,11 +113,15 @@ public class BasicFileComparer extends AbstractProfiler {
 
     }
 
-    public BasicFileComparer(ArrayBlockingQueue<FileResource> queue,
-                             boolean crawlingInputDir, long minJsonLength, long maxJsonLength) {
-        super(queue, crawlingInputDir);
+    public FileComparer(ArrayBlockingQueue<FileResource> queue,
+                        File thsRootDir, File thtRootDir,
+                        boolean crawlingInputDir, IDBWriter writer, long minJsonLength,
+                        long maxJsonLength) {
+        super(queue, crawlingInputDir, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
+        this.thisRootDir = thsRootDir;
+        this.thatRootDir = thtRootDir;
     }
 
     private static void addHeaders(Map<String, ColInfo> headers, HEADERS header, String thisExtension, String thatExtension) {
@@ -140,6 +141,10 @@ public class BasicFileComparer extends AbstractProfiler {
     private static void addHeader(Map<String, ColInfo> headers, COMPARISON_HEADERS header) {
         headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
+    public static Map<String, ColInfo> getHeaders() {
+        return headers;
     }
 
     @Override
@@ -171,11 +176,11 @@ public class BasicFileComparer extends AbstractProfiler {
         return true;
     }
 
-    public static Map<String, ColInfo> getHeaders() {
-        return headers;
-    }
 
-    private void compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
+
+    //TODO: clean up
+    //protected for testing, should find better way so that this can be private!
+    protected void compareFiles(String relativePath, File thisFile, File thatFile) throws IOException {
         List<Metadata> thisMetadataList = getMetadata(thisFile);
         List<Metadata> thatMetadataList = getMetadata(thatFile);
         //array indices for those metadata items handled in
@@ -330,8 +335,6 @@ public class BasicFileComparer extends AbstractProfiler {
                                 countMetadataValues(thatMetadata)));
                 writer.writeRow(COMPARISONS_TABLE, output);
             }
-
-
         }
     }
 
