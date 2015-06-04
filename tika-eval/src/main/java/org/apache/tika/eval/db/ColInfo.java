@@ -23,15 +23,26 @@ public class ColInfo {
     private final int dbColOffset;//offset starting at 1
     private final int type;
     private final Integer precision;
+    private final String constraints;
 
     public ColInfo(int dbColOffset, int type) {
-        this(dbColOffset, type, null);
+        this(dbColOffset, type, null, null);
+    }
+
+    public ColInfo(int dbColOffset, int type, String constraints) {
+        this(dbColOffset, type, null, constraints);
     }
 
     public ColInfo(int dbColOffset, int type, Integer precision) {
+        this(dbColOffset, type, precision, null);
+    }
+
+
+    public ColInfo(int dbColOffset, int type, Integer precision, String constraints) {
         this.dbColOffset = dbColOffset;
         this.type = type;
         this.precision = precision;
+        this.constraints = constraints;
     }
 
     public int getDBColOffset() {
@@ -44,6 +55,14 @@ public class ColInfo {
 
     public int getType() {
         return type;
+    }
+
+    /**
+     *
+     * @return constraints string or null
+     */
+    public String getConstraints() {
+        return constraints;
     }
 
     /**

@@ -33,13 +33,14 @@ public abstract class EvalConsumerBuilder {
         Map<String, Map<String, ColInfo>> tableInfo = getTableInfo();
         for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
             Map<String, ColInfo> cols = table.getValue();
-            System.err.println("TABLE: " + table.getKey());
             TreeMap<String, ColInfo> sorted = new TreeMap<String,ColInfo>(new ValueComparator(cols));
             sorted.putAll(cols);
             tableInfo.put(table.getKey(), Collections.unmodifiableSortedMap(sorted));
         }
         return Collections.unmodifiableMap(tableInfo);
     }
+
+    public abstract Map<String, String> getIndexInfo();
 
     class ValueComparator implements Comparator<String> {
 

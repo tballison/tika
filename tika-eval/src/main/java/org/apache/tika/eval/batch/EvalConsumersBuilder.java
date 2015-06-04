@@ -50,7 +50,8 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         consumerBuilder.init(queue, localAttrs, util);
 
         try {
-            util.createDB(consumerBuilder.getSortedTableInfo(), append);
+            util.createDB(consumerBuilder.getSortedTableInfo(),
+                    consumerBuilder.getIndexInfo(), append);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {

@@ -82,9 +82,13 @@ public class FileComparer extends AbstractProfiler {
 
     static  {
         headers = new HashMap<String, ColInfo>();
+        addHeader(headers, HEADERS.ID);
+        addHeader(headers, HEADERS.CONTAINER_ID);
         addHeader(headers, HEADERS.FILE_PATH);
         addHeader(headers, HEADERS.FILE_LENGTH);
+        addHeader(headers, HEADERS.IS_EMBEDDED);
         addHeader(headers, HEADERS.EMBEDDED_FILE_PATH);
+        addHeaders(headers, HEADERS.EMBEDDED_FILE_LENGTH, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.JSON_FILE_LENGTH, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
         addHeader(headers, HEADERS.FILE_EXTENSION);
@@ -189,6 +193,7 @@ public class FileComparer extends AbstractProfiler {
         Map<String, String> output = new HashMap<String, String>();
         String thisJsonLength = Long.toString(thisFile.length());
         String thatJsonLength = Long.toString(thatFile.length());
+        String containerID = Integer.toString(CONTAINER_ID.getAndIncrement());
         if (thisMetadataList == null && thatMetadataList == null) {
             output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
             output.put(HEADERS.FILE_EXTENSION.name(),
@@ -200,6 +205,8 @@ public class FileComparer extends AbstractProfiler {
                     JSON_PARSE_EXCEPTION);
             output.put(HEADERS.JSON_EX + thatExtension,
                     JSON_PARSE_EXCEPTION);
+            output.put(HEADERS.ID.name(), Integer.toString(ID.getAndIncrement()));
+            output.put(HEADERS.CONTAINER_ID.name(), containerID);
             writer.writeRow(COMPARISONS_TABLE, output);
             return;
         }
@@ -208,7 +215,8 @@ public class FileComparer extends AbstractProfiler {
         if (thisMetadataList != null) {
             for (int i = 0; i < thisMetadataList.size(); i++) {
                 output.clear();
-
+                output.put(HEADERS.ID.name(), Integer.toString(ID.getAndIncrement()));
+                output.put(HEADERS.CONTAINER_ID.name(), containerID);
                 Metadata thisMetadata = thisMetadataList.get(i);
                 Metadata thatMetadata = null;
                 int matchIndex = getMatch(i, thisMetadataList, thatMetadataList);
@@ -281,6 +289,8 @@ public class FileComparer extends AbstractProfiler {
                     continue;
                 }
                 output.clear();
+                output.put(HEADERS.ID.name(), Integer.toString(ID.getAndIncrement()));
+                output.put(HEADERS.CONTAINER_ID.name(), containerID);
                 Metadata thatMetadata = thatMetadataList.get(i);
                 if (thatMetadata == null) {
                     throw new RuntimeException("NULL metadata in list");

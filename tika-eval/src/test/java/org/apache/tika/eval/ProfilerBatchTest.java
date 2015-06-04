@@ -82,7 +82,7 @@ public class ProfilerBatchTest {
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
             while (rs.next()) {
-                String fileName = rs.getString(1);
+                String fileName = rs.getString(3);
                 fNameSet.add(fileName);
                 fNameList.add(fileName);
             }

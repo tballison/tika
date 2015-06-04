@@ -139,15 +139,8 @@ public abstract class DBUtil {
         }
     }
 
-    /**
-     *
-     * @param tableInfo
-     * @param append
-     * @return
-     * @throws Exception
-     */
     public void createDB(Map<String, Map<String, ColInfo>> tableInfo,
-                               boolean append) throws SQLException, IOException {
+                         Map<String, String> indexInfo, boolean append) throws SQLException, IOException {
         Connection conn = getConnection();
         Set<String> tables = getTables(conn);
 
@@ -160,6 +153,14 @@ public abstract class DBUtil {
                 dropTableIfExists(conn, table.getKey());
             }
             createTable(conn, table.getKey(), table.getValue());
+        }
+        if (indexInfo != null) {
+            Statement st = conn.createStatement();
+            for (Map.Entry<String, String> e : indexInfo.entrySet()) {
+                String sql = "CREATE INDEX "+e.getKey()+"_idx " +
+                        "on " + e.getKey() + "("+e.getValue()+")";
+                st.execute(sql);
+            }
         }
         conn.commit();
         conn.close();
@@ -184,9 +185,13 @@ public abstract class DBUtil {
             createSql.append(col.getKey());
             createSql.append(" ");
             createSql.append(col.getValue().getSqlDef());
+            String constraints = col.getValue().getConstraints();
+            if (constraints != null) {
+                createSql.append(" ");
+                createSql.append(constraints);
+            }
         }
         createSql.append(")");
-
         Statement st = conn.createStatement();
         st.execute(createSql.toString());
 

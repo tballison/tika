@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,11 +75,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public static final String EXCEPTIONS_TABLE = "exceptions";
     public static final String JSON_PARSE_EXCEPTION = "Json parse exception";
 
+    protected static final AtomicInteger CONTAINER_ID = new AtomicInteger();
+    protected static final AtomicInteger ID = new AtomicInteger();
+
     private final static String UNKNOWN_EXTENSION = "unk";
 
     public enum EXCEPTION_HEADERS {
-        FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
-        EMBEDDED_FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
         TIMEOUT_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
         OOM_ERROR(new ColInfo(-1, Types.BOOLEAN)),
         ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
@@ -98,6 +101,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     public enum HEADERS {
+        ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
+        CONTAINER_ID(new ColInfo(-1, Types.INTEGER)),
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
         FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
         EMBEDDED_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
@@ -153,8 +158,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
 
-
-    final static int MAX_TOKENS = 100000;
     final static int MAX_STRING_LENGTH = 1000000;
     final static int MAX_LEN_FOR_LANG_ID = 20000;
     final static int TOP_N_WORDS = 10;
@@ -187,7 +190,16 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         Matcher m = FILE_NAME_CLEANER.matcher(fName);
         return m.replaceAll("");
     }
-
+/*
+    public void setContentLength(Metadata metadata, Map<String, String> data) {
+        if ("TRUE".equals(data.get(HEADERS.IS_EMBEDDED.name())) {
+            String len = data.get(Metadata.CONTENT_LENGTH);
+            if (len != null) {
+                d
+            }
+        }
+    }
+*/
     List<Metadata> getMetadata(File thisFile) {
         Reader reader = null;
         List<Metadata> metadataList = null;
@@ -266,6 +278,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     void getExceptionStrings(Metadata metadata, Map<String, String> data) {
 
         String fullTrace = metadata.get(TikaCoreProperties.TIKA_META_EXCEPTION_PREFIX + "runtime");
+
+        if (fullTrace == null) {
+            fullTrace = metadata.get(RecursiveParserWrapper.EMBEDDED_EXCEPTION);
+        }
+
         if (fullTrace != null) {
             //check for "expected" exceptions...exceptions
             //that can't be fixed.
@@ -490,8 +507,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         Map<String, String> excOutput = new HashMap<String, String>();
         getExceptionStrings(metadata, excOutput);
         if(excOutput.size() > 0) {
-            excOutput.put(HEADERS.FILE_PATH.name(), output.get(HEADERS.FILE_PATH.name()));
-            excOutput.put(HEADERS.EMBEDDED_FILE_PATH.name(), output.get(HEADERS.EMBEDDED_FILE_PATH.name()));
+            excOutput.put(HEADERS.ID.name(), output.get(HEADERS.ID.name()));
             writer.writeRow(FileComparer.EXCEPTIONS_TABLE + extension, excOutput);
         }
     }

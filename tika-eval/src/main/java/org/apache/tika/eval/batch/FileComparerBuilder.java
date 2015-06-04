@@ -60,11 +60,22 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
         tableInfo.put(FileComparer.COMPARISONS_TABLE, FileComparer.getHeaders());
         tableInfo.put(FileComparer.PAIR_NAMES_TABLE, getPairNamesCols());
-        tableInfo.put(FileComparer.EXCEPTIONS_TABLE+ FileComparer.thisExtension,
+        tableInfo.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thisExtension,
                 AbstractProfiler.getExceptionHeaders());
-        tableInfo.put(FileComparer.EXCEPTIONS_TABLE+ FileComparer.thatExtension,
+        tableInfo.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thatExtension,
                 AbstractProfiler.getExceptionHeaders());
         return tableInfo;
+    }
+
+    @Override
+    public Map<String, String> getIndexInfo() {
+        Map<String, String> indices = new HashMap<String, String>();
+        indices.put(FileComparer.COMPARISONS_TABLE, AbstractProfiler.HEADERS.ID.name());
+        indices.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thisExtension,
+                AbstractProfiler.HEADERS.ID.name());
+        indices.put(FileComparer.EXCEPTIONS_TABLE+ FileComparer.thatExtension,
+                AbstractProfiler.HEADERS.ID.name());
+        return indices;
     }
 
 

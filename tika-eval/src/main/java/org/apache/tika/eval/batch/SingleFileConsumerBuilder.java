@@ -38,4 +38,13 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         return tableInfo;
     }
 
+    @Override
+    public Map<String, String> getIndexInfo() {
+        Map<String, String> indices = new HashMap<String, String>();
+        indices.put(SingleFileProfiler.MAIN_TABLE, AbstractProfiler.HEADERS.ID.name());
+        indices.put(AbstractProfiler.EXCEPTIONS_TABLE, AbstractProfiler.HEADERS.ID.name());
+        return indices;
+
+    }
+
 }

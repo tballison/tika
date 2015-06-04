@@ -212,7 +212,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
                 data.get(AbstractProfiler.HEADERS.JSON_EX+ FileComparer.thatExtension));
         assertEquals("file7_badJson.pdf",
                 data.get(AbstractProfiler.HEADERS.FILE_PATH.name()));
-        assertEquals("64", data.get("JSON_FILE_LENGTH_A"));
+        assertEquals("61", data.get("JSON_FILE_LENGTH_A"));
         assertEquals("0", data.get("JSON_FILE_LENGTH_B"));
         assertEquals("pdf", data.get("FILE_EXTENSION"));
 
@@ -220,20 +220,52 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     @Test
     public void testAccessPermissionException() throws Exception {
-        String where = fp+"='file6_accessEx.pdf'";
-        Map<String, String> data = getRow(thisExTable, where);
+        String sql = "select "+
+                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
+                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
+                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exA.ID "+
+                "where "+fp+"='file6_accessEx.pdf'";
+        Statement st = conn.createStatement();
+        ResultSet rs = st.executeQuery(sql);
+        List<String> results = new ArrayList<String>();
+        while (rs.next()) {
+            results.add(rs.getString(1));
+        }
+        assertEquals(1, results.size());
+        assertEquals("TRUE", results.get(0));
 
-        assertEquals("TRUE", data.get(
-                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name()));
-        data = getRow(thatExTable, where);
-        assertEquals("TRUE", data.get(
-                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name()));
+        sql = "select "+
+                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
+                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_B exB "+
+                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exB.ID "+
+                "where "+fp+"='file6_accessEx.pdf'";
+        st = conn.createStatement();
+        rs = st.executeQuery(sql);
+        results = new ArrayList<String>();
+        while (rs.next()) {
+            results.add(rs.getString(1));
+        }
+        assertEquals(1, results.size());
+        assertEquals("TRUE", results.get(0));
+
     }
 
     @Test
     public void testContainerException() throws Exception {
-        String where = fp+"='file8_IOEx.pdf'";
-        Map<String, String> data = getRow(thisExTable, where);
+        String sql = "select * "+
+                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
+                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exA.ID "+
+                "where "+fp+"='file8_IOEx.pdf'";
+        Statement st = conn.createStatement();
+        ResultSet rs = st.executeQuery(sql);
+
+        Map<String, String> data = new HashMap<String,String>();
+        ResultSetMetaData rsM = rs.getMetaData();
+        while (rs.next()) {
+            for (int i = 1; i <= rsM.getColumnCount(); i++)
+            data.put(rsM.getColumnName(i), rs.getString(i));
+        }
+
         String sortStack = data.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.name());
         sortStack = sortStack.replaceAll("[\r\n]", "<N>");
         assertTrue(sortStack.startsWith("java.lang.RuntimeException<N>"));
