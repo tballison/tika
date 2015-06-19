@@ -31,8 +31,10 @@ import java.sql.ResultSetMetaData;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.fs.FSBatchTestBase;
@@ -49,10 +51,15 @@ public class ComparerBatchTest extends FSBatchTestBase {
     private static Path dbDir;
     private static Connection conn;
 
-    private final static String cTable = FileComparer.COMPARISONS_TABLE;
+    private final static String compTable = FileComparer.COMPARISONS_TABLE;
+    private final static String contTable = AbstractProfiler.CONTAINERS_TABLE;
     private final static String thisExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.thisExtension;
     private final static String thatExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.thatExtension;
-    private final static String fp = AbstractProfiler.HEADERS.FILE_PATH.name();
+    private final static String fp = AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name();
+    private final static String compJoinCont = FileComparer.COMPARISONS_TABLE+" cmp " +
+            "join "+FileComparer.CONTAINERS_TABLE + " cnt "+
+            "on cmp."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID+
+            " = cnt."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -69,8 +76,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(COMPARER_PROCESS_CLASS, args,
                 "/tika-batch-comparison-eval-config.xml");
         StreamStrings streamStrings = ex.execute();
-//        System.out.println(streamStrings.getErrString());
-//        System.out.println(streamStrings.getOutString());
+        System.out.println(streamStrings.getErrString());
+        System.out.println(streamStrings.getOutString());
         H2Util dbUtil = new H2Util(dbFile.toFile());
         conn = dbUtil.getConnection();
     }
@@ -86,15 +93,31 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     @Test
     public void testSimpleDBWriteAndRead() throws Exception {
-        List<String> fileNames = getColStrings(fp);
-        assertEquals(10, fileNames.size());
-        assertTrue(fileNames.contains("file1.pdf"));
+        Set<String> set = new HashSet<String>();
+        //filenames
+        List<String> list = getColStrings(fp, contTable, "");
+        assertEquals(8, list.size());
+        assertTrue(list.contains("file1.pdf"));
+
+        //container ids in comparisons table
+        list = getColStrings(AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name(),
+                compTable,"");
+        assertEquals(9, list.size());
+        set.clear(); set.addAll(list);
+        assertEquals(7, set.size());
+
+        //ids in comparisons table
+        list = getColStrings(AbstractProfiler.HEADERS.ID.name(),
+                compTable,"");
+        assertEquals(9, list.size());
+        set.clear(); set.addAll(list);
+        assertEquals(9, set.size());
     }
 
     @Test
     public void testFile1PDFRow() throws Exception {
         String where = fp+"='file1.pdf'";
-        Map<String, String> data = getRow(cTable, where);
+        Map<String, String> data = getRow(compJoinCont, where);
         String result = data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_A");
         assertTrue(result.startsWith("over: 1"));
 
@@ -147,133 +170,138 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     }
 
+
     @Test
     public void testEmpty() throws Exception {
         String where = fp+"='file4_emptyB.pdf'";
-        Map<String, String> data = getRow(cTable, where);
-        assertNull(data.get(AbstractProfiler.HEADERS.JSON_EX +
+        Map<String, String> data = getRow(contTable, where);
+        assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
                 FileComparer.thisExtension));
-        assertTrue(data.get(AbstractProfiler.HEADERS.JSON_EX +
+        assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
                 FileComparer.thatExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
 
         where = fp+"='file5_emptyA.pdf'";
-        data = getRow(cTable, where);
-        assertNull(data.get(AbstractProfiler.HEADERS.JSON_EX +
+        data = getRow(contTable, where);
+        assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
                 FileComparer.thatExtension));
-        assertTrue(data.get(AbstractProfiler.HEADERS.JSON_EX+
+        assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+
                 FileComparer.thisExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
     }
 
-    @Test
-    public void testMissingAttachment() throws Exception {
-        String where = fp+"='file2_attachANotB.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
-                "='inner.txt'";
-        Map<String, String> data = getRow(cTable, where);
-        assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
-        assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
-        assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                FileComparer.thatExtension));
-        assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                FileComparer.thatExtension));
+        @Test
+        public void testMissingAttachment() throws Exception {
+            String where = fp+"='file2_attachANotB.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
+                    "='inner.txt'";
+            Map<String, String> data = getRow(compJoinCont, where);
+            assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
+            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
+            assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
+                    FileComparer.thatExtension));
+            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
+                    FileComparer.thatExtension));
 
-        assertEquals("3", data.get("NUM_METADATA_VALUES_A"));
-        assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
-        assertNull(data.get("NUM_METADATA_VALUES_B"));
-        assertEquals("0", data.get("NUM_UNIQUE_TOKENS_B"));
-        assertNull(data.get("TOKEN_ENTROPY_RATE_B"));
-        assertNull(data.get("NUM_EN_STOPS_TOP_N_B"));
+            assertEquals("3", data.get("NUM_METADATA_VALUES_A"));
+            assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
+            assertNull(data.get("NUM_METADATA_VALUES_B"));
+            assertEquals("0", data.get("NUM_UNIQUE_TOKENS_B"));
+            assertNull(data.get("TOKEN_ENTROPY_RATE_B"));
+            assertNull(data.get("NUM_EN_STOPS_TOP_N_B"));
 
-        where = fp+"='file3_attachBNotA.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
-                "='inner.txt'";
-        data = getRow(cTable, where);
-        assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
-        assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
-        assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                FileComparer.thisExtension));
-        assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                FileComparer.thisExtension));
+            where = fp+"='file3_attachBNotA.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
+                    "='inner.txt'";
+            data = getRow(compJoinCont, where);
+            assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
+            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
+            assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
+                    FileComparer.thisExtension));
+            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
+                    FileComparer.thisExtension));
 
-        assertEquals("3", data.get("NUM_METADATA_VALUES_B"));
-        assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
-        assertNull(data.get("NUM_METADATA_VALUES_A"));
-        assertEquals("0", data.get("NUM_UNIQUE_TOKENS_A"));
-        assertNull(data.get("TOKEN_ENTROPY_RATE_A"));
-        assertNull(data.get("NUM_EN_STOPS_TOP_N_A"));
+            assertEquals("3", data.get("NUM_METADATA_VALUES_B"));
+            assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
+            assertNull(data.get("NUM_METADATA_VALUES_A"));
+            assertEquals("0", data.get("NUM_UNIQUE_TOKENS_A"));
+            assertNull(data.get("TOKEN_ENTROPY_RATE_A"));
+            assertNull(data.get("NUM_EN_STOPS_TOP_N_A"));
 
-    }
-
-    @Test
-    public void testBothBadJson() throws Exception {
-        String where = fp+"='file7_badJson.pdf'";
-        Map<String, String> data = getRow(cTable, where);
-        assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                data.get(AbstractProfiler.HEADERS.JSON_EX+ FileComparer.thisExtension));
-        assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                data.get(AbstractProfiler.HEADERS.JSON_EX+ FileComparer.thatExtension));
-        assertEquals("file7_badJson.pdf",
-                data.get(AbstractProfiler.HEADERS.FILE_PATH.name()));
-        assertEquals("61", data.get("JSON_FILE_LENGTH_A"));
-        assertEquals("0", data.get("JSON_FILE_LENGTH_B"));
-        assertEquals("pdf", data.get("FILE_EXTENSION"));
-
-    }
-
-    @Test
-    public void testAccessPermissionException() throws Exception {
-        String sql = "select "+
-                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
-                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
-                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exA.ID "+
-                "where "+fp+"='file6_accessEx.pdf'";
-        Statement st = conn.createStatement();
-        ResultSet rs = st.executeQuery(sql);
-        List<String> results = new ArrayList<String>();
-        while (rs.next()) {
-            results.add(rs.getString(1));
-        }
-        assertEquals(1, results.size());
-        assertEquals("TRUE", results.get(0));
-
-        sql = "select "+
-                AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
-                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_B exB "+
-                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exB.ID "+
-                "where "+fp+"='file6_accessEx.pdf'";
-        st = conn.createStatement();
-        rs = st.executeQuery(sql);
-        results = new ArrayList<String>();
-        while (rs.next()) {
-            results.add(rs.getString(1));
-        }
-        assertEquals(1, results.size());
-        assertEquals("TRUE", results.get(0));
-
-    }
-
-    @Test
-    public void testContainerException() throws Exception {
-        String sql = "select * "+
-                " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
-                " join " + FileComparer.COMPARISONS_TABLE + " c on c.ID=exA.ID "+
-                "where "+fp+"='file8_IOEx.pdf'";
-        Statement st = conn.createStatement();
-        ResultSet rs = st.executeQuery(sql);
-
-        Map<String, String> data = new HashMap<String,String>();
-        ResultSetMetaData rsM = rs.getMetaData();
-        while (rs.next()) {
-            for (int i = 1; i <= rsM.getColumnCount(); i++)
-            data.put(rsM.getColumnName(i), rs.getString(i));
         }
 
-        String sortStack = data.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.name());
-        sortStack = sortStack.replaceAll("[\r\n]", "<N>");
-        assertTrue(sortStack.startsWith("java.lang.RuntimeException<N>"));
+        @Test
+        public void testBothBadJson() throws Exception {
+            debugDumpAll(contTable);
+            String where = fp+"='file7_badJson.pdf'";
+            Map<String, String> data = getRow(contTable, where);
+            assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.thisExtension));
+            assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.thatExtension));
+            assertEquals("file7_badJson.pdf",
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name()));
+            assertEquals("61", data.get("JSON_FILE_LENGTH_A"));
+            assertEquals("0", data.get("JSON_FILE_LENGTH_B"));
+            assertEquals("pdf", data.get(AbstractProfiler.CONTAINER_HEADERS.FILE_EXTENSION.name()));
 
-        String fullStack = data.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.name());
-        assertTrue(
-                fullStack.startsWith("java.lang.RuntimeException: java.io.IOException: Value is not an integer"));
-    }
+        }
+
+        @Test
+        public void testAccessPermissionException() throws Exception {
+            String sql = "select "+
+                    AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
+                    " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
+                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
+                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    " where "+fp+"='file6_accessEx.pdf'";
+            Statement st = conn.createStatement();
+            ResultSet rs = st.executeQuery(sql);
+            List<String> results = new ArrayList<String>();
+            while (rs.next()) {
+                results.add(rs.getString(1));
+            }
+            assertEquals(1, results.size());
+            assertEquals("TRUE", results.get(0));
+
+            sql = "select "+
+                    AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
+                    " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_B exB "+
+                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exB.ID "+
+                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    " where "+fp+"='file6_accessEx.pdf'";
+            st = conn.createStatement();
+            rs = st.executeQuery(sql);
+            results = new ArrayList<String>();
+            while (rs.next()) {
+                results.add(rs.getString(1));
+            }
+            assertEquals(1, results.size());
+            assertEquals("TRUE", results.get(0));
+
+        }
+
+        @Test
+        public void testContainerException() throws Exception {
+            String sql = "select * "+
+                    " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
+                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
+                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    "where "+fp+"='file8_IOEx.pdf'";
+            Statement st = conn.createStatement();
+            ResultSet rs = st.executeQuery(sql);
+
+            Map<String, String> data = new HashMap<String,String>();
+            ResultSetMetaData rsM = rs.getMetaData();
+            while (rs.next()) {
+                for (int i = 1; i <= rsM.getColumnCount(); i++)
+                data.put(rsM.getColumnName(i), rs.getString(i));
+            }
+
+            String sortStack = data.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.name());
+            sortStack = sortStack.replaceAll("[\r\n]", "<N>");
+            assertTrue(sortStack.startsWith("java.lang.RuntimeException<N>"));
+
+            String fullStack = data.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.name());
+            assertTrue(
+                    fullStack.startsWith("java.lang.RuntimeException: java.io.IOException: Value is not an integer"));
+        }
 
     private void debugDumpAll(String table) throws Exception {
         Statement st = conn.createStatement();
@@ -357,6 +385,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         Statement st = null;
         try {
             st = conn.createStatement();
+            System.out.println("SQL: "+sql);
             ResultSet rs = st.executeQuery(sql);
             while (rs.next()) {
                 results.add(rs.getString(1));

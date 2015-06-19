@@ -71,19 +71,21 @@ import org.apache.tika.utils.ExceptionUtils;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
-    public static final String PAIR_NAMES_TABLE = "pair_names";
+    public static final String CONTAINERS_TABLE = "containers";
     public static final String EXCEPTIONS_TABLE = "exceptions";
     public static final String JSON_PARSE_EXCEPTION = "Json parse exception";
+
+    public static final String TRUE = Boolean.toString(true);
+    public static final String FALSE = Boolean.toString(false);
 
     protected static final AtomicInteger CONTAINER_ID = new AtomicInteger();
     protected static final AtomicInteger ID = new AtomicInteger();
 
     private final static String UNKNOWN_EXTENSION = "unk";
 
+
     public enum EXCEPTION_HEADERS {
         ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
-        TIMEOUT_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
-        OOM_ERROR(new ColInfo(-1, Types.BOOLEAN)),
         ORIG_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
         SORT_STACK_TRACE(new ColInfo(-1, Types.VARCHAR, 8192)),
         ENCRYPTED_EXCEPTION(new ColInfo(-1, Types.BOOLEAN)),
@@ -100,22 +102,40 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    public enum HEADERS {
-        ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
-        CONTAINER_ID(new ColInfo(-1, Types.INTEGER)),
+    public enum CONTAINER_HEADERS {
+        CONTAINER_ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
         FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
-        FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
-        EMBEDDED_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
-        IS_EMBEDDED(new ColInfo(-1, Types.BOOLEAN)),
-        EMBEDDED_FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
+        FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
+        NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
+        ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
         JSON_EX(new ColInfo(-1, Types.VARCHAR, 512)),
         JSON_FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
+        OOM_ERR(new ColInfo(-1, Types.BOOLEAN)),
+        TIMEOUT_ERR(new ColInfo(-1, Types.BOOLEAN)),
+        FATAL_ERR(new ColInfo(-1, Types.BOOLEAN));
+
+        private final ColInfo colInfo;
+
+        CONTAINER_HEADERS(ColInfo colInfo) {
+            this.colInfo = colInfo;
+        }
+
+        protected ColInfo getColInfo() {
+            return colInfo;
+        }
+    };
+
+    public enum HEADERS {
+        ID(new ColInfo(-1, Types.INTEGER, "PRIMARY KEY")),
+        CONTAINER_ID(new ColInfo(-1, Types.INTEGER, "FOREIGN KEY")),
+        FILE_LENGTH(new ColInfo(-1, Types.BIGINT)),
+        IS_EMBEDDED(new ColInfo(-1, Types.BOOLEAN)),
+        EMBEDDED_FILE_PATH(new ColInfo(-1, Types.VARCHAR, 1024)),
         FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 12)),
         DETECTED_CONTENT_TYPE(new ColInfo(-1, Types.VARCHAR, 128)),
         DETECTED_FILE_EXTENSION(new ColInfo(-1, Types.VARCHAR, 32)),
         ELAPSED_TIME_MILLIS(new ColInfo(-1, Types.INTEGER)),
         NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
-        NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
         TOKEN_COUNT(new ColInfo(-1, Types.INTEGER)),
         NUM_UNIQUE_TOKENS(new ColInfo(-1, Types.INTEGER)),
         TOP_N_WORDS(new ColInfo(-1, Types.VARCHAR, 1024)),
@@ -143,18 +163,31 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
     private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
     private static Map<String, ColInfo> EXCEPTION_HEADERS_MAP = new HashMap<String, ColInfo>();
+    private static Map<String, ColInfo> CONTAINER_HEADERS_MAP = new HashMap<String, ColInfo>();
 
     static {
         for (EXCEPTION_HEADERS header : EXCEPTION_HEADERS.values()) {
             EXCEPTION_HEADERS_MAP.put(header.name(), new ColInfo(EXCEPTION_HEADERS_MAP.size() + 1,
-                    header.getColInfo().getType(), header.getColInfo().getPrecision()));
+                    header.getColInfo().getType(), header.getColInfo().getPrecision(),
+                    header.getColInfo().getConstraints()));
 
         }
         EXCEPTION_HEADERS_MAP = Collections.unmodifiableMap(EXCEPTION_HEADERS_MAP);
+
+        for (CONTAINER_HEADERS header : CONTAINER_HEADERS.values()) {
+            CONTAINER_HEADERS_MAP.put(header.name(), new ColInfo(CONTAINER_HEADERS_MAP.size()+1,
+                    header.getColInfo().getType(), header.getColInfo().getPrecision(),
+                    header.getColInfo().getConstraints()));
+        }
+        CONTAINER_HEADERS_MAP = Collections.unmodifiableMap(CONTAINER_HEADERS_MAP);
     }
 
     public static Map<String, ColInfo> getExceptionHeaders() {
         return EXCEPTION_HEADERS_MAP;
+    }
+
+    public static Map<String,ColInfo> getContainerHeaders() {
+        return CONTAINER_HEADERS_MAP;
     }
 
 
@@ -200,6 +233,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 */
+
     List<Metadata> getMetadata(File thisFile) {
         Reader reader = null;
         List<Metadata> metadataList = null;

@@ -43,11 +43,10 @@ import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class FileComparer extends AbstractProfiler {
 
+    public static final String PAIR_NAMES_TABLE = "pair_names";
     public static final String COMPARISONS_TABLE = "comparisons";
 
     public enum COMPARISON_HEADERS {
-        DIFF_NUM_ATTACHMENTS(new ColInfo(-1, Types.INTEGER)),
-        DIFF_NUM_METADATA_VALUES(new ColInfo(-1, Types.INTEGER)),
         TOP_10_UNIQUE_TOKEN_DIFFS(new ColInfo(-1, Types.VARCHAR, 1024)),
         TOP_10_MORE_IN_A(new ColInfo(-1, Types.VARCHAR, 1024)),
         TOP_10_MORE_IN_B(new ColInfo(-1, Types.VARCHAR, 1024)),
@@ -67,6 +66,7 @@ public class FileComparer extends AbstractProfiler {
     }
 
     public static Map<String, ColInfo> headers;
+    public static Map<String, ColInfo> container_headers;
 
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
@@ -82,22 +82,27 @@ public class FileComparer extends AbstractProfiler {
 
     static  {
         headers = new HashMap<String, ColInfo>();
+        container_headers = new HashMap<String, ColInfo>();
+        addHeader(container_headers, CONTAINER_HEADERS.CONTAINER_ID);
+        addHeader(container_headers, CONTAINER_HEADERS.FILE_PATH);
+        addHeader(container_headers, CONTAINER_HEADERS.FILE_EXTENSION);
+        addHeaders(container_headers, CONTAINER_HEADERS.JSON_FILE_LENGTH, thisExtension, thatExtension);
+        addHeaders(container_headers, CONTAINER_HEADERS.JSON_EX, thisExtension, thatExtension);
+        addHeaders(container_headers, CONTAINER_HEADERS.NUM_ATTACHMENTS, thisExtension, thatExtension);
+        addHeaders(container_headers, CONTAINER_HEADERS.OOM_ERR, thisExtension, thatExtension);
+        addHeaders(container_headers, CONTAINER_HEADERS.TIMEOUT_ERR, thisExtension, thatExtension);
+        addHeaders(container_headers, CONTAINER_HEADERS.FATAL_ERR, thisExtension, thatExtension);
+
+
         addHeader(headers, HEADERS.ID);
         addHeader(headers, HEADERS.CONTAINER_ID);
-        addHeader(headers, HEADERS.FILE_PATH);
         addHeader(headers, HEADERS.FILE_LENGTH);
         addHeader(headers, HEADERS.IS_EMBEDDED);
         addHeader(headers, HEADERS.EMBEDDED_FILE_PATH);
-        addHeaders(headers, HEADERS.EMBEDDED_FILE_LENGTH, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.JSON_FILE_LENGTH, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.JSON_EX, thisExtension, thatExtension);
         addHeader(headers, HEADERS.FILE_EXTENSION);
         addHeaders(headers, HEADERS.DETECTED_CONTENT_TYPE, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.DETECTED_FILE_EXTENSION, thisExtension, thatExtension);
-        addHeaders(headers, HEADERS.NUM_ATTACHMENTS, thisExtension, thatExtension);
-        addHeader(headers, COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS);
         addHeaders(headers, HEADERS.NUM_METADATA_VALUES, thisExtension, thatExtension);
-        addHeader(headers, COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES);
         addHeaders(headers, HEADERS.ELAPSED_TIME_MILLIS, thisExtension, thatExtension);
         addHeaders(headers, HEADERS.NUM_UNIQUE_TOKENS, thisExtension, thatExtension);
         addHeader(headers, COMPARISON_HEADERS.DICE_COEFFICIENT);
@@ -142,6 +147,18 @@ public class FileComparer extends AbstractProfiler {
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
     }
 
+    private static void addHeader(Map<String, ColInfo> headers, CONTAINER_HEADERS header) {
+        headers.put(header.name(), new ColInfo(headers.size() + 1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
+    private static void addHeaders(Map<String, ColInfo> headers, CONTAINER_HEADERS header, String thisExtension, String thatExtension) {
+        headers.put(header.name() + thisExtension, new ColInfo(headers.size() + 1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+        headers.put(header.name() + thatExtension, new ColInfo(headers.size() + 1,
+                header.getColInfo().getType(), header.getColInfo().getPrecision()));
+    }
+
     private static void addHeader(Map<String, ColInfo> headers, COMPARISON_HEADERS header) {
         headers.put(header.name(), new ColInfo(headers.size() + 1,
                 header.getColInfo().getType(), header.getColInfo().getPrecision()));
@@ -149,6 +166,10 @@ public class FileComparer extends AbstractProfiler {
 
     public static Map<String, ColInfo> getHeaders() {
         return headers;
+    }
+
+    public static Map<String, ColInfo> getContainerHeaders() {
+        return container_headers;
     }
 
     @Override
@@ -190,31 +211,47 @@ public class FileComparer extends AbstractProfiler {
         //array indices for those metadata items handled in
         //"that"
         Set<Integer> handledThat = new HashSet<Integer>();
-        Map<String, String> output = new HashMap<String, String>();
         String thisJsonLength = Long.toString(thisFile.length());
         String thatJsonLength = Long.toString(thatFile.length());
         String containerID = Integer.toString(CONTAINER_ID.getAndIncrement());
+        Map<String, String> contOutput = new HashMap<String, String>();
+        contOutput.put(HEADERS.CONTAINER_ID.name(), containerID);
+        contOutput.put(CONTAINER_HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
+        contOutput.put(CONTAINER_HEADERS.FILE_EXTENSION.name(),
+                getOriginalFileExtension(contOutput.get(CONTAINER_HEADERS.FILE_PATH.name())));
+        contOutput.put(CONTAINER_HEADERS.JSON_FILE_LENGTH.name() + thisExtension, thisJsonLength);
+        contOutput.put(CONTAINER_HEADERS.JSON_FILE_LENGTH.name() + thatExtension, thatJsonLength);
+        contOutput.put(CONTAINER_HEADERS.FILE_EXTENSION.name(),
+                FilenameUtils.getExtension(contOutput.get(CONTAINER_HEADERS.FILE_PATH.name())));
+        //num attachments
+        int thisNumAttachments = (thisMetadataList == null) ? 0 : thisMetadataList.size() - 1;
+        contOutput.put(CONTAINER_HEADERS.NUM_ATTACHMENTS + thisExtension,
+                Integer.toString(thisNumAttachments));
+
+        int thatNumAttachments = (thatMetadataList == null) ? 0 : thatMetadataList.size() - 1;
+        contOutput.put(CONTAINER_HEADERS.NUM_ATTACHMENTS + thatExtension,
+                Integer.toString(thatNumAttachments));
+
+        if (thisMetadataList == null) {
+            contOutput.put(CONTAINER_HEADERS.JSON_EX + thisExtension,
+                    JSON_PARSE_EXCEPTION);
+        }
+        if (thatMetadataList == null) {
+            contOutput.put(CONTAINER_HEADERS.JSON_EX + thatExtension,
+                    JSON_PARSE_EXCEPTION);
+        }
+        writer.writeRow(CONTAINERS_TABLE, contOutput);
+
         if (thisMetadataList == null && thatMetadataList == null) {
-            output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
-            output.put(HEADERS.FILE_EXTENSION.name(),
-                    FilenameUtils.getExtension(output.get(HEADERS.FILE_PATH.name())));
-            output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
-            output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
-            output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
-            output.put(HEADERS.JSON_EX + thisExtension,
-                    JSON_PARSE_EXCEPTION);
-            output.put(HEADERS.JSON_EX + thatExtension,
-                    JSON_PARSE_EXCEPTION);
-            output.put(HEADERS.ID.name(), Integer.toString(ID.getAndIncrement()));
-            output.put(HEADERS.CONTAINER_ID.name(), containerID);
-            writer.writeRow(COMPARISONS_TABLE, output);
             return;
         }
+        Map<String, String> output = new HashMap<String, String>();
 
         //now get that metadata
         if (thisMetadataList != null) {
             for (int i = 0; i < thisMetadataList.size(); i++) {
                 output.clear();
+
                 output.put(HEADERS.ID.name(), Integer.toString(ID.getAndIncrement()));
                 output.put(HEADERS.CONTAINER_ID.name(), containerID);
                 Metadata thisMetadata = thisMetadataList.get(i);
@@ -225,31 +262,14 @@ public class FileComparer extends AbstractProfiler {
                     thatMetadata = thatMetadataList.get(matchIndex);
                     handledThat.add(matchIndex);
                 }
-                output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
-                output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
-                output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
                 String lenString = thisMetadata.get(Metadata.CONTENT_LENGTH);
                 if (lenString != null) {
                     output.put(HEADERS.FILE_LENGTH.name(), lenString);
                 }
-                if (thatMetadataList == null) {
-                    output.put(HEADERS.JSON_EX + thatExtension,
-                            JSON_PARSE_EXCEPTION);
-                }
                 //overall/container document
                 if (i == 0) {
                     output.put(HEADERS.FILE_EXTENSION.name(),
-                            getOriginalFileExtension(output.get(HEADERS.FILE_PATH.name())));
-                    //num attachments
-                    int thisNumAttachments = (thisMetadataList == null) ? 0 : thisMetadataList.size() - 1;
-                    output.put(HEADERS.NUM_ATTACHMENTS + thisExtension,
-                            Integer.toString(thisNumAttachments));
-
-                    int thatNumAttachments = (thatMetadataList == null) ? 0 : thatMetadataList.size() - 1;
-                    output.put(HEADERS.NUM_ATTACHMENTS + thatExtension,
-                            Integer.toString(thatNumAttachments));
-                    output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
-                            Integer.toString(thatNumAttachments - thisNumAttachments));
+                            contOutput.get(HEADERS.FILE_EXTENSION.name()));
                     output.put(HEADERS.IS_EMBEDDED.name(), "false");
                 } else { //embedded document
                     output.put(HEADERS.IS_EMBEDDED.name(), "true");
@@ -257,7 +277,6 @@ public class FileComparer extends AbstractProfiler {
                             thisMetadata.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
                     output.put(HEADERS.FILE_EXTENSION.name(),
                             FilenameUtils.getExtension(output.get(HEADERS.EMBEDDED_FILE_PATH.name())));
-
                 }
 
                 //prep the token counting
@@ -269,11 +288,6 @@ public class FileComparer extends AbstractProfiler {
 
                 addSingleFileStats(thisMetadata, tokens.keySet(), theseTokens, thisExtension, output);
                 addSingleFileStats(thatMetadata, tokens.keySet(), thoseTokens, thatExtension, output);
-
-                //y, double counting metadata values...improve
-                output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
-                        Integer.toString(countMetadataValues(thisMetadata) -
-                                countMetadataValues(thatMetadata)));
 
                 compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
 
@@ -295,31 +309,15 @@ public class FileComparer extends AbstractProfiler {
                 if (thatMetadata == null) {
                     throw new RuntimeException("NULL metadata in list");
                 }
-                output.put(HEADERS.FILE_PATH.name(), getInputFileName(relativePath));
-                output.put(HEADERS.JSON_FILE_LENGTH.name()+thisExtension, thisJsonLength);
-                output.put(HEADERS.JSON_FILE_LENGTH.name()+thatExtension, thatJsonLength);
                 String lenString = thatMetadata.get(Metadata.CONTENT_LENGTH);
                 if (lenString != null) {
                     output.put(HEADERS.FILE_LENGTH.name(), lenString);
-                }
-                if (thisMetadataList == null) {
-                    output.put(HEADERS.JSON_EX + thisExtension,
-                            JSON_PARSE_EXCEPTION);
                 }
 
                 //overall/container document
                 if (i == 0) {
                     output.put(HEADERS.FILE_EXTENSION.name(),
-                            getOriginalFileExtension(output.get(HEADERS.FILE_PATH.name())));
-
-                    //num attachments
-                    output.put(HEADERS.NUM_ATTACHMENTS + thisExtension, "0");
-
-                    int thatNumAttachments = thatMetadataList.size() - 1;
-                    output.put(HEADERS.NUM_ATTACHMENTS + thatExtension,
-                            Integer.toString(thatNumAttachments));
-                    output.put(COMPARISON_HEADERS.DIFF_NUM_ATTACHMENTS.name(),
-                            Integer.toString(thatNumAttachments));
+                            contOutput.get(HEADERS.FILE_EXTENSION.name()));
                     output.put(HEADERS.IS_EMBEDDED.name(), "false");
                 } else { //embedded document
                     output.put(HEADERS.IS_EMBEDDED.name(), "true");
@@ -338,11 +336,6 @@ public class FileComparer extends AbstractProfiler {
                 addSingleFileStats(thatMetadata, tokens.keySet(), thoseTokens, thatExtension, output);
                 addSingleFileStats(null, tokens.keySet(), theseTokens, thisExtension, output);
                 compareUnigramOverlap(tokens, theseTokens, thoseTokens, output);
-
-                //y, double counting metadata values...improve
-                output.put(COMPARISON_HEADERS.DIFF_NUM_METADATA_VALUES.name(),
-                        Integer.toString(0 -
-                                countMetadataValues(thatMetadata)));
                 writer.writeRow(COMPARISONS_TABLE, output);
             }
         }

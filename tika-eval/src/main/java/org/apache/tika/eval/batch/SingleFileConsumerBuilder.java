@@ -35,6 +35,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
         tableInfo.put(SingleFileProfiler.MAIN_TABLE, SingleFileProfiler.getHeaders());
         tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE, AbstractProfiler.getExceptionHeaders());
+        tableInfo.put(AbstractProfiler.CONTAINERS_TABLE, AbstractProfiler.getContainerHeaders());
         return tableInfo;
     }
 

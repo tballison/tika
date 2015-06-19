@@ -63,38 +63,51 @@ public class SingleFileProfiler extends AbstractProfiler {
         System.err.println("trying to get: "+thisFile.getAbsolutePath());
         List<Metadata> metadataList = getMetadata(thisFile);
 
+        Map<String, String> contOutput = new HashMap<String, String>();
+        String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());
         Map<String, String> output = new HashMap<String, String>();
-        Map<String, String> excOutput = new HashMap<String, String>();
         if (metadataList == null) {
-            output.put(HEADERS.FILE_PATH.name(), relativePath);
-            output.put(HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
+            contOutput.put(CONTAINER_HEADERS.CONTAINER_ID.name(), containerId);
+            contOutput.put(CONTAINER_HEADERS.FILE_PATH.name(), relativePath);
+            contOutput.put(CONTAINER_HEADERS.JSON_FILE_LENGTH.name(),
+                    Long.toString(thisFile.length()));
+            contOutput.put(CONTAINER_HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
             try {
-                writer.writeRow(MAIN_TABLE, output);
+                writer.writeRow(CONTAINERS_TABLE, contOutput);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
 
             return true;
         }
-
+        Map<String, String> excOutput = new HashMap<String, String>();
+        contOutput.put(CONTAINER_HEADERS.CONTAINER_ID.name(), containerId);
+        contOutput.put(CONTAINER_HEADERS.FILE_PATH.name(), relativePath);
+        contOutput.put(CONTAINER_HEADERS.NUM_ATTACHMENTS.name(),
+                Integer.toString(metadataList.size() - 1));
+        try {
+            writer.writeRow(CONTAINERS_TABLE, contOutput);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         int i = 0;
         for (Metadata m : metadataList) {
             output.clear();
             excOutput.clear();
+            String fileId = Integer.toString(ID.incrementAndGet());
+            output.put(HEADERS.ID.name(), fileId);
+            output.put(HEADERS.CONTAINER_ID.name(), containerId);
 
-            output.put(HEADERS.FILE_PATH.name(), relativePath);
             output.put(HEADERS.ELAPSED_TIME_MILLIS.name(), getTime(m));
             output.put(HEADERS.NUM_METADATA_VALUES.name(),
                     Integer.toString(countMetadataValues(m)));
 
             //if the outer wrapper document
             if (i == 0) {
-                output.put(HEADERS.IS_EMBEDDED.name(), "false");
-                output.put(HEADERS.NUM_ATTACHMENTS.name(),
-                        Integer.toString(metadataList.size() - 1));
+                output.put(HEADERS.IS_EMBEDDED.name(), Boolean.toString(false));
                 output.put(HEADERS.FILE_EXTENSION.name(), getOriginalFileExtension(thisFile.getName()));
             } else {
-                output.put(HEADERS.IS_EMBEDDED.name(), "true");
+                output.put(HEADERS.IS_EMBEDDED.name(), Boolean.toString(true));
                 output.put(HEADERS.EMBEDDED_FILE_PATH.name(),
                         m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
                 output.put(HEADERS.FILE_EXTENSION.name(),
@@ -117,7 +130,6 @@ public class SingleFileProfiler extends AbstractProfiler {
                 e.printStackTrace();
             }
             try {
-                System.err.println("INSERTING: "+relativePath + " into "+MAIN_TABLE);
                 writer.writeRow(MAIN_TABLE, output);
             } catch (IOException e) {
                 throw new RuntimeException(e);

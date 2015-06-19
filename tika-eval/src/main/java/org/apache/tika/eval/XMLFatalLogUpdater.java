@@ -52,8 +52,8 @@ class XMLFatalLogUpdater {
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
         File dbFile = new File(args[2]);
-        writer.execute(xmlLogFileA, dbFile, "comparisons", "_A");
-        writer.execute(xmlLogFileB, dbFile, "comparisons", "_B");
+        writer.execute(xmlLogFileA, dbFile, AbstractProfiler.CONTAINERS_TABLE, "_A");
+        writer.execute(xmlLogFileB, dbFile, AbstractProfiler.CONTAINERS_TABLE, "_B");
     }
 
     private void execute(File xmlLogFile, File dbFile, String tableName, String columnSuffix) throws Exception {
@@ -65,9 +65,10 @@ class XMLFatalLogUpdater {
         InputStream is = null;
         try {
             is = new FileInputStream(xmlLogFile);
-            reader.read(is, new FatalMsgUpdater(AbstractProfiler.HEADERS.FILE_PATH.name(),
-                    AbstractProfiler.EXCEPTION_HEADERS.OOM_ERROR.name()+columnSuffix,
-                    AbstractProfiler.EXCEPTION_HEADERS.TIMEOUT_EXCEPTION.name()+columnSuffix));
+            reader.read(is, new FatalMsgUpdater(AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name(),
+                    AbstractProfiler.CONTAINER_HEADERS.OOM_ERR.name()+columnSuffix,
+                    AbstractProfiler.CONTAINER_HEADERS.TIMEOUT_ERR.name()+columnSuffix));
+            //add fatal_ERR???
         } catch (IOException e) {
             throw new RuntimeException("Doh!");
         } finally {

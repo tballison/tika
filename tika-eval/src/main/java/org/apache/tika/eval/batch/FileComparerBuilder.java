@@ -60,21 +60,27 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
         tableInfo.put(FileComparer.COMPARISONS_TABLE, FileComparer.getHeaders());
         tableInfo.put(FileComparer.PAIR_NAMES_TABLE, getPairNamesCols());
-        tableInfo.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thisExtension,
+        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.thisExtension,
                 AbstractProfiler.getExceptionHeaders());
-        tableInfo.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thatExtension,
+        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.thatExtension,
                 AbstractProfiler.getExceptionHeaders());
+        tableInfo.put(AbstractProfiler.CONTAINERS_TABLE,
+                FileComparer.getContainerHeaders());
         return tableInfo;
     }
 
     @Override
     public Map<String, String> getIndexInfo() {
         Map<String, String> indices = new HashMap<String, String>();
-        indices.put(FileComparer.COMPARISONS_TABLE, AbstractProfiler.HEADERS.ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE + FileComparer.thisExtension,
+        indices.put(FileComparer.COMPARISONS_TABLE,
+                AbstractProfiler.HEADERS.ID.name() + ", "+
+                AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());
+        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.thisExtension,
                 AbstractProfiler.HEADERS.ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE+ FileComparer.thatExtension,
+        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.thatExtension,
                 AbstractProfiler.HEADERS.ID.name());
+        indices.put(FileComparer.CONTAINERS_TABLE,
+                AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());
         return indices;
     }
 

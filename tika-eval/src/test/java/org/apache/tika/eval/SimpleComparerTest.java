@@ -58,7 +58,7 @@ public class SimpleComparerTest extends TikaTest {
 
         List<Map<String, String>> table = writer.getTable(FileComparer.COMPARISONS_TABLE);
         Map<String, String> row = table.get(0);
-        assertEquals("file1.pdf", row.get(AbstractProfiler.HEADERS.FILE_PATH.name()));
+        assertEquals("0", row.get(AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name()));
 
         assertTrue(
                 row.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_A")
@@ -72,7 +72,7 @@ public class SimpleComparerTest extends TikaTest {
         comparer.compareFiles("relPath",
                 getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
                 getResourceAsFile("/test-dirs/testB/file4_emptyB.pdf.json"));
-        List<Map<String, String>> table = writer.getTable(FileComparer.COMPARISONS_TABLE);
+        List<Map<String, String>> table = writer.getTable(FileComparer.CONTAINERS_TABLE);
         Map<String, String> row = table.get(0);
         debugPrintRow(row);
         assertTrue(row.get("JSON_EX_B").startsWith(AbstractProfiler.JSON_PARSE_EXCEPTION));
@@ -110,22 +110,18 @@ public class SimpleComparerTest extends TikaTest {
         Map<String, String> rowA = tableA.get(0);
         debugPrintRow(rowA);
         assertEquals("true", rowA.get(AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.toString()));
-        assertNull(rowA.get(AbstractProfiler.HEADERS.JSON_EX.toString()));
         assertNull(rowA.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.toString()));
         assertNull(rowA.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.toString()));
 
         Map<String, String> rowB = tableB.get(0);
         assertEquals("true", rowB.get(AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.toString()));
-        assertNull(rowB.get(AbstractProfiler.HEADERS.JSON_EX.toString()));
         assertNull(rowB.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.toString()));
         assertNull(rowB.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.toString()));
     }
 
 
 
-    //every thing below here is intended for dev/debugging
 
-    @Test
     public void testDebug() throws Exception {
         comparer.compareFiles("relPath",
                 getResourceAsFile("/test-dirs/testA/file1.pdf.json"),

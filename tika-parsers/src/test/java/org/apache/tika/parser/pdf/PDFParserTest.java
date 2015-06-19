@@ -132,6 +132,11 @@ public class PDFParserTest extends TikaTest {
     }
 
     @Test
+    public void testDate() throws Exception {
+        XMLResult r = getXML("baddate.pdf");
+        System.out.println(r.xml);
+    }
+    @Test
     public void testPdfParsingMetadataOnly() throws Exception {
         Parser parser = new AutoDetectParser(); // Should auto-detect!
         Metadata metadata = new Metadata();
