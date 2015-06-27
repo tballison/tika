@@ -89,13 +89,18 @@ public class TikaParsers {
         html.append(p.className);
         html.append("</p>");
         if (p.isDecorated) {
-            html.append("<p>Decorated Parser</p>");
+            html.append("<p>Decorated Parser");
+            if (p.decoratedBy != null)
+                html.append( " - ").append(p.decoratedBy);
+            html.append("</p>");
         }
         if (p.isComposite) {
             html.append("<p>Composite Parser</p>");
+            html.append("<div style=\"margin-left: 1em\">\n");
             for (Parser cp : p.childParsers) {
                 parserAsHTML(new ParserDetails(cp), withMimeTypes, html, level + 1);
             }
+            html.append("</div>\n");
         } else if (withMimeTypes) {
             html.append("<p>Mime Types:");
             html.append("<ul>");
@@ -107,6 +112,7 @@ public class TikaParsers {
             html.append("</ul>");
             html.append("</p>");
         }
+        html.append("\n");
     }
 
     @GET
@@ -175,7 +181,11 @@ public class TikaParsers {
         text.append(indent);
         text.append(p.className);
         if (p.isDecorated) {
-            text.append(" (Decorated Parser)");
+            text.append(" (Decorated Parser");
+            if (p.decoratedBy != null) {
+                text.append(" ").append(p.decoratedBy);
+            }
+            text.append(")");
         }
         if (p.isComposite) {
             text.append(" (Composite Parser):\n");
@@ -201,13 +211,15 @@ public class TikaParsers {
         private String shortName;
         private boolean isComposite;
         private boolean isDecorated;
+        private String  decoratedBy;
         private Set<MediaType> supportedTypes;
         private List<Parser> childParsers;
 
         private ParserDetails(Parser p) {
             if (p instanceof ParserDecorator) {
                 isDecorated = true;
-                p = ((ParserDecorator) p).getWrappedParser();
+                decoratedBy = ((ParserDecorator)p).getDecorationName();
+                p = ((ParserDecorator)p).getWrappedParser();
             }
 
             className = p.getClass().getName();

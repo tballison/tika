@@ -30,10 +30,12 @@ import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 /**
- * Decorator base class for the {@link Parser} interface. This class
- * simply delegates all parsing calls to an underlying decorated parser
- * instance. Subclasses can provide extra decoration by overriding the
+ * Decorator base class for the {@link Parser} interface. 
+ * <p>This class simply delegates all parsing calls to an underlying decorated 
+ * parser instance. Subclasses can provide extra decoration by overriding the
  * parse method.
+ * <p>To decorate several different parsers at the same time, wrap them in
+ *  a {@link CompositeParser} instance first.
  */
 public class ParserDecorator extends AbstractParser {
 
@@ -56,6 +58,10 @@ public class ParserDecorator extends AbstractParser {
             public Set<MediaType> getSupportedTypes(ParseContext context) {
                 return types;
             }
+            @Override
+            public String getDecorationName() {
+                return "With Types";
+            }            
         };
     }
 
@@ -81,6 +87,10 @@ public class ParserDecorator extends AbstractParser {
                 // Return whatever is left
                 return parserTypes;
             }
+            @Override
+            public String getDecorationName() {
+                return "Without Types";
+            }            
         };
     }
     
@@ -125,6 +135,10 @@ public class ParserDecorator extends AbstractParser {
                     tstream.reset();
                 }
             }
+            @Override
+            public String getDecorationName() {
+                return "With Fallback";
+            }            
         };
     }
 
@@ -163,6 +177,12 @@ public class ParserDecorator extends AbstractParser {
         parser.parse(stream, handler, metadata, context);
     }
 
+    /**
+     * @return A name/description of the decoration, or null if none available
+     */
+    public String getDecorationName() {
+        return null;
+    }
 
     /**
      * Gets the parser wrapped by this ParserDecorator

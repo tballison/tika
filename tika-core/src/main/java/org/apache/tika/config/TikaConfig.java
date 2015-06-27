@@ -332,10 +332,25 @@ public class TikaConfig {
             Element element, MimeTypes mimeTypes, ServiceLoader loader)
             throws TikaException, IOException {
         List<Parser> parsers = new ArrayList<Parser>();
-        NodeList nodes = element.getElementsByTagName("parser");
-        for (int i = 0; i < nodes.getLength(); i++) {
-            Element node = (Element) nodes.item(i);
-            parsers.add(parserFromParserDomElement(node, mimeTypes, loader));
+        
+        // Should be only zero or one <parsers> tag
+        NodeList nodes = element.getElementsByTagName("parsers");
+        if (nodes.getLength() > 1) {
+            throw new TikaException("Properties may not contain multiple Parsers entries");
+        }
+        else if (nodes.getLength() == 1) {
+            // Find only the direct child parser objects
+            Node parsersE = nodes.item(0);
+            nodes = parsersE.getChildNodes();
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Node node = nodes.item(i);
+                if (node instanceof Element) {
+                    Element nodeE = (Element)node;
+                    if ("parser".equals(nodeE.getTagName())) {
+                        parsers.add(parserFromParserDomElement(nodeE, mimeTypes, loader));
+                    }
+                }
+            }
         }
         
         if (parsers.isEmpty()) {
@@ -366,8 +381,10 @@ public class TikaConfig {
                         + " configuration element: " + name);
             }
 
-            // Is this a composite parser? If so, support recursion
-            if (CompositeParser.class.isAssignableFrom(parserClass)) {
+            // Is this a composite or decorated parser? If so, support recursion
+            if (CompositeParser.class.isAssignableFrom(parserClass) ||
+                ParserDecorator.class.isAssignableFrom(parserClass)) {
+                
                 // Get the child parsers for it
                 List<Parser> childParsers = new ArrayList<Parser>();
                 NodeList childParserNodes = parserNode.getElementsByTagName("parser");
@@ -392,20 +409,36 @@ public class TikaConfig {
                 
                 // Create the Composite Parser
                 Constructor<? extends Parser> c = null;
-                if (c == null) {
+                MediaTypeRegistry registry = mimeTypes.getMediaTypeRegistry();
+                if (parser == null) {
                     try {
                         c = parserClass.getConstructor(MediaTypeRegistry.class, ServiceLoader.class, Collection.class);
-                        parser = c.newInstance(mimeTypes.getMediaTypeRegistry(), loader, excludeParsers);
+                        parser = c.newInstance(registry, loader, excludeParsers);
                     } 
                     catch (NoSuchMethodException me) {}
                 }
-                if (c == null) {
+                if (parser == null) {
                     try {
                         c = parserClass.getConstructor(MediaTypeRegistry.class, List.class, Collection.class);
-                        parser = c.newInstance(mimeTypes.getMediaTypeRegistry(), childParsers, excludeParsers);
+                        parser = c.newInstance(registry, childParsers, excludeParsers);
                     } catch (NoSuchMethodException me) {}
                 }
-                if (c == null) {
+                // Create as a Parser Decorator
+                if (parser == null && ParserDecorator.class.isAssignableFrom(parserClass)) {
+                    try {
+                        CompositeParser cp = null;
+                        if (childParsers.size() == 1 && excludeParsers.size() == 0 &&
+                                childParsers.get(0) instanceof CompositeParser) {
+                            cp = (CompositeParser)childParsers.get(0);
+                        } else {
+                            cp = new CompositeParser(registry, childParsers, excludeParsers);
+                        }
+                        c = parserClass.getConstructor(Parser.class);
+                        parser = c.newInstance(cp);
+                    } catch (NoSuchMethodException me) {}
+                }
+                // Default constructor
+                if (parser == null) {
                     parser = parserClass.newInstance();
                 }
             } else {
@@ -444,21 +477,26 @@ public class TikaConfig {
     private static Set<MediaType> mediaTypesListFromDomElement(
             Element node, String tag) 
             throws TikaException, IOException {
-        NodeList mimes = node.getElementsByTagName(tag);
-        if (mimes.getLength() > 0) {
-            Set<MediaType> types = new HashSet<MediaType>();
-            for (int j = 0; j < mimes.getLength(); j++) {
-                String mime = getText(mimes.item(j));
-                MediaType type = MediaType.parse(mime);
-                if (type != null) {
-                    types.add(type);
-                } else {
-                    throw new TikaException(
-                            "Invalid media type name: " + mime);
+        Set<MediaType> types = null;
+        NodeList children = node.getChildNodes();
+        for (int i=0; i<children.getLength(); i++) {
+            Node cNode = children.item(i);
+            if (cNode instanceof Element) {
+                Element cElement = (Element)cNode;
+                if (tag.equals(cElement.getTagName())) {
+                    String mime = getText(cElement);
+                    MediaType type = MediaType.parse(mime);
+                    if (type != null) {
+                        if (types == null) types = new HashSet<MediaType>();
+                        types.add(type);
+                    } else {
+                        throw new TikaException(
+                                "Invalid media type name: " + mime);
+                    }
                 }
             }
-            return types;
         }
+        if (types != null) return types;
         return Collections.emptySet();
     }
 
