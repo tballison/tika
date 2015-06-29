@@ -17,100 +17,69 @@
 
 package org.apache.tika.parser.microsoft;
 
-import java.io.File;
+import static org.junit.Assert.assertEquals;
+
 import java.io.InputStream;
 import java.util.List;
 
 import org.apache.tika.TikaTest;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.sax.BasicContentHandlerFactory;
-import org.apache.tika.sax.BodyContentHandler;
 import org.junit.Test;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 public class JackcessParserTest extends TikaTest {
 
     @Test
     public void testBasic() throws Exception {
+
         Parser p = new AutoDetectParser();
+
         RecursiveParserWrapper w = new RecursiveParserWrapper(p,
-                new BasicContentHandlerFactory(BasicContentHandlerFactory.HANDLER_TYPE.TEXT, -1));
-        InputStream is = this.getResourceAsStream("/test-documents/testAccess2.accdb");
-//        InputStream is = this.getResourceAsStream("/test-documents/testAccess2_2000.mdb");
- //       InputStream is = this.getResourceAsStream("/test-documents/testAccess2_2002-2003.mdb");
-        Metadata meta = new Metadata();
-        ParseContext c = new ParseContext();
-        w.parse(is, new DefaultHandler(), meta , c);
-        List<Metadata> list = w.getMetadata();
-        int i = 0;
-        for (Metadata m : list) {
-            for (String n : m.names()) {
-                for (String v : m.getValues(n)) {
-                    System.out.println(i + ": " + n + " : " + v);
-                }
-            }
-            i++;
-        }
-    }
+                new BasicContentHandlerFactory(BasicContentHandlerFactory.HANDLER_TYPE.XML, -1));
 
-    @Test
-    public void runDir() throws Exception {
-        File dir = new File("C:\\Users\\tallison\\Desktop\\tmp\\jackcess\\cc_mdb");
-        Parser p = new AutoDetectParser();
-        int files = 0;
-        int ex = 0;
-        int notsupported = 0;
-        for (File f : dir.listFiles()) {
-            if (!f.getName().equals(
-                    "com.inetnebr.incolor_pkloepper_Analyst%20Earnings%20Estimates.mdb")){
-                //continue;
-            }
-
-            files++;
-            System.out.println(f.getName() + " : "+f.length());
+        for (String fName : new String[]{"testAccess2.accdb", "testAccess2_2000.mdb",
+                "testAccess2_2002-2003.mdb"}) {
+            InputStream is = null;
             try {
-                Metadata m = new Metadata();
+                is = this.getResourceAsStream("/test-documents/" + fName);
+
+                Metadata meta = new Metadata();
                 ParseContext c = new ParseContext();
-                BodyContentHandler h = new BodyContentHandler();
-                p.parse(TikaInputStream.get(f, m), h, m, c);
-            } catch (TikaException e) {
-                if (!e.getMessage().contains("does not support writing") &&
-                        !e.getMessage().contains("invalid page number")) {
-                    ex++;
-
-                } else {
-                    notsupported++;
-                    continue;
-                }
-
-                    Throwable cause = e.getCause();
-                    if (cause != null) {
-                        if (cause.getMessage() != null && cause.getMessage().contains("given file does not exist")) {
-                            System.out.println(f.getName() + " : "+f.length());
-//System.out.println(f.getName());                            throw new RuntimeException(cause);
-                        }
-                        if (cause.getMessage() == null ||
-                         !cause.getMessage().contains("invalid page number")) {
-//                            e.printStackTrace();
-                        }
-  //                      System.out.println("TIKA EXCEPTION: " + cause.getMessage());
-                    } else {
-    //                    System.out.println("TIKA EXCEPTION:" + e.getMessage());
-                    }
-
-                //e.printStackTrace();
-            } catch (SAXException e) {
-                //e.printStackTrace();
+                w.parse(is, new DefaultHandler(), meta, c);
             } finally {
+                IOUtils.closeQuietly(is);
             }
+            List<Metadata> list = w.getMetadata();
+            assertEquals(4, list.size());
+            String mainContent = list.get(0).get(RecursiveParserWrapper.TIKA_CONTENT);
+
+            //make sure there's a thead and tbody
+            assertContains("</thead><tbody>", mainContent);
+
+            //assert table header
+            assertContains("<th>ShortTextField</th>", mainContent);
+
+            //test date format
+            assertContains("6/24/15", mainContent);
+
+            //test that markup is stripped
+            assertContains("over the bold italic dog", mainContent);
+
+            //test unicode
+            assertContains("\u666E\u6797\u65AF\u987F\u5927\u5B66", mainContent);
+
+            //test embedded document handling
+            assertContains("Test Document with embedded pdf",
+                    list.get(3).get(RecursiveParserWrapper.TIKA_CONTENT));
+
+            w.reset();
         }
-        System.out.println(ex + " exceptions out of "+files + " with "+notsupported);
     }
+
 }
