@@ -45,7 +45,7 @@ public class TikaResourceTest extends CXFTestBase {
     protected void setUpResources(JAXRSServerFactoryBean sf) {
         sf.setResourceClasses(TikaResource.class);
         sf.setResourceProvider(TikaResource.class,
-                new SingletonResourceProvider(new TikaResource(tika)));
+                new SingletonResourceProvider(new TikaResource()));
     }
 
     @Override
@@ -103,6 +103,8 @@ public class TikaResourceTest extends CXFTestBase {
         String responseMsg = getStringFromInputStream((InputStream) response
                 .getEntity());
         assertTrue(responseMsg.contains("test"));
+        assertContains("<meta name=\"X-TIKA:digest:MD5\" content=\"f8be45c34e8919eedba48cc8d207fbf0\"/>",
+                responseMsg);
     }
 
     @Test
@@ -148,6 +150,9 @@ public class TikaResourceTest extends CXFTestBase {
         String responseMsg = getStringFromInputStream((InputStream) response
                 .getEntity());
         assertTrue(responseMsg.contains("test"));
+        assertContains("<meta name=\"X-TIKA:digest:MD5\" content=\"f8be45c34e8919eedba48cc8d207fbf0\"/>",
+                responseMsg);
+
     }
 
     @Test
@@ -167,6 +172,9 @@ public class TikaResourceTest extends CXFTestBase {
         responseMsg = getStringFromInputStream((InputStream) response
                 .getEntity());
         assertTrue(responseMsg.contains("Course of human events"));
+        assertContains("<meta name=\"X-TIKA:digest:MD5\" content=\"59f626e09a8c16ab6dbc2800c685f772\"/>",
+                responseMsg);
+
     }
 
 }
