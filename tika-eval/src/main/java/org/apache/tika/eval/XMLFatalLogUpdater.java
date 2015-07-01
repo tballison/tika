@@ -32,6 +32,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import org.apache.log4j.Level;
+import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.eval.io.XMLLogMsgHandler;
@@ -52,11 +53,11 @@ class XMLFatalLogUpdater {
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
         File dbFile = new File(args[2]);
-        writer.execute(xmlLogFileA, dbFile);
-        writer.execute(xmlLogFileB, dbFile);
+        writer.execute(xmlLogFileA, FileComparer.ERRORS_A.getName(), dbFile);
+        writer.execute(xmlLogFileB, FileComparer.ERRORS_B.getName(), dbFile);
     }
 
-    private void execute(File xmlLogFile, File dbFile) throws Exception {
+    private void execute(File xmlLogFile, String tableName, File dbFile) throws Exception {
         DBUtil dbUtil = new H2Util(dbFile);
         Connection connection = dbUtil.getConnection();
         statement = connection.createStatement();
@@ -64,7 +65,7 @@ class XMLFatalLogUpdater {
         InputStream is = null;
         try {
             is = new FileInputStream(xmlLogFile);
-            reader.read(is, new FatalMsgUpdater());
+            reader.read(is, new FatalMsgUpdater(tableName));
         } catch (IOException e) {
             throw new RuntimeException("Doh!");
         } finally {
@@ -80,7 +81,11 @@ class XMLFatalLogUpdater {
     }
 
     private class FatalMsgUpdater implements XMLLogMsgHandler {
+        private final String errorTablename;
 
+        private FatalMsgUpdater(String errorTablename) {
+            this.errorTablename = errorTablename;
+        }
 
         @Override
         public void handleMsg(Level level, String xml) throws SQLException, IOException {
@@ -102,12 +107,12 @@ class XMLFatalLogUpdater {
                         case XMLStreamConstants.START_ELEMENT:
                             if ("timeout".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
-                                update(resourceId,
+                                update(errorTablename, resourceId,
                                         AbstractProfiler.ERROR_TYPE.TIMEOUT);
 
                             } else if ("oom".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
-                                update(resourceId, AbstractProfiler.ERROR_TYPE.OOM);
+                                update(errorTablename, resourceId, AbstractProfiler.ERROR_TYPE.OOM);
                             }
                             break;
                     }
@@ -118,12 +123,13 @@ class XMLFatalLogUpdater {
             }
         }
 
-        private void update(String resourceId, AbstractProfiler.ERROR_TYPE type) throws SQLException {
+        private void update(String errorTableName,
+                            String resourceId, AbstractProfiler.ERROR_TYPE type) throws SQLException {
 
             int containerId = -1;
-            String sql = "SELECT " + AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name() +
-                    " from " +AbstractProfiler.CONTAINERS_TABLE +
-                    " where " + AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name() +
+            String sql = "SELECT " + Cols.CONTAINER_ID.name() +
+                    " from " + SingleFileProfiler.CONTAINER_TABLE.getName()+
+                    " where " + Cols.FILE_PATH +
                     " ="+resourceId;
             ResultSet rs = statement.executeQuery(sql);
             int resultCount = 0;
@@ -134,8 +140,8 @@ class XMLFatalLogUpdater {
             rs.close();
 
             if (containerId < 0) {
-                sql = "SELECT MAX("+ AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name()+
-                        ") from "+AbstractProfiler.CONTAINERS_TABLE;
+                sql = "SELECT MAX("+ Cols.CONTAINER_ID +
+                        ") from "+SingleFileProfiler.CONTAINER_TABLE;
                 rs = statement.executeQuery(sql);
                 while (rs.next()) {
                     containerId = rs.getInt(1);
@@ -148,9 +154,9 @@ class XMLFatalLogUpdater {
                 }
 
             }
-
-            sql = "SELECT count(1) from "+AbstractProfiler.ERRORS_TABLE +
-                    " where "+AbstractProfiler.ERROR_HEADERS.CONTAINER_ID.name()+
+//TODO: DO NOT ALLOW GENERATION OF NEW FILE ID!!!!
+            sql = "SELECT count(1) from "+errorTableName +
+                    " where "+Cols.CONTAINER_ID +
                     " = "+containerId;
             rs = statement.executeQuery(sql);
 
@@ -160,14 +166,14 @@ class XMLFatalLogUpdater {
             }
 
             if (hitCount > 0) {
-                sql = "UPDATE " + AbstractProfiler.ERRORS_TABLE +
-                        " SET " + AbstractProfiler.ERROR_HEADERS.ERROR_TYPE.name() +
+                sql = "UPDATE " + errorTableName +
+                        " SET " + Cols.ERROR_TYPE_ID +
                         " = " + type.ordinal() +
-                        " where "+AbstractProfiler.ERROR_HEADERS.CONTAINER_ID.name()+
+                        " where "+Cols.CONTAINER_ID +
                         "="+containerId;
 
             } else {
-                sql = "INSERT INTO " + AbstractProfiler.ERRORS_TABLE +
+                sql = "INSERT INTO " + errorTableName +
                         " values (" + containerId+", "+type.ordinal()+","+
                         AbstractProfiler.FALSE+");";
 

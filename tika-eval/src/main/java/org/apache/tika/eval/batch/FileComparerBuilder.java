@@ -19,15 +19,17 @@ package org.apache.tika.eval.batch;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.Types;
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.tika.batch.FileResourceConsumer;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.FileComparer;
-import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.DBWriter;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.util.PropsUtil;
 
 public class FileComparerBuilder extends EvalConsumerBuilder {
@@ -35,7 +37,7 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
 
     @Override
-    public FileResourceConsumer build() throws IOException {
+    public FileResourceConsumer build() throws IOException, SQLException {
         File thisRootDir = PropsUtil.getFile(localAttrs.get("thisDir"), null);
         if (thisRootDir == null) {
             throw new RuntimeException("Must specify \"thisDir\" -- directory to crawl");
@@ -49,46 +51,33 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
-        IDBWriter writer = new DBWriter(getSortedTableInfo(), dbUtil);
+        IDBWriter writer = getDBWriter();
         return new FileComparer(queue, thisRootDir, thatRootDir, crawlingInputDir, writer,
                 minJsonLength, maxJsonLength);
     }
 
     @Override
-    protected Map<String, Map<String, ColInfo>> getTableInfo() {
-        Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
-        tableInfo.put(FileComparer.COMPARISONS_TABLE, FileComparer.getHeaders());
-        tableInfo.put(FileComparer.PAIR_NAMES_TABLE, getPairNamesCols());
-        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.aExtension,
-                AbstractProfiler.getExceptionHeaders());
-        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.bExtension,
-                AbstractProfiler.getExceptionHeaders());
-        tableInfo.put(AbstractProfiler.CONTAINERS_TABLE,
-                FileComparer.getContainerHeaders());
+    protected List<TableInfo> getTableInfo() {
+        List<TableInfo> tableInfo = new ArrayList<TableInfo>();
+        tableInfo.add(FileComparer.COMPARISON_CONTAINERS);
+        tableInfo.add(FileComparer.PROFILES_A);
+        tableInfo.add(FileComparer.PROFILES_B);
+        tableInfo.add(FileComparer.ERRORS_A);
+        tableInfo.add(FileComparer.ERRORS_B);
+        tableInfo.add(FileComparer.EXCEPTIONS_A);
+        tableInfo.add(FileComparer.EXCEPTIONS_B);
+        tableInfo.add(FileComparer.CONTENTS_TABLE_A);
+        tableInfo.add(FileComparer.CONTENTS_TABLE_B);
+        tableInfo.add(FileComparer.CONTENT_COMPARISONS);
+        tableInfo.add(FileComparer.REF_PAIR_NAMES);
+        tableInfo.add(AbstractProfiler.MIME_TABLE);
+        tableInfo.add(AbstractProfiler.REF_ERROR_TYPES);
+        tableInfo.add(AbstractProfiler.REF_EXCEPTION_TYPES);
         return tableInfo;
     }
 
     @Override
-    public Map<String, String> getIndexInfo() {
-        Map<String, String> indices = new HashMap<String, String>();
-        indices.put(FileComparer.COMPARISONS_TABLE,
-                AbstractProfiler.HEADERS.ID.name() + ", "+
-                AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.aExtension,
-                AbstractProfiler.HEADERS.ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.bExtension,
-                AbstractProfiler.HEADERS.ID.name());
-        indices.put(FileComparer.CONTAINERS_TABLE,
-                AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());
-        return indices;
+    protected IDBWriter getDBWriter() throws IOException, SQLException {
+        return new DBWriter(getTableInfo(), TikaConfig.getDefaultConfig(), dbUtil);
     }
-
-
-    public Map<String, ColInfo> getPairNamesCols() {
-        Map<String, ColInfo> m = new HashMap<String, ColInfo>();
-        m.put("DIR_NAME_A", new ColInfo(1, Types.VARCHAR, 128));
-        m.put("DIR_NAME_B", new ColInfo(2, Types.VARCHAR, 128));
-        return m;
-    }
-
 }

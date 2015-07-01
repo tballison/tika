@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
@@ -37,16 +36,18 @@ import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
-import org.apache.tika.eval.io.DBWriter;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class FileComparer extends AbstractProfiler {
 
-    public static final String PAIR_NAMES_TABLE = "pair_names";
+    public static TableInfo REF_PAIR_NAMES = new TableInfo("pair_names",
+            new ColInfo(Cols.DIR_NAME_A, Types.VARCHAR, 128),
+            new ColInfo(Cols.DIR_NAME_B, Types.VARCHAR, 128)
+    );
 
     public static TableInfo COMPARISON_CONTAINERS = new TableInfo("containers",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
@@ -66,20 +67,27 @@ public class FileComparer extends AbstractProfiler {
     );
 
     public static TableInfo PROFILES_A = new TableInfo( "profiles_a",
-            PROFILE_TABLE.getColInfos());
+            SingleFileProfiler.PROFILE_TABLE.getColInfos());
 
     public static TableInfo PROFILES_B = new TableInfo( "profiles_b",
-            PROFILE_TABLE.getColInfos());
+            SingleFileProfiler.PROFILE_TABLE.getColInfos());
+
+    public static TableInfo CONTENTS_TABLE_A = new TableInfo( "contents_a",
+            SingleFileProfiler.CONTENTS_TABLE.getColInfos());
+
+    public static TableInfo CONTENTS_TABLE_B = new TableInfo( "contents_b",
+            SingleFileProfiler.CONTENTS_TABLE.getColInfos());
 
     public static TableInfo EXCEPTIONS_A = new TableInfo ("exceptions_a",
-            EXCEPTION_TABLE.getColInfos());
+            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
+
     public static TableInfo EXCEPTIONS_B = new TableInfo ("exceptions_b",
-            EXCEPTION_TABLE.getColInfos());
+            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
 
     public static TableInfo ERRORS_A = new TableInfo("errors_a",
-            ERROR_TABLE.getColInfos());
+            SingleFileProfiler.ERROR_TABLE.getColInfos());
     public static TableInfo ERRORS_B = new TableInfo("errors_b",
-            ERROR_TABLE.getColInfos());
+            SingleFileProfiler.ERROR_TABLE.getColInfos());
 
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
@@ -93,7 +101,7 @@ public class FileComparer extends AbstractProfiler {
 
     public FileComparer(ArrayBlockingQueue<FileResource> queue,
                         File rootDirA, File rootDirB,
-                        boolean crawlingInputDir, DBWriter writer, long minJsonLength,
+                        boolean crawlingInputDir, IDBWriter writer, long minJsonLength,
                         long maxJsonLength) {
         super(queue, crawlingInputDir, writer);
         this.minJsonLength = minJsonLength;
@@ -170,63 +178,41 @@ public class FileComparer extends AbstractProfiler {
         if (metadataListA == null && metadataListB == null) {
             return;
         }
-        Map<Cols, String> output = new HashMap<Cols, String>();
 
         //now get that metadata
         if (metadataListA != null) {
             for (int i = 0; i < metadataListA.size(); i++) {
-                output.clear();
                 String fileId = Integer.toString(ID.getAndIncrement());
-                output.put(Cols.ID, fileId);
-                output.put(Cols.CONTAINER_ID, containerID);
                 Metadata metadataA = metadataListA.get(i);
                 Metadata metadataB = null;
+                //TODO: shouldn't be fileA!!!!
+                writeProfileData(fileA, i, fileId,containerID, metadataA, PROFILES_A);
+                writeExceptionData(fileId, metadataA, EXCEPTIONS_A);
                 int matchIndex = getMatch(i, metadataListA, metadataListB);
 
                 if (matchIndex > -1) {
                     metadataB = metadataListB.get(matchIndex);
                     handledB.add(matchIndex);
                 }
-                String lenString = metadataA.get(Metadata.CONTENT_LENGTH);
-                if (lenString != null) {
-                    output.put(Cols.LENGTH, getFileLength(metadataA, metadataB));
+                if (metadataB != null) {
+                    writeProfileData(fileB, i, fileId,containerID, metadataB, PROFILES_B);
+                    writeExceptionData(fileId, metadataB, EXCEPTIONS_B);
                 }
-                //overall/container document
-                if (i == 0) {
-                    output.put(Cols.FILE_EXTENSION,
-                            contData.get(Cols.FILE_EXTENSION));
-                    output.put(Cols.IS_EMBEDDED, FALSE);
-                } else { //embedded document
-                    output.put(Cols.IS_EMBEDDED, TRUE);
-                    output.put(Cols.EMBEDDED_FILE_PATH,
-                            metadataA.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
-                    output.put(Cols.FILE_EXTENSION,
-                            FilenameUtils.getExtension(output.get(Cols.EMBEDDED_FILE_PATH)));
-                }
-
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
-                TokenCounter tokensA = new CounterA(tokens);
-                TokenCounter tokensB = new CounterB(tokens);
-                countTokens(metadataA, tokensA);
-                countTokens(metadataB, tokensB);
+                TokenCounter tokenCounterA = new CounterA(tokens);
+                TokenCounter tokenCounterB = new CounterB(tokens);
+                //write content
+                writeContentData(fileId, metadataA, tokenCounterA, CONTENTS_TABLE_A);
+                writeContentData(fileId, metadataB, tokenCounterB, CONTENTS_TABLE_B);
 
-                Map<Cols, String> profilesA = new HashMap<Cols, String>();
-                Map<Cols, String> profilesB = new HashMap<Cols, String>();
-                profilesA.putAll(output);
-                profilesB.putAll(output);
-
-                addSingleFileStats(metadataA, tokens.keySet(), tokensA, profilesA);
-                addSingleFileStats(metadataB, tokens.keySet(), tokensB, profilesB);
-                writer.writeRow(PROFILES_A, profilesA);
-                writer.writeRow(PROFILES_B, profilesB);
-
-                Map<Cols, String> contentComparisons = new HashMap<Cols, String>();
-                contentComparisons.put(Cols.ID, fileId);
-                compareUnigramOverlap(tokens, tokensA, tokensB, contentComparisons);
-
-                writer.writeRow(CONTENT_COMPARISONS, contentComparisons);
-
+                //now run comparisons
+                if (tokenCounterA.getTokenCount() > 0 && tokenCounterB.getTokenCount() > 0) {
+                    Map<Cols, String> data = new HashMap<Cols, String>();
+                    data.put(Cols.ID, fileId);
+                    compareUnigramOverlap(tokens, tokenCounterA, tokenCounterB, data);
+                    writer.writeRow(CONTENT_COMPARISONS, data);
+                }
             }
         }
         //now try to get any Metadata objects in "that"
@@ -236,49 +222,15 @@ public class FileComparer extends AbstractProfiler {
                 if (handledB.contains(i)) {
                     continue;
                 }
-                output.clear();
-                output.put(Cols.ID, Integer.toString(ID.getAndIncrement()));
-                output.put(Cols.CONTAINER_ID, containerID);
-                Metadata metadataB = metadataListB.get(i);
-                if (metadataB == null) {
-                    throw new RuntimeException("NULL metadata in list");
-                }
-                String lenString = metadataB.get(Metadata.CONTENT_LENGTH);
-                if (lenString != null) {
-                    output.put(Cols.LENGTH, lenString);
-                }
-
-                //overall/container document
-                if (i == 0) {
-                    output.put(Cols.FILE_EXTENSION,
-                            contData.get(Cols.FILE_EXTENSION));
-                    output.put(Cols.IS_EMBEDDED, FALSE);
-                } else { //embedded document
-                    output.put(Cols.IS_EMBEDDED, TRUE);
-                    output.put(Cols.EMBEDDED_FILE_PATH,
-                            metadataB.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
-                    output.put(Cols.FILE_EXTENSION,
-                            FilenameUtils.getExtension(
-                                    output.get(Cols.EMBEDDED_FILE_PATH)));
-                }
-
+                Metadata m = metadataListB.get(i);
+                String fileId = Integer.toString(ID.getAndIncrement());
+                writeProfileData(fileB,i, fileId, containerID, m, PROFILES_B);
+                writeExceptionData(fileId, m, EXCEPTIONS_B);
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
-                TokenCounter tokensB = new CounterB(tokens);
-                countTokens(metadataB, tokensB);
-                Map<Cols, String> profilesB = new HashMap<Cols, String>();
-                profilesB.putAll(output);
-
-                addSingleFileStats(metadataB, tokens.keySet(), tokensB, profilesB);
-                writer.writeRow(PROFILES_B, profilesB);
-                /*
-                is it worth adding the comparisons for
-                Map<Cols, String> contentComparisons = new HashMap<Cols, String>();
-                contentComparisons.put(Cols.ID, fileId);
-                compareUnigramOverlap(tokens, tokensA, tokensB, contentComparisons);
-
-                writer.writeRow(CONTENT_COMPARISONS, contentComparisons);
-                */
+                TokenCounter counter = new CounterB(tokens);
+                countTokens(m, counter);
+                writeContentData(fileId, m, counter, CONTENTS_TABLE_B);
             }
         }
     }
@@ -378,17 +330,13 @@ public class FileComparer extends AbstractProfiler {
         float dice = (float) diceNum / (float) diceDenom;
         float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + thoseTokens.getTokenCount());
 
-        data.put(HEADERS.NUM_UNIQUE_TOKENS + aExtension,
-                Integer.toString(theseTokens.getUniqueTokenCount()));
-        data.put(HEADERS.NUM_UNIQUE_TOKENS + bExtension,
-                Integer.toString(thoseTokens.getUniqueTokenCount()));
-        data.put(COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
+        data.put(Cols.DICE_COEFFICIENT,
                 Float.toString(dice));
-        data.put(COMPARISON_HEADERS.OVERLAP.name(), Float.toString(overlap));
+        data.put(Cols.OVERLAP, Float.toString(overlap));
 
 
-        handleUniques(data, tokens, aExtension, true);
-        handleUniques(data, tokens, bExtension, false);
+        handleUniques(data, tokens, true);
+        handleUniques(data, tokens, false);
         handleDiffs(data, tokens);
     }
 

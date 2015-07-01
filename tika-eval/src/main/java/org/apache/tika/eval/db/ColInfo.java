@@ -71,6 +71,8 @@ public class ColInfo {
     public String getSqlDef() {
         if (type == Types.VARCHAR){
             return "VARCHAR("+precision+")";
+        } else if (type == Types.CHAR) {
+            return "CHAR("+precision+")";
         }
         switch (type) {
             case Types.FLOAT :

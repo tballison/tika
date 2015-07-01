@@ -17,35 +17,10 @@
 
 package org.apache.tika.eval;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertNull;
-
-import java.io.File;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.fs.FSBatchTestBase;
-import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
-import org.apache.tika.batch.testutils.StreamStrings;
-import org.apache.tika.eval.db.H2Util;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 public class ComparerBatchTest extends FSBatchTestBase {
+    /*
     public final static String COMPARER_PROCESS_CLASS = "org.apache.tika.batch.fs.FSBatchProcessCLI";
 
     private static Path dbDir;
@@ -406,5 +381,5 @@ public class ComparerBatchTest extends FSBatchTestBase {
         }
         return sb.toString();
     }
-
+*/
 }

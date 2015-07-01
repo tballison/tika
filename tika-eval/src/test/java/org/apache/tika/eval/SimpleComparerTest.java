@@ -28,6 +28,8 @@ import java.util.TreeSet;
 
 import org.apache.tika.MockDBWriter;
 import org.apache.tika.TikaTest;
+import org.apache.tika.eval.db.Cols;
+import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Before;
@@ -56,14 +58,13 @@ public class SimpleComparerTest extends TikaTest {
                 getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
                 getResourceAsFile("/test-dirs/testB/file1.pdf.json"));
 
-        List<Map<String, String>> table = writer.getTable(FileComparer.COMPARISONS_TABLE);
-        Map<String, String> row = table.get(0);
-        assertEquals("0", row.get(AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name()));
-
+        List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
+        Map<Cols, String> row = tableInfos.get(0);
+        assertEquals("0", row.get(Cols.ID));
+        debugPrintRow(row);
         assertTrue(
-                row.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_A")
+                row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
                         .startsWith("over: 1"));
-
 
     }
 
@@ -72,10 +73,10 @@ public class SimpleComparerTest extends TikaTest {
         comparer.compareFiles("relPath",
                 getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
                 getResourceAsFile("/test-dirs/testB/file4_emptyB.pdf.json"));
-        List<Map<String, String>> table = writer.getTable(FileComparer.CONTAINERS_TABLE);
-        Map<String, String> row = table.get(0);
+        List<Map<Cols, String>> table = writer.getTable(FileComparer.ERRORS_B);
+        Map<Cols, String> row = table.get(0);
         debugPrintRow(row);
-        assertTrue(row.get("JSON_EX_B").startsWith(AbstractProfiler.JSON_PARSE_EXCEPTION));
+        assertTrue(row.get(Cols.JSON_EX).equals(AbstractProfiler.TRUE));
     }
 
 
@@ -104,19 +105,17 @@ public class SimpleComparerTest extends TikaTest {
         comparer.compareFiles("relPath",
                 getResourceAsFile("/test-dirs/testA/file6_accessEx.pdf.json"),
                 getResourceAsFile("/test-dirs/testB/file6_accessEx.pdf.json"));
-        List<Map<String, String>> tableA = writer.getTable(FileComparer.EXCEPTIONS_TABLE + "_A");
-        List<Map<String, String>> tableB = writer.getTable(FileComparer.EXCEPTIONS_TABLE + "_B");
 
-        Map<String, String> rowA = tableA.get(0);
-        debugPrintRow(rowA);
-        assertEquals("true", rowA.get(AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.toString()));
-        assertNull(rowA.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.toString()));
-        assertNull(rowA.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.toString()));
+        for (TableInfo t : new TableInfo[]{FileComparer.EXCEPTIONS_A, FileComparer.EXCEPTIONS_B}) {
+            List<Map<Cols, String>> table = writer.getTable(t);
 
-        Map<String, String> rowB = tableB.get(0);
-        assertEquals("true", rowB.get(AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.toString()));
-        assertNull(rowB.get(AbstractProfiler.EXCEPTION_HEADERS.ORIG_STACK_TRACE.toString()));
-        assertNull(rowB.get(AbstractProfiler.EXCEPTION_HEADERS.SORT_STACK_TRACE.toString()));
+            Map<Cols, String> rowA = table.get(0);
+            debugPrintRow(rowA);
+            assertEquals(Integer.toString(AbstractProfiler.EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
+                    rowA.get(Cols.EXCEPTION_TYPE_ID));
+            assertNull(rowA.get(Cols.ORIG_STACK_TRACE));
+            assertNull(rowA.get(Cols.SORT_STACK_TRACE));
+        }
     }
 
 
@@ -126,36 +125,41 @@ public class SimpleComparerTest extends TikaTest {
         comparer.compareFiles("relPath",
                 getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
                 getResourceAsFile("/test-dirs/testB/file1.pdf.json"));
-        System.out.println("Exceptions A");
-        debugPrintTable(FileComparer.EXCEPTIONS_TABLE + "_A");
-        System.out.println("");
-        System.out.println("Exceptions B");
-        debugPrintTable(FileComparer.EXCEPTIONS_TABLE + "_B");
-        System.out.println("");
-        System.out.println("Comparisons");
-        debugPrintTable(FileComparer.COMPARISONS_TABLE);
-
+        for (TableInfo t : new TableInfo[]{
+                FileComparer.COMPARISON_CONTAINERS,
+                FileComparer.ERRORS_A,
+                FileComparer.ERRORS_B,
+                FileComparer.EXCEPTIONS_A,
+                FileComparer.EXCEPTIONS_B,
+                FileComparer.PROFILES_A,
+                FileComparer.PROFILES_B,
+                FileComparer.CONTENTS_TABLE_A,
+                FileComparer.CONTENTS_TABLE_B,
+                FileComparer.CONTENT_COMPARISONS}) {
+            debugPrintTable(t);
+        }
     }
 
-    private void debugPrintTable(String tableName) {
-        List<Map<String, String>> table = writer.getTable(tableName);
+    private void debugPrintTable(TableInfo tableInfo) {
+        List<Map<Cols, String>> table = writer.getTable(tableInfo);
         if (table == null) {
             return;
         }
         int i = 0;
-
-        for (Map<String, String> row : table) {
-            SortedSet<String> keys = new TreeSet<String>(row.keySet());
-            for (String key : keys) {
+        System.out.println("TABLE: "+tableInfo.getName());
+        for (Map<Cols, String> row : table) {
+            SortedSet<Cols> keys = new TreeSet<Cols>(row.keySet());
+            for (Cols key : keys) {
                 System.out.println( i + " :: " + key + " : " + row.get(key));
             }
             i++;
         }
+        System.out.println("");
     }
 
-    private void debugPrintRow(Map<String, String> row) {
-        SortedSet<String> keys = new TreeSet<String>(row.keySet());
-        for (String key : keys) {
+    private void debugPrintRow(Map<Cols, String> row) {
+        SortedSet<Cols> keys = new TreeSet<Cols>(row.keySet());
+        for (Cols key : keys) {
             System.out.println(key + " : " + row.get(key));
         }
     }

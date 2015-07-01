@@ -891,7 +891,7 @@ public class FileComparerResultDumper {
 
     private String[] getDirNames(Connection connection) throws SQLException {
         Statement st = connection.createStatement();
-        String sql = "select DIR_NAME_A, DIR_NAME_B from "+ FileComparer.PAIR_NAMES_TABLE;
+        String sql = "select DIR_NAME_A, DIR_NAME_B from "+ FileComparer.REF_PAIR_NAMES;
         ResultSet rs = st.executeQuery(sql);
         rs.next();
         String[] ret = new String[2];

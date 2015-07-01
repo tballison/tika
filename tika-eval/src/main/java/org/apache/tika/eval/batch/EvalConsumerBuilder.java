@@ -1,16 +1,19 @@
 package org.apache.tika.eval.batch;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Comparator;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
-import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.AbstractProfiler;
+import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.IDBWriter;
 
 public abstract class EvalConsumerBuilder {
 
@@ -25,21 +28,31 @@ public abstract class EvalConsumerBuilder {
         this.dbUtil = dbUtil;
     }
 
-    public abstract FileResourceConsumer build() throws IOException;
+    public abstract FileResourceConsumer build() throws IOException, SQLException;
 
-    protected abstract Map<String, Map<String, ColInfo>> getTableInfo();
+    protected abstract List<TableInfo> getTableInfo();
 
-    public Map<String, Map<String, ColInfo>> getSortedTableInfo() {
-        Map<String, Map<String, ColInfo>> tableInfo = getTableInfo();
-        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
-            Map<String, ColInfo> cols = table.getValue();
-            TreeMap<String, ColInfo> sorted = new TreeMap<String,ColInfo>(new ValueComparator(cols));
-            sorted.putAll(cols);
-            tableInfo.put(table.getKey(), Collections.unmodifiableSortedMap(sorted));
+    protected abstract IDBWriter getDBWriter() throws IOException, SQLException;
+
+    public void populateRefTables() throws IOException, SQLException {
+        IDBWriter writer = getDBWriter();
+        Map<Cols, String> m = new HashMap<Cols, String>();
+        for (AbstractProfiler.ERROR_TYPE t : AbstractProfiler.ERROR_TYPE.values()) {
+            m.clear();
+            m.put(Cols.ERROR_TYPE_ID, Integer.toString(t.ordinal()));
+            m.put(Cols.ERROR_DESCRIPTION, t.name());
+            writer.writeRow(AbstractProfiler.REF_ERROR_TYPES, m);
         }
-        return Collections.unmodifiableMap(tableInfo);
+
+        for (AbstractProfiler.EXCEPTION_TYPE t : AbstractProfiler.EXCEPTION_TYPE.values()) {
+            m.clear();
+            m.put(Cols.EXCEPTION_TYPE_ID, Integer.toString(t.ordinal()));
+            m.put(Cols.EXCEPTION_DESCRIPTION, t.name());
+            writer.writeRow(AbstractProfiler.REF_EXCEPTION_TYPES, m);
+        }
     }
 
+/*
     public abstract Map<String, String> getIndexInfo();
 
     class ValueComparator implements Comparator<String> {
@@ -66,5 +79,5 @@ public abstract class EvalConsumerBuilder {
             }
         }
     }
-
+*/
 }

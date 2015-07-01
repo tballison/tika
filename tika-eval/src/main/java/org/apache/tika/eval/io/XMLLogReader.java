@@ -7,6 +7,7 @@ import javax.xml.stream.XMLStreamReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.SQLException;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -70,6 +71,8 @@ public class XMLLogReader {
                         handler.handleMsg(level, reader.getText());
                     } catch (IOException e) {
                         logger.warn("Error parsing: "+reader.getText());
+                    } catch (SQLException e) {
+                        logger.warn("SQLException: "+reader.getText());
                     }
                     break;
             };

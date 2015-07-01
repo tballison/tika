@@ -19,29 +19,84 @@ package org.apache.tika.eval;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.Types;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
+import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
-import org.apache.tika.eval.io.DBWriter;
+import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class SingleFileProfiler extends AbstractProfiler {
+
+
+    public static TableInfo ERROR_TABLE = new TableInfo("errors",
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.ERROR_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.JSON_EX, Types.BOOLEAN)
+    );
+
+    public static TableInfo EXCEPTION_TABLE = new TableInfo("exceptions",
+            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.ORIG_STACK_TRACE, Types.VARCHAR, 8192),
+            new ColInfo(Cols.SORT_STACK_TRACE, Types.VARCHAR, 8192),
+            new ColInfo(Cols.EXCEPTION_TYPE_ID, Types.INTEGER)
+    );
+
+
+    public static TableInfo CONTAINER_TABLE = new TableInfo("containers",
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, 512),
+            new ColInfo(Cols.LENGTH, Types.BIGINT),
+            new ColInfo(Cols.EXTRACT_FILE_LENGTH, Types.BIGINT)
+    );
+
+    public static TableInfo PROFILE_TABLE = new TableInfo("profiles",
+            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),//, "FOREIGN KEY"),
+            new ColInfo(Cols.MD5, Types.CHAR, 32),
+            new ColInfo(Cols.LENGTH, Types.BIGINT),
+            new ColInfo(Cols.IS_EMBEDDED, Types.BOOLEAN),
+            new ColInfo(Cols.EMBEDDED_FILE_PATH, Types.VARCHAR, 1024),
+            new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12),
+            new ColInfo(Cols.MIME_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.ELAPSED_TIME_MILLIS, Types.INTEGER),
+            new ColInfo(Cols.NUM_ATTACHMENTS, Types.INTEGER),
+            new ColInfo(Cols.NUM_METADATA_VALUES, Types.INTEGER),
+            new ColInfo(Cols.HAS_CONTENT, Types.BOOLEAN)
+    );
+
+    public static TableInfo CONTENTS_TABLE = new TableInfo("contents",
+            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.CONTENT_LENGTH, Types.INTEGER),
+            new ColInfo(Cols.TOKEN_COUNT, Types.INTEGER),
+            new ColInfo(Cols.UNIQUE_TOKEN_COUNT, Types.INTEGER),
+            new ColInfo(Cols.TOP_N_WORDS, Types.VARCHAR, 1024),
+            new ColInfo(Cols.NUM_EN_STOPS_TOP_N, Types.INTEGER),
+            new ColInfo(Cols.LANG_ID_1, Types.VARCHAR, 12),
+            new ColInfo(Cols.LANG_ID_PROB_1, Types.FLOAT),
+            new ColInfo(Cols.LANG_ID_2, Types.VARCHAR, 12),
+            new ColInfo(Cols.LANG_ID_PROB_2, Types.FLOAT),
+            new ColInfo(Cols.TOKEN_ENTROPY_RATE, Types.FLOAT),
+            new ColInfo(Cols.TOKEN_LENGTH_SUM, Types.INTEGER),
+            new ColInfo(Cols.TOKEN_LENGTH_MEAN, Types.FLOAT),
+            new ColInfo(Cols.TOKEN_LENGTH_STD_DEV, Types.FLOAT)
+    );
 
     private final File rootDir;
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
                               boolean crawlingInputDir, File rootDir,
-                              DBWriter dbWriter) {
+                              IDBWriter dbWriter) {
         super(queue, crawlingInputDir, dbWriter);
         this.rootDir = rootDir;
     }
@@ -79,59 +134,19 @@ public class SingleFileProfiler extends AbstractProfiler {
             return true;
         }
 
-        Map<Cols, String> output = new HashMap<Cols, String>();
-        Map<Cols, String> excOutput = new HashMap<Cols, String>();
-
+        //TODO: calculate num_attachments, add to profile table
         int i = 0;
         for (Metadata m : metadataList) {
-            output.clear();
-            excOutput.clear();
             String fileId = Integer.toString(ID.incrementAndGet());
-
-            output.put(Cols.ID, fileId);
-            output.put(Cols.CONTAINER_ID, containerId);
-
-            output.put(Cols.ELAPSED_TIME_MILLIS, getTime(m));
-            output.put(Cols.NUM_METADATA_VALUES,
-                    Integer.toString(countMetadataValues(m)));
-
-            //if the outer wrapper document
-            if (i == 0) {
-                output.put(Cols.IS_EMBEDDED, FALSE);
-                output.put(Cols.FILE_EXTENSION,
-                        getOriginalFileExtension(thisFile.getName()));
-            } else {
-                output.put(Cols.IS_EMBEDDED, TRUE);
-                output.put(Cols.EMBEDDED_FILE_PATH,
-                        m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
-                output.put(Cols.FILE_EXTENSION,
-                        FilenameUtils.getExtension(m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH)));
-            }
-            getFileTypes(m, output);
-
-            getExceptionStrings(m, excOutput);
-            langid(m, output);
+            writeProfileData(thisFile, i, fileId, containerId, m, PROFILE_TABLE);
+            writeExceptionData(fileId, m, EXCEPTION_TABLE);
             SingleFileTokenCounter counter = new SingleFileTokenCounter();
-            try {
-                countTokens(m, counter);
-                handleWordCounts(output, counter);
-                output.put(Cols.NUM_UNIQUE_TOKENS,
-                        Integer.toString(counter.getUniqueTokenCount()));
-                output.put(Cols.TOKEN_COUNT,
-                        Integer.toString(counter.getTokenCount()));
-            } catch (IOException e) {
-                //should log
-                e.printStackTrace();
-            }
-            try {
-                writer.writeRow(PROFILE_TABLE, output);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+            writeContentData(fileId, m, counter, CONTENTS_TABLE);
             i++;
         }
         return true;
     }
+
 
 
     class SingleFileTokenCounter extends TokenCounter {

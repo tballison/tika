@@ -23,25 +23,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.tika.eval.db.Cols;
+import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 
 public class MockDBWriter implements IDBWriter {
     //Map of tableName and tables
     //each table consists of a list of rows.
     //Each row consists of a map of columns/values
-    Map<String, List<Map<String, String>>> db = new HashMap<String, List<Map<String, String>>>();
+    Map<String, List<Map<Cols, String>>> db = new HashMap<String, List<Map<Cols, String>>>();
 
     public MockDBWriter() throws Exception {
     }
 
     @Override
-    public void writeRow(String tableName, Map<String, String> row) {
-        List<Map<String, String>> table = db.get(tableName);
+    public void writeRow(TableInfo tableInfo, Map<Cols, String> row) throws IOException {
+        List<Map<Cols, String>> table = db.get(tableInfo.getName());
         if (table == null) {
-            table = new ArrayList<Map<String, String>>();
+            table = new ArrayList<Map<Cols, String>>();
         }
         table.add(row);
-        db.put(tableName, table);
+        db.put(tableInfo.getName(), table);
     }
 
     @Override
@@ -49,14 +51,20 @@ public class MockDBWriter implements IDBWriter {
         //no-op
     }
 
-    public List<Map<String, String>> getTable(String tableName) {
-        if (db.get(tableName) == null) {
-            System.err.println("I can't seem to find: "+ tableName + ", but I do see:");
+    @Override
+    public int getMimeId(String mimeString) {
+        //TODO: fix this
+        return 0;
+    }
+
+    public List<Map<Cols, String>> getTable(TableInfo tableInfo) {
+        if (db.get(tableInfo.getName()) == null) {
+            System.err.println("I can't seem to find: "+ tableInfo.getName() + ", but I do see:");
             for (String table : db.keySet()) {
                 System.err.println(table);
             }
         }
-        return db.get(tableName);
+        return db.get(tableInfo.getName());
     }
 
     public void clear() {

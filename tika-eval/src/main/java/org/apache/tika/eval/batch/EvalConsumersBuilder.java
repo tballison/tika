@@ -50,8 +50,7 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         consumerBuilder.init(queue, localAttrs, util);
 
         try {
-            util.createDB(consumerBuilder.getSortedTableInfo(),
-                    consumerBuilder.getIndexInfo(), append);
+            util.createDB(consumerBuilder.getTableInfo(), append);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
@@ -62,7 +61,16 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
                 consumers.add(consumerBuilder.build());
             } catch (IOException e) {
                 throw new RuntimeException(e);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
+        }
+        try {
+            consumerBuilder.populateRefTables();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
         return new DBConsumersManager(consumers);
     }
@@ -83,4 +91,6 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         }
         return new File(filePath);
     }
+
+
 }

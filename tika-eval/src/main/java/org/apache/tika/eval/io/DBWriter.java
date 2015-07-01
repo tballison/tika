@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,33 +43,33 @@ import org.apache.tika.io.IOExceptionWithCause;
  *
  * Beware, this deletes the db file with each initialization.
  */
-public class DBWriter {
+public class DBWriter implements IDBWriter {
     
     private static Logger logger = Logger.getLogger(DBWriter.class);
     private final AtomicLong insertedRows = new AtomicLong();
     private final Long commitEveryX = 1000L;
 
-    private final Map<String, Map<String, ColInfo>> tableInfo;
+    private final List<TableInfo> tableInfos;
     private final Connection conn;
     private final DBUtil dbUtil;
-    private final MimeBuffer mimeBuffer;
+    private static MimeBuffer mimeBuffer;
 
     //<tableName, preparedStatement>
     private final Map<String, PreparedStatement> inserts = new HashMap<String, PreparedStatement>();
 
-    public DBWriter(Map<String, Map<String, ColInfo>> tableInfo, TikaConfig config, DBUtil dbUtil)
+    public DBWriter(List<TableInfo> tableInfos, TikaConfig tikaConfig, DBUtil dbUtil)
             throws IOException, SQLException {
 
         this.conn = dbUtil.getConnection();
-        mimeBuffer = new MimeBuffer(conn, config);
-        this.tableInfo = tableInfo;
+        if (mimeBuffer == null) {
+            mimeBuffer = new MimeBuffer(conn, tikaConfig);
+        }
+        this.tableInfos = tableInfos;
         this.dbUtil = dbUtil;
-        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
-            List<String> colNames = new ArrayList<String>();
-            colNames.addAll(table.getValue().keySet());
+        for (TableInfo tableInfo : tableInfos) {
             try {
-                PreparedStatement st = createPreparedInsert(table.getKey(), colNames);
-                inserts.put(table.getKey(), st);
+                PreparedStatement st = createPreparedInsert(tableInfo);
+                inserts.put(tableInfo.getName(), st);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
@@ -81,16 +80,16 @@ public class DBWriter {
         return mimeBuffer.getId(mimeString);
     }
 
-    private PreparedStatement createPreparedInsert(String tableName, List<String> colNames) throws SQLException {
+    private PreparedStatement createPreparedInsert(TableInfo tableInfo) throws SQLException {
         StringBuilder sb = new StringBuilder();
-        sb.append("INSERT INTO ").append(tableName);
+        sb.append("INSERT INTO ").append(tableInfo.getName());
         sb.append("(");
         int i = 0;
-        for (String c : colNames) {
+        for (ColInfo c : tableInfo.getColInfos()) {
             if (i++ > 0) {
                 sb.append(", ");
             }
-            sb.append(c);
+            sb.append(c.getName());
         }
         sb.append(") ");
 

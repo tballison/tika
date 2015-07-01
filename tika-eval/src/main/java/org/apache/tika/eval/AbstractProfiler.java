@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -41,6 +40,7 @@ import com.cybozu.labs.langdetect.Language;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
@@ -56,7 +56,7 @@ import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
-import org.apache.tika.eval.io.DBWriter;
+import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStats;
@@ -70,7 +70,15 @@ import org.apache.tika.utils.ExceptionUtils;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
-    public static final String JSON_PARSE_EXCEPTION = "Json parse exception";
+    public static TableInfo REF_ERROR_TYPES = new TableInfo("ref_error_types",
+            new ColInfo(Cols.ERROR_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.ERROR_DESCRIPTION, Types.VARCHAR, 128)
+    );
+
+    public static TableInfo REF_EXCEPTION_TYPES = new TableInfo("ref_exception_types",
+            new ColInfo(Cols.EXCEPTION_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.EXCEPTION_DESCRIPTION, Types.VARCHAR, 128)
+    );
 
     public static final String TRUE = Boolean.toString(true);
     public static final String FALSE = Boolean.toString(false);
@@ -94,61 +102,14 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     public static TableInfo MIME_TABLE = new TableInfo("mimes",
-            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.MIME, Types.VARCHAR, 256),
+            new ColInfo(Cols.MIME_TYPE_ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.MIME_STRING, Types.VARCHAR, 256),
             new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12)
     );
 
-    public static TableInfo ERROR_TABLE = new TableInfo("errors",
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.ERROR_ID, Types.INTEGER),
-            new ColInfo(Cols.JSON_EX, Types.BOOLEAN)
-    );
 
-    public static TableInfo EXCEPTION_TABLE = new TableInfo("exceptions",
-            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.ORIG_STACK_TRACE, Types.VARCHAR, 8192),
-            new ColInfo(Cols.SORT_STACK_TRACE, Types.VARCHAR, 8192),
-            new ColInfo(Cols.EXCEPTION_ID, Types.INTEGER)
-    );
-
-    public static TableInfo CONTAINER_TABLE = new TableInfo("containers",
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.LENGTH, Types.BIGINT),
-            new ColInfo(Cols.EXTRACT_FILE_LENGTH, Types.BIGINT)
-    );
-
-    public static TableInfo PROFILE_TABLE = new TableInfo("profiles",
-            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "FOREIGN KEY"),
-            new ColInfo(Cols.MD5, Types.CHAR, 32),
-            new ColInfo(Cols.LENGTH, Types.BIGINT),
-            new ColInfo(Cols.IS_EMBEDDED, Types.BOOLEAN),
-            new ColInfo(Cols.EMBEDDED_FILE_PATH, Types.VARCHAR, 1024),
-            new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12),
-            new ColInfo(Cols.MIME, Types.INTEGER),
-            new ColInfo(Cols.ELAPSED_TIME_MILLIS, Types.INTEGER),
-            new ColInfo(Cols.NUM_ATTACHMENTS, Types.INTEGER),
-            new ColInfo(Cols.NUM_METADATA_VALUES, Types.INTEGER),
-            new ColInfo(Cols.TOKEN_COUNT, Types.INTEGER),
-            new ColInfo(Cols.UNIQUE_TOKEN_COUNT, Types.INTEGER),
-            new ColInfo(Cols.TOP_N_WORDS, Types.VARCHAR, 1024),
-            new ColInfo(Cols.NUM_EN_STOPS_TOP_N, Types.INTEGER),
-            new ColInfo(Cols.LANG_ID_1, Types.VARCHAR, 12),
-            new ColInfo(Cols.LANG_ID_PROB_1, Types.FLOAT),
-            new ColInfo(Cols.LANG_ID_2, Types.VARCHAR, 12),
-            new ColInfo(Cols.LANG_ID_PROB_2, Types.FLOAT),
-            new ColInfo(Cols.TOKEN_ENTROPY_RATE, Types.FLOAT),
-            new ColInfo(Cols.TOKEN_LENGTH_SUM, Types.INTEGER),
-            new ColInfo(Cols.TOKEN_LENGTH_MEAN, Types.FLOAT),
-            new ColInfo(Cols.TOKEN_LENGTH_STD_DEV, Types.FLOAT)
-    );
 
     private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
-    private static Map<String, ColInfo> ERROR_HEADERS_MAP = new HashMap<String, ColInfo>();
-    private static Map<String, ColInfo> EXCEPTION_HEADERS_MAP = new HashMap<String, ColInfo>();
-    private static Map<String, ColInfo> CONTAINER_HEADERS_MAP = new HashMap<String, ColInfo>();
-    private static Map<String, ColInfo> MIME_HEADERS_MAP = new HashMap<String, ColInfo>();
 
 
     final static int MAX_STRING_LENGTH = 1000000;
@@ -166,12 +127,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("org\\.apache\\.tika.exception\\.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
-    protected DBWriter writer;
+    protected IDBWriter writer;
     private final boolean crawlingInputDir;
 
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue,
                             boolean crawlingInputDir,
-                            DBWriter writer) {
+                            IDBWriter writer) {
         super(fileQueue);
         this.crawlingInputDir = crawlingInputDir;
         this.writer = writer;
@@ -183,6 +144,119 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
         Matcher m = FILE_NAME_CLEANER.matcher(fName);
         return m.replaceAll("");
+    }
+
+    protected void writeProfileData(File extractOrSourceFile, int i, String fileId, String containerId, Metadata m, TableInfo profileTable) {
+        Map<Cols, String> data = new HashMap<Cols, String>();
+        data.put(Cols.ID, fileId);
+        data.put(Cols.CONTAINER_ID, containerId);
+
+        data.put(Cols.ELAPSED_TIME_MILLIS, getTime(m));
+        data.put(Cols.NUM_METADATA_VALUES,
+                Integer.toString(countMetadataValues(m)));
+
+        //if the outer wrapper document
+        if (i == 0) {
+            data.put(Cols.IS_EMBEDDED, FALSE);
+            data.put(Cols.FILE_EXTENSION,
+                    getOriginalFileExtension(extractOrSourceFile.getName()));
+        } else {
+            data.put(Cols.IS_EMBEDDED, TRUE);
+            data.put(Cols.EMBEDDED_FILE_PATH,
+                    m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
+            data.put(Cols.FILE_EXTENSION,
+                    FilenameUtils.getExtension(data.get(Cols.EMBEDDED_FILE_PATH))); }
+
+        int numMetadataValues = countMetadataValues(m);
+        data.put(Cols.NUM_METADATA_VALUES,
+                Integer.toString(numMetadataValues));
+
+        data.put(Cols.ELAPSED_TIME_MILLIS,
+                getTime(m));
+
+        String content = getContent(m, MAX_STRING_LENGTH);
+        if (content == null || content.trim().length() == 0) {
+            data.put(Cols.HAS_CONTENT, TRUE);
+        } else {
+            data.put(Cols.HAS_CONTENT, FALSE);
+        }
+        getFileTypes(m, data);
+        try {
+            writer.writeRow(profileTable, data);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected void writeExceptionData(String fileId, Metadata m, TableInfo exceptionTable) {
+        Map<Cols, String> data = new HashMap<Cols, String>();
+        getExceptionStrings(m, data);
+        if (data.keySet().size() > 0) {
+            try {
+                data.put(Cols.ID, fileId);
+                writer.writeRow(exceptionTable, data);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * Checks to see if metadata is null or content is empty (null or only whitespace).
+     * If any of these, then this does no processing, and the fileId is not
+     * entered into the content table.
+     *
+     * @param fileId
+     * @param m
+     * @param counter
+     * @param contentsTable
+     */
+    protected void writeContentData(String fileId, Metadata m, TokenCounter counter, TableInfo contentsTable) {
+        if (m == null) {
+            return;
+        }
+
+        String content = getContent(m, MAX_STRING_LENGTH);
+        if (content == null || content.trim().length() == 0) {
+            return;
+        }
+
+        Map<Cols, String> data = new HashMap<Cols, String>();
+        data.put(Cols.ID, fileId);
+        try {
+            countTokens(m, counter);
+            handleWordCounts(data, counter);
+        } catch (IOException e) {
+            //should log
+            e.printStackTrace();
+        }
+        data.put(Cols.UNIQUE_TOKEN_COUNT,
+                Integer.toString(counter.getUniqueTokenCount()));
+        data.put(Cols.TOKEN_COUNT,
+                Integer.toString(counter.getTokenCount()));
+
+        TokenStats tokenStats = calcTokenStats(counter);
+
+        data.put(Cols.TOKEN_ENTROPY_RATE,
+                Double.toString(tokenStats.getEntropy()));
+        SummaryStatistics summStats = tokenStats.getSummaryStatistics();
+        data.put(Cols.TOKEN_LENGTH_SUM,
+                Integer.toString((int) summStats.getSum()));
+
+        data.put(Cols.TOKEN_LENGTH_MEAN,
+                Double.toString(summStats.getMean()));
+
+        data.put(Cols.TOKEN_LENGTH_STD_DEV,
+                Double.toString(summStats.getStandardDeviation()));
+
+
+
+        langid(m, data);
+        try {
+            writer.writeRow(contentsTable, data);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     List<Metadata> getMetadata(File thisFile) {
@@ -276,18 +350,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
             Matcher matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(Cols.EXCEPTION_ID,
+                data.put(Cols.EXCEPTION_TYPE_ID,
                         Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
             matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(Cols.EXCEPTION_ID,
+                data.put(Cols.EXCEPTION_TYPE_ID,
                         Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
 
-            data.put(Cols.EXCEPTION_ID,
+            data.put(Cols.EXCEPTION_TYPE_ID,
                     Integer.toString(EXCEPTION_TYPE.RUNTIME.ordinal()));
 
             data.put(Cols.ORIG_STACK_TRACE, fullTrace);
@@ -364,7 +438,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return;
         }
         int mimeId = writer.getMimeId(type);
-        output.put(Cols.MIME, Integer.toString(mimeId));
+        output.put(Cols.MIME_TYPE_ID, Integer.toString(mimeId));
     }
 
     void handleWordCounts(Map<Cols, String> data,
@@ -438,61 +512,14 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return;
     }
 
-    protected void addSingleFileStats(Metadata metadata, Set<String> tokens,
-                                      TokenCounter tokenCounter, Map<Cols, String> output) throws IOException {
-        if (metadata == null) {
-            return;
-        }
-        handleExceptionStrings(metadata, output);
-        getFileTypes(metadata, output);
 
-        int numMetadataValues = countMetadataValues(metadata);
-        output.put(Cols.NUM_METADATA_VALUES,
-                Integer.toString(numMetadataValues));
-
-        output.put(Cols.ELAPSED_TIME_MILLIS,
-                getTime(metadata));
-
-        langid(metadata, output);
-        output.put(Cols.UNIQUE_TOKEN_COUNT,
-                Integer.toString(tokenCounter.getUniqueTokenCount()));
-
-        TokenStats tokenStats = calcTokenStats(tokens, tokenCounter);
-
-        output.put(Cols.TOKEN_ENTROPY_RATE,
-                Double.toString(tokenStats.getEntropy()));
-        SummaryStatistics summStats = tokenStats.getSummaryStatistics();
-        output.put(Cols.TOKEN_LENGTH_SUM,
-                Integer.toString((int) summStats.getSum()));
-
-        output.put(Cols.TOKEN_LENGTH_MEAN,
-                Double.toString(summStats.getMean()));
-
-        output.put(Cols.TOKEN_LENGTH_STD_DEV,
-                Double.toString(summStats.getStandardDeviation()));
-
-        output.put(Cols.TOKEN_COUNT, Integer.toString(tokenCounter.getTokenCount()));
-
-        handleWordCounts(output, tokenCounter);
-    }
-
-    protected void handleExceptionStrings(Metadata metadata,
-                                          Map<Cols, String> output) throws IOException {
-        Map<Cols, String> excOutput = new HashMap<Cols, String>();
-        getExceptionStrings(metadata, excOutput);
-        if (excOutput.size() > 0) {
-            excOutput.put(Cols.ID, output.get(Cols.ID));
-            writer.writeRow(EXCEPTION_TABLE, excOutput);
-        }
-    }
-
-    private TokenStats calcTokenStats(Set<String> tokens, TokenCounter counter) {
+    private TokenStats calcTokenStats(TokenCounter counter) {
         double ent = 0.0d;
         double p = 0.0d;
         double base = 2.0;
         int tokenCount = counter.getTokenCount();
         SummaryStatistics summStats = new SummaryStatistics();
-        for (String token : tokens) {
+        for (String token : counter.getTokens()) {
             int a = counter.getCount(token);
             if (a < 1) {
                 //this can happen because of the way that tokens are stored

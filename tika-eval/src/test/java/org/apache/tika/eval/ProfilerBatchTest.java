@@ -17,7 +17,7 @@
 
 package org.apache.tika.eval;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -34,19 +34,21 @@ import java.util.Map;
 
 import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
 import org.apache.tika.batch.testutils.StreamStrings;
+import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.H2Util;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ProfilerBatchTest {
+
     public final static String COMPARER_PROCESS_CLASS = "org.apache.tika.batch.fs.FSBatchProcessCLI";
 
     private static Path dbDir;
     private static Connection conn;
 
-    private final static String mainTable = SingleFileProfiler.MAIN_TABLE;
-    private final static String exTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.aExtension;
-    private final static String fp = AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name();
+    private final static String profileTable = SingleFileProfiler.PROFILE_TABLE.getName();
+    private final static String exTable = SingleFileProfiler.EXCEPTION_TABLE.getName();
+    private final static String fpCol = Cols.FILE_PATH.name();
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -75,7 +77,7 @@ public class ProfilerBatchTest {
         Statement st = null;
         List<String> fNameList = new ArrayList<String>();
         try {
-            String sql = "select * from "+SingleFileProfiler.CONTAINERS_TABLE;
+            String sql = "select * from "+SingleFileProfiler.CONTAINER_TABLE.getName();
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
             while (rs.next()) {
@@ -98,6 +100,5 @@ public class ProfilerBatchTest {
         assertTrue("file4_emptyB.pdf.json", fNameList.contains("file4_emptyB.pdf.json"));
         assertTrue("file7_badJson.pdf.json", fNameList.contains("file7_badJson.pdf.json"));
     }
-
     //TODO: lots more testing!
 }
