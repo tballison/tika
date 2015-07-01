@@ -45,7 +45,7 @@ public class ProfilerBatchTest {
     private static Connection conn;
 
     private final static String mainTable = SingleFileProfiler.MAIN_TABLE;
-    private final static String exTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.thisExtension;
+    private final static String exTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.aExtension;
     private final static String fp = AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name();
 
     @BeforeClass

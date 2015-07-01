@@ -29,28 +29,19 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
-import org.apache.tika.eval.db.ColInfo;
-import org.apache.tika.eval.io.IDBWriter;
+import org.apache.tika.eval.db.Cols;
+import org.apache.tika.eval.io.DBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class SingleFileProfiler extends AbstractProfiler {
-    static Map<String, ColInfo> headers = new HashMap<String, ColInfo>();
 
     private final File rootDir;
-    private final JsonMetadataList serializer = new JsonMetadataList();
-    public final static String MAIN_TABLE = "main";
-
-    static {
-        for (HEADERS header : AbstractProfiler.HEADERS.values()) {
-            addHeader(headers, header);
-        }
-    }
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
-                              boolean crawlingInputDir, File rootDir, IDBWriter dbWriter) {
+                              boolean crawlingInputDir, File rootDir,
+                              DBWriter dbWriter) {
         super(queue, crawlingInputDir, dbWriter);
         this.rootDir = rootDir;
     }
@@ -63,74 +54,77 @@ public class SingleFileProfiler extends AbstractProfiler {
         System.err.println("trying to get: "+thisFile.getAbsolutePath());
         List<Metadata> metadataList = getMetadata(thisFile);
 
-        Map<String, String> contOutput = new HashMap<String, String>();
+        Map<Cols, String> contOutput = new HashMap<Cols, String>();
         String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());
-        Map<String, String> output = new HashMap<String, String>();
-        if (metadataList == null) {
-            contOutput.put(CONTAINER_HEADERS.CONTAINER_ID.name(), containerId);
-            contOutput.put(CONTAINER_HEADERS.FILE_PATH.name(), relativePath);
-            contOutput.put(CONTAINER_HEADERS.JSON_FILE_LENGTH.name(),
-                    Long.toString(thisFile.length()));
-            contOutput.put(CONTAINER_HEADERS.JSON_EX.name(), "JSON_EXCEPTION");
-            try {
-                writer.writeRow(CONTAINERS_TABLE, contOutput);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
 
-            return true;
-        }
-        Map<String, String> excOutput = new HashMap<String, String>();
-        contOutput.put(CONTAINER_HEADERS.CONTAINER_ID.name(), containerId);
-        contOutput.put(CONTAINER_HEADERS.FILE_PATH.name(), relativePath);
-        contOutput.put(CONTAINER_HEADERS.NUM_ATTACHMENTS.name(),
-                Integer.toString(metadataList.size() - 1));
+        contOutput.put(Cols.CONTAINER_ID, containerId);
+        contOutput.put(Cols.FILE_PATH, relativePath);
+        contOutput.put(Cols.EXTRACT_FILE_LENGTH,
+                Long.toString(thisFile.length()));
         try {
-            writer.writeRow(CONTAINERS_TABLE, contOutput);
+            writer.writeRow(CONTAINER_TABLE, contOutput);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        if (metadataList == null) {
+            Map<Cols, String> errOutput = new HashMap<Cols,String>();
+            errOutput.put(Cols.CONTAINER_ID, containerId);
+            errOutput.put(Cols.JSON_EX, "TRUE");
+            try {
+                writer.writeRow(ERROR_TABLE, errOutput);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            return true;
+        }
+
+        Map<Cols, String> output = new HashMap<Cols, String>();
+        Map<Cols, String> excOutput = new HashMap<Cols, String>();
+
         int i = 0;
         for (Metadata m : metadataList) {
             output.clear();
             excOutput.clear();
             String fileId = Integer.toString(ID.incrementAndGet());
-            output.put(HEADERS.ID.name(), fileId);
-            output.put(HEADERS.CONTAINER_ID.name(), containerId);
 
-            output.put(HEADERS.ELAPSED_TIME_MILLIS.name(), getTime(m));
-            output.put(HEADERS.NUM_METADATA_VALUES.name(),
+            output.put(Cols.ID, fileId);
+            output.put(Cols.CONTAINER_ID, containerId);
+
+            output.put(Cols.ELAPSED_TIME_MILLIS, getTime(m));
+            output.put(Cols.NUM_METADATA_VALUES,
                     Integer.toString(countMetadataValues(m)));
 
             //if the outer wrapper document
             if (i == 0) {
-                output.put(HEADERS.IS_EMBEDDED.name(), Boolean.toString(false));
-                output.put(HEADERS.FILE_EXTENSION.name(), getOriginalFileExtension(thisFile.getName()));
+                output.put(Cols.IS_EMBEDDED, FALSE);
+                output.put(Cols.FILE_EXTENSION,
+                        getOriginalFileExtension(thisFile.getName()));
             } else {
-                output.put(HEADERS.IS_EMBEDDED.name(), Boolean.toString(true));
-                output.put(HEADERS.EMBEDDED_FILE_PATH.name(),
+                output.put(Cols.IS_EMBEDDED, TRUE);
+                output.put(Cols.EMBEDDED_FILE_PATH,
                         m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
-                output.put(HEADERS.FILE_EXTENSION.name(),
+                output.put(Cols.FILE_EXTENSION,
                         FilenameUtils.getExtension(m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH)));
             }
-            getFileTypes(m, "", output);
+            getFileTypes(m, output);
 
             getExceptionStrings(m, excOutput);
-            langid(m, "", output);
+            langid(m, output);
             SingleFileTokenCounter counter = new SingleFileTokenCounter();
             try {
                 countTokens(m, counter);
-                handleWordCounts(output, counter, "");
-                output.put(HEADERS.NUM_UNIQUE_TOKENS.name(),
+                handleWordCounts(output, counter);
+                output.put(Cols.NUM_UNIQUE_TOKENS,
                         Integer.toString(counter.getUniqueTokenCount()));
-                output.put(HEADERS.TOKEN_COUNT.name(),
+                output.put(Cols.TOKEN_COUNT,
                         Integer.toString(counter.getTokenCount()));
             } catch (IOException e) {
                 //should log
                 e.printStackTrace();
             }
             try {
-                writer.writeRow(MAIN_TABLE, output);
+                writer.writeRow(PROFILE_TABLE, output);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -139,9 +133,6 @@ public class SingleFileProfiler extends AbstractProfiler {
         return true;
     }
 
-    public static Map<String, ColInfo> getHeaders() {
-        return headers;
-    }
 
     class SingleFileTokenCounter extends TokenCounter {
         private final Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();

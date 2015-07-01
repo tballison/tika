@@ -26,6 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -80,15 +81,22 @@ public abstract class DBUtil {
     abstract public Set<String> getTables(Connection connection) throws SQLException;
 
     public static int insert(PreparedStatement insertStatement,
-                              Map<String, ColInfo> columns,
-                              Map<String, String> data) throws SQLException {
+                              TableInfo table,
+                              Map<Cols, String> data) throws SQLException {
 
         //clear parameters before setting
         insertStatement.clearParameters();
         try {
-            for (Map.Entry<String, ColInfo> e : columns.entrySet()) {
-
-                updateInsertStatement(insertStatement, e.getKey(), e.getValue(), data.get(e.getKey()));
+            int i = 1;
+            for (ColInfo colInfo : table.getColInfos()) {
+                updateInsertStatement(i, insertStatement, colInfo, data.get(colInfo.getName()));
+                i++;
+            }
+            for (Cols c : data.keySet()) {
+                if (! table.containsColumn(c)) {
+                    throw new IllegalArgumentException("Can't add data to "+c +
+                    " because it doesn't exist in the table: "+table.getName());
+                }
             }
             return insertStatement.executeUpdate();
         } catch (SQLException e) {
@@ -97,10 +105,10 @@ public abstract class DBUtil {
         }
     }
 
-    public static void updateInsertStatement(PreparedStatement st, String colName,
-                                                ColInfo colInfo, String value ) throws SQLException {
+    public static void updateInsertStatement(int dbColOffset, PreparedStatement st,
+                                             ColInfo colInfo, String value ) throws SQLException {
         if (value == null) {
-            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
+            st.setNull(dbColOffset, colInfo.getType());
             return;
         }
         try {
@@ -108,84 +116,71 @@ public abstract class DBUtil {
                 case Types.VARCHAR:
                     if (value != null && value.length() > colInfo.getPrecision()) {
                         value = value.substring(0, colInfo.getPrecision());
-                        logger.info("truncated varchar value in " + colName);
+                        logger.info("truncated varchar value in " + colInfo.getName());
                     }
-                    st.setString(colInfo.getDBColOffset(), value);
+                    st.setString(dbColOffset, value);
                     break;
                 case Types.DOUBLE:
-                    st.setDouble(colInfo.getDBColOffset(), Double.parseDouble(value));
+                    st.setDouble(dbColOffset, Double.parseDouble(value));
                     break;
                 case Types.FLOAT:
-                    st.setDouble(colInfo.getDBColOffset(), Float.parseFloat(value));
+                    st.setDouble(dbColOffset, Float.parseFloat(value));
                     break;
                 case Types.INTEGER:
-                    st.setDouble(colInfo.getDBColOffset(), Integer.parseInt(value));
+                    st.setDouble(dbColOffset, Integer.parseInt(value));
                     break;
                 case Types.BIGINT:
-                    st.setLong(colInfo.getDBColOffset(), Long.parseLong(value));
+                    st.setLong(dbColOffset, Long.parseLong(value));
                     break;
                 case Types.BOOLEAN:
-                    st.setBoolean(colInfo.getDBColOffset(), Boolean.parseBoolean(value));
+                    st.setBoolean(dbColOffset, Boolean.parseBoolean(value));
                     break;
                 default:
                     throw new UnsupportedOperationException("Don't yet support type: " + colInfo.getType());
             }
         } catch (NumberFormatException e) {
-            logger.warn("number format exception: "+colName+ " : " + value);
-            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
+            logger.warn("number format exception: "+colInfo.getName()+ " : " + value);
+            st.setNull(dbColOffset, colInfo.getType());
         } catch (SQLException e) {
-            logger.warn("sqlexception: "+colName+ " : " + value);
-            st.setNull(colInfo.getDBColOffset(), colInfo.getType());
+            logger.warn("sqlexception: "+colInfo+ " : " + value);
+            st.setNull(dbColOffset, colInfo.getType());
         }
     }
 
-    public void createDB(Map<String, Map<String, ColInfo>> tableInfo,
-                         Map<String, String> indexInfo, boolean append) throws SQLException, IOException {
+    public void createDB(List<TableInfo> tableInfos, boolean append) throws SQLException, IOException {
         Connection conn = getConnection();
         Set<String> tables = getTables(conn);
 
-        for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
+        for (TableInfo tableInfo : tableInfos) {
 
-            if (append && tables.contains(table.getKey().toUpperCase(Locale.ROOT))) {
+            if (append && tables.contains(tableInfo.getName().toUpperCase(Locale.ROOT))) {
                 continue;
             }
             if (! append) {
-                dropTableIfExists(conn, table.getKey());
+                dropTableIfExists(conn, tableInfo.getName());
             }
-            createTable(conn, table.getKey(), table.getValue());
+            createTable(conn, tableInfo);
         }
-        if (indexInfo != null) {
-            Statement st = conn.createStatement();
-            for (Map.Entry<String, String> e : indexInfo.entrySet()) {
-                String sql = "CREATE INDEX "+e.getKey()+"_idx " +
-                        "on " + e.getKey() + "("+e.getValue()+")";
-                st.execute(sql);
-            }
-        }
+
         conn.commit();
         conn.close();
     }
 
-    private void createTable(Connection conn, String tableName,
-                             Map<String, ColInfo> sortedHeaders) throws SQLException {
+    private void createTable(Connection conn, TableInfo tableInfo) throws SQLException {
         StringBuilder createSql = new StringBuilder();
-        createSql.append("CREATE TABLE "+tableName);
+        createSql.append("CREATE TABLE "+tableInfo.getName());
         createSql.append("(");
-        int i = 0;
 
         int last = 0;
-        for (Map.Entry<String, ColInfo> col : sortedHeaders.entrySet()) {
-            if (col.getValue().getDBColOffset()-last != 1) {
-                throw new IllegalArgumentException("Columns must be consecutive:" + last + " : " + col.getValue().getDBColOffset());
-            }
+        for (ColInfo col : tableInfo.getColInfos()) {
             last++;
             if (last > 1) {
                 createSql.append(", ");
             }
-            createSql.append(col.getKey());
+            createSql.append(col.getName());
             createSql.append(" ");
-            createSql.append(col.getValue().getSqlDef());
-            String constraints = col.getValue().getConstraints();
+            createSql.append(col.getSqlDef());
+            String constraints = col.getConstraints();
             if (constraints != null) {
                 createSql.append(" ");
                 createSql.append(constraints);
@@ -198,6 +193,4 @@ public abstract class DBUtil {
         st.close();
         conn.commit();
     }
-
-
 }

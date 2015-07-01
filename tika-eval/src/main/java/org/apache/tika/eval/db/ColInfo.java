@@ -20,43 +20,38 @@ package org.apache.tika.eval.db;
 import java.sql.Types;
 
 public class ColInfo {
-    private final int dbColOffset;//offset starting at 1
+    private final Cols name;
     private final int type;
     private final Integer precision;
     private final String constraints;
 
-    public ColInfo(int dbColOffset, int type) {
-        this(dbColOffset, type, null, null);
+    public ColInfo(Cols name, int type) {
+        this(name, type, null, null);
     }
 
-    public ColInfo(int dbColOffset, int type, String constraints) {
-        this(dbColOffset, type, null, constraints);
+    public ColInfo(Cols name, int type, String constraints) {
+        this(name, type, null, constraints);
     }
 
-    public ColInfo(int dbColOffset, int type, Integer precision) {
-        this(dbColOffset, type, precision, null);
+    public ColInfo(Cols name, int type, Integer precision) {
+        this(name, type, precision, null);
     }
 
 
-    public ColInfo(int dbColOffset, int type, Integer precision, String constraints) {
-        this.dbColOffset = dbColOffset;
+    public ColInfo(Cols name, int type, Integer precision, String constraints) {
+        this.name = name;
         this.type = type;
         this.precision = precision;
         this.constraints = constraints;
-    }
-
-    public int getDBColOffset() {
-        return dbColOffset;
-    }
-
-    public int getJavaColOffset() {
-        return dbColOffset-1;
     }
 
     public int getType() {
         return type;
     }
 
+    public Cols getName() {
+        return name;
+    }
     /**
      *
      * @return constraints string or null
@@ -101,18 +96,19 @@ public class ColInfo {
 
         ColInfo colInfo = (ColInfo) o;
 
-        if (dbColOffset != colInfo.dbColOffset) return false;
         if (type != colInfo.type) return false;
+        if (name != colInfo.name) return false;
         if (precision != null ? !precision.equals(colInfo.precision) : colInfo.precision != null) return false;
+        return !(constraints != null ? !constraints.equals(colInfo.constraints) : colInfo.constraints != null);
 
-        return true;
     }
 
     @Override
     public int hashCode() {
-        int result = dbColOffset;
+        int result = name != null ? name.hashCode() : 0;
         result = 31 * result + type;
         result = 31 * result + (precision != null ? precision.hashCode() : 0);
+        result = 31 * result + (constraints != null ? constraints.hashCode() : 0);
         return result;
     }
 }

@@ -1,6 +1,7 @@
 package org.apache.tika.eval.io;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import org.apache.log4j.Level;
 
@@ -21,5 +22,5 @@ import org.apache.log4j.Level;
  * limitations under the License.
  */
 public interface XMLLogMsgHandler {
-    public void handleMsg(Level level, String xml) throws IOException;
+    public void handleMsg(Level level, String xml) throws IOException, SQLException;
 }

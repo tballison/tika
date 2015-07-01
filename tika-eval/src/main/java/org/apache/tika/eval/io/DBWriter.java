@@ -29,8 +29,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
+import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.MimeBuffer;
+import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.io.IOExceptionWithCause;
 
 /**
@@ -40,7 +44,7 @@ import org.apache.tika.io.IOExceptionWithCause;
  *
  * Beware, this deletes the db file with each initialization.
  */
-public class DBWriter implements IDBWriter {
+public class DBWriter {
     
     private static Logger logger = Logger.getLogger(DBWriter.class);
     private final AtomicLong insertedRows = new AtomicLong();
@@ -49,12 +53,16 @@ public class DBWriter implements IDBWriter {
     private final Map<String, Map<String, ColInfo>> tableInfo;
     private final Connection conn;
     private final DBUtil dbUtil;
+    private final MimeBuffer mimeBuffer;
+
     //<tableName, preparedStatement>
     private final Map<String, PreparedStatement> inserts = new HashMap<String, PreparedStatement>();
 
-    public DBWriter(Map<String, Map<String, ColInfo>> tableInfo, DBUtil dbUtil) throws IOException {
+    public DBWriter(Map<String, Map<String, ColInfo>> tableInfo, TikaConfig config, DBUtil dbUtil)
+            throws IOException, SQLException {
 
         this.conn = dbUtil.getConnection();
+        mimeBuffer = new MimeBuffer(conn, config);
         this.tableInfo = tableInfo;
         this.dbUtil = dbUtil;
         for (Map.Entry<String, Map<String, ColInfo>> table : tableInfo.entrySet()) {
@@ -67,7 +75,10 @@ public class DBWriter implements IDBWriter {
                 throw new RuntimeException(e);
             }
         }
+    }
 
+    public int getMimeId(String mimeString) {
+        return mimeBuffer.getId(mimeString);
     }
 
     private PreparedStatement createPreparedInsert(String tableName, List<String> colNames) throws SQLException {
@@ -97,14 +108,14 @@ public class DBWriter implements IDBWriter {
     }
 
 
-    @Override
-    public void writeRow(String tableName, Map<String, String> data) throws IOException {
+    public void writeRow(TableInfo table, Map<Cols, String> data) throws IOException {
         try {
-            PreparedStatement p = inserts.get(tableName);
+            PreparedStatement p = inserts.get(table.getName());
             if (p == null) {
-                throw new RuntimeException("Failed to create prepared statement for: "+tableName);
+                throw new RuntimeException("Failed to create prepared statement for: "+
+                        table.getName());
             }
-            dbUtil.insert(p, tableInfo.get(tableName), data);
+            dbUtil.insert(p, table, data);
             long rows = insertedRows.incrementAndGet();
             if (rows % commitEveryX == 0) {
                 logger.info("writer is committing after "+ rows + " rows");
@@ -115,9 +126,9 @@ public class DBWriter implements IDBWriter {
         }
     }
 
-    @Override
     public void close() throws IOException {
         try {
+            mimeBuffer.close();
             conn.commit();
         } catch (SQLException e){
             throw new IOExceptionWithCause(e);

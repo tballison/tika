@@ -28,7 +28,6 @@ import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.FileComparer;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.io.DBWriter;
-import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.util.PropsUtil;
 
 public class FileComparerBuilder extends EvalConsumerBuilder {
@@ -60,9 +59,9 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         Map<String, Map<String, ColInfo>> tableInfo = new HashMap<String, Map<String, ColInfo>>();
         tableInfo.put(FileComparer.COMPARISONS_TABLE, FileComparer.getHeaders());
         tableInfo.put(FileComparer.PAIR_NAMES_TABLE, getPairNamesCols());
-        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.thisExtension,
+        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.aExtension,
                 AbstractProfiler.getExceptionHeaders());
-        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.thatExtension,
+        tableInfo.put(AbstractProfiler.EXCEPTIONS_TABLE + FileComparer.bExtension,
                 AbstractProfiler.getExceptionHeaders());
         tableInfo.put(AbstractProfiler.CONTAINERS_TABLE,
                 FileComparer.getContainerHeaders());
@@ -75,9 +74,9 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         indices.put(FileComparer.COMPARISONS_TABLE,
                 AbstractProfiler.HEADERS.ID.name() + ", "+
                 AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.thisExtension,
+        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.aExtension,
                 AbstractProfiler.HEADERS.ID.name());
-        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.thatExtension,
+        indices.put(FileComparer.EXCEPTIONS_TABLE+FileComparer.bExtension,
                 AbstractProfiler.HEADERS.ID.name());
         indices.put(FileComparer.CONTAINERS_TABLE,
                 AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name());

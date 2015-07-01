@@ -53,8 +53,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     private final static String compTable = FileComparer.COMPARISONS_TABLE;
     private final static String contTable = AbstractProfiler.CONTAINERS_TABLE;
-    private final static String thisExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.thisExtension;
-    private final static String thatExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.thatExtension;
+    private final static String thisExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.aExtension;
+    private final static String thatExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.bExtension;
     private final static String fp = AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name();
     private final static String compJoinCont = FileComparer.COMPARISONS_TABLE+" cmp " +
             "join "+FileComparer.CONTAINERS_TABLE + " cnt "+
@@ -176,16 +176,16 @@ public class ComparerBatchTest extends FSBatchTestBase {
         String where = fp+"='file4_emptyB.pdf'";
         Map<String, String> data = getRow(contTable, where);
         assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.thisExtension));
+                FileComparer.aExtension));
         assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.thatExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
+                FileComparer.bExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
 
         where = fp+"='file5_emptyA.pdf'";
         data = getRow(contTable, where);
         assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.thatExtension));
+                FileComparer.bExtension));
         assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+
-                FileComparer.thisExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
+                FileComparer.aExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
     }
 
         @Test
@@ -196,9 +196,9 @@ public class ComparerBatchTest extends FSBatchTestBase {
             assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
             assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
             assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                    FileComparer.thatExtension));
+                    FileComparer.bExtension));
             assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                    FileComparer.thatExtension));
+                    FileComparer.bExtension));
 
             assertEquals("3", data.get("NUM_METADATA_VALUES_A"));
             assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
@@ -213,9 +213,9 @@ public class ComparerBatchTest extends FSBatchTestBase {
             assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
             assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
             assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                    FileComparer.thisExtension));
+                    FileComparer.aExtension));
             assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                    FileComparer.thisExtension));
+                    FileComparer.aExtension));
 
             assertEquals("3", data.get("NUM_METADATA_VALUES_B"));
             assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
@@ -232,9 +232,9 @@ public class ComparerBatchTest extends FSBatchTestBase {
             String where = fp+"='file7_badJson.pdf'";
             Map<String, String> data = getRow(contTable, where);
             assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.thisExtension));
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.aExtension));
             assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.thatExtension));
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.bExtension));
             assertEquals("file7_badJson.pdf",
                     data.get(AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name()));
             assertEquals("61", data.get("JSON_FILE_LENGTH_A"));

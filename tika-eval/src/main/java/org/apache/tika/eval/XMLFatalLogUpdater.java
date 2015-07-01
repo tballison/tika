@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -44,7 +45,6 @@ import org.apache.tika.io.IOUtils;
  */
 class XMLFatalLogUpdater {
     private Statement statement;
-    private String tableName;
 
     public static void main(String[] args) throws Exception {
 
@@ -52,23 +52,19 @@ class XMLFatalLogUpdater {
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
         File dbFile = new File(args[2]);
-        writer.execute(xmlLogFileA, dbFile, AbstractProfiler.CONTAINERS_TABLE, "_A");
-        writer.execute(xmlLogFileB, dbFile, AbstractProfiler.CONTAINERS_TABLE, "_B");
+        writer.execute(xmlLogFileA, dbFile);
+        writer.execute(xmlLogFileB, dbFile);
     }
 
-    private void execute(File xmlLogFile, File dbFile, String tableName, String columnSuffix) throws Exception {
+    private void execute(File xmlLogFile, File dbFile) throws Exception {
         DBUtil dbUtil = new H2Util(dbFile);
         Connection connection = dbUtil.getConnection();
         statement = connection.createStatement();
-        this.tableName = tableName;
         XMLLogReader reader = new XMLLogReader();
         InputStream is = null;
         try {
             is = new FileInputStream(xmlLogFile);
-            reader.read(is, new FatalMsgUpdater(AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name(),
-                    AbstractProfiler.CONTAINER_HEADERS.OOM_ERR.name()+columnSuffix,
-                    AbstractProfiler.CONTAINER_HEADERS.TIMEOUT_ERR.name()+columnSuffix));
-            //add fatal_ERR???
+            reader.read(is, new FatalMsgUpdater());
         } catch (IOException e) {
             throw new RuntimeException("Doh!");
         } finally {
@@ -85,18 +81,9 @@ class XMLFatalLogUpdater {
 
     private class FatalMsgUpdater implements XMLLogMsgHandler {
 
-        private final String keyField;
-        private final String oomField;
-        private final String timeoutField;
-
-        FatalMsgUpdater(String keyField, String oomField, String timeoutField) {
-            this.keyField = keyField;
-            this.oomField = oomField;
-            this.timeoutField = timeoutField;
-        }
 
         @Override
-        public void handleMsg(Level level, String xml) throws IOException {
+        public void handleMsg(Level level, String xml) throws SQLException, IOException {
             if (! level.equals(Level.FATAL)) {
                 return;
             }
@@ -115,10 +102,12 @@ class XMLFatalLogUpdater {
                         case XMLStreamConstants.START_ELEMENT:
                             if ("timeout".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
-                                update(resourceId, timeoutField);
+                                update(resourceId,
+                                        AbstractProfiler.ERROR_TYPE.TIMEOUT);
+
                             } else if ("oom".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
-                                update(resourceId, oomField);
+                                update(resourceId, AbstractProfiler.ERROR_TYPE.OOM);
                             }
                             break;
                     }
@@ -129,14 +118,61 @@ class XMLFatalLogUpdater {
             }
         }
 
-        private void update(String resourceId, String errorField) {
-            String sql = "UPDATE "+tableName+" set "+errorField+"=true "+
-                    "where "+keyField+"="+resourceId;
-            try {
-                statement.executeUpdate(sql);
-            } catch (SQLException e) {
-                e.printStackTrace();
+        private void update(String resourceId, AbstractProfiler.ERROR_TYPE type) throws SQLException {
+
+            int containerId = -1;
+            String sql = "SELECT " + AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name() +
+                    " from " +AbstractProfiler.CONTAINERS_TABLE +
+                    " where " + AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name() +
+                    " ="+resourceId;
+            ResultSet rs = statement.executeQuery(sql);
+            int resultCount = 0;
+            while (rs.next()) {
+                containerId = rs.getInt(1);
+                resultCount++;
             }
+            rs.close();
+
+            if (containerId < 0) {
+                sql = "SELECT MAX("+ AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name()+
+                        ") from "+AbstractProfiler.CONTAINERS_TABLE;
+                rs = statement.executeQuery(sql);
+                while (rs.next()) {
+                    containerId = rs.getInt(1);
+                }
+                rs.close();
+                if (containerId < 0) {
+                    containerId = 0;
+                } else {
+                    containerId++;
+                }
+
+            }
+
+            sql = "SELECT count(1) from "+AbstractProfiler.ERRORS_TABLE +
+                    " where "+AbstractProfiler.ERROR_HEADERS.CONTAINER_ID.name()+
+                    " = "+containerId;
+            rs = statement.executeQuery(sql);
+
+            int hitCount = 0;
+            while (rs.next()) {
+                hitCount++;
+            }
+
+            if (hitCount > 0) {
+                sql = "UPDATE " + AbstractProfiler.ERRORS_TABLE +
+                        " SET " + AbstractProfiler.ERROR_HEADERS.ERROR_TYPE.name() +
+                        " = " + type.ordinal() +
+                        " where "+AbstractProfiler.ERROR_HEADERS.CONTAINER_ID.name()+
+                        "="+containerId;
+
+            } else {
+                sql = "INSERT INTO " + AbstractProfiler.ERRORS_TABLE +
+                        " values (" + containerId+", "+type.ordinal()+","+
+                        AbstractProfiler.FALSE+");";
+
+            }
+            statement.executeUpdate(sql);
         }
 
 
