@@ -42,10 +42,7 @@ public class MimeBuffer extends AbstractDBBuffer {
             } catch (MimeTypeException e) {
                 st.setNull(3, Types.VARCHAR);
             }
-            boolean ex = st.execute();
-            if (ex == false) {
-                throw new RuntimeException("failed to write in DBBuffer");
-            }
+            st.execute();
 
         } catch (SQLException e) {
             throw new RuntimeException(e);

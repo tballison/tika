@@ -35,6 +35,7 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class SingleFileProfiler extends AbstractProfiler {
 
@@ -66,13 +67,17 @@ public class SingleFileProfiler extends AbstractProfiler {
             new ColInfo(Cols.MD5, Types.CHAR, 32),
             new ColInfo(Cols.LENGTH, Types.BIGINT),
             new ColInfo(Cols.IS_EMBEDDED, Types.BOOLEAN),
-            new ColInfo(Cols.EMBEDDED_FILE_PATH, Types.VARCHAR, 1024),
             new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12),
             new ColInfo(Cols.MIME_TYPE_ID, Types.INTEGER),
             new ColInfo(Cols.ELAPSED_TIME_MILLIS, Types.INTEGER),
             new ColInfo(Cols.NUM_ATTACHMENTS, Types.INTEGER),
             new ColInfo(Cols.NUM_METADATA_VALUES, Types.INTEGER),
             new ColInfo(Cols.HAS_CONTENT, Types.BOOLEAN)
+    );
+
+    public static TableInfo EMBEDDED_FILE_PATH_TABLE = new TableInfo("emb_file_names",
+            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.EMBEDDED_FILE_PATH, Types.VARCHAR, 1024)
     );
 
     public static TableInfo CONTENTS_TABLE = new TableInfo("contents",
@@ -139,6 +144,7 @@ public class SingleFileProfiler extends AbstractProfiler {
         for (Metadata m : metadataList) {
             String fileId = Integer.toString(ID.incrementAndGet());
             writeProfileData(thisFile, i, fileId, containerId, m, PROFILE_TABLE);
+            writeEmbeddedPathData(i, fileId, m, EMBEDDED_FILE_PATH_TABLE);
             writeExceptionData(fileId, m, EXCEPTION_TABLE);
             SingleFileTokenCounter counter = new SingleFileTokenCounter();
             writeContentData(fileId, m, counter, CONTENTS_TABLE);
@@ -147,6 +153,21 @@ public class SingleFileProfiler extends AbstractProfiler {
         return true;
     }
 
+    private void writeEmbeddedPathData(int i, String fileId, Metadata m,
+                                       TableInfo embeddedFilePathTable) {
+        if (i == 0) {
+            return;
+        }
+        Map<Cols, String> data = new HashMap<Cols, String>();
+        data.put(Cols.ID, fileId);
+        data.put(Cols.EMBEDDED_FILE_PATH,
+                m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
+        try {
+            writer.writeRow(embeddedFilePathTable, data);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 
     class SingleFileTokenCounter extends TokenCounter {

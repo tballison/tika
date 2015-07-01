@@ -21,10 +21,7 @@ public class DBBuffer extends AbstractDBBuffer {
             st.clearParameters();
             st.setInt(1, id);
             st.setString(2, value);
-            boolean ex = st.execute();
-            if (ex == false) {
-                throw new RuntimeException("failed to write in DBBuffer");
-            }
+            st.execute();
 
         } catch (SQLException e) {
             throw new RuntimeException(e);

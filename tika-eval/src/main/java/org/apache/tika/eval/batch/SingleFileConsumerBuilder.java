@@ -54,6 +54,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         tableInfos.add(SingleFileProfiler.EXCEPTION_TABLE);
         tableInfos.add(SingleFileProfiler.ERROR_TABLE);
         tableInfos.add(SingleFileProfiler.CONTENTS_TABLE);
+        tableInfos.add(SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE);
         return tableInfos;
     }
 

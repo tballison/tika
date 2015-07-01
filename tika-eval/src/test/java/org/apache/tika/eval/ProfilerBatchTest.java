@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +37,8 @@ import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
 import org.apache.tika.batch.testutils.StreamStrings;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.eval.db.TableInfo;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -70,7 +73,14 @@ public class ProfilerBatchTest {
         H2Util dbUtil = new H2Util(dbFile.toFile());
         conn = dbUtil.getConnection();
     }
-
+    @AfterClass
+    public static void tearDown() {
+        try{
+            conn.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+     }
     @Test
     public void testSimpleDBWriteAndRead() throws Exception {
 
@@ -81,18 +91,18 @@ public class ProfilerBatchTest {
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
             while (rs.next()) {
-                String fileName = rs.getString(2);
+                String fileName = rs.getString(Cols.FILE_PATH.name());
                 fNameList.add(fileName);
             }
         } finally {
             if (st != null) {
                 st.close();
             }
-            if (conn != null) {
-               conn.close();
-            }
         }
-
+        debugTable(SingleFileProfiler.CONTAINER_TABLE);
+        debugTable(SingleFileProfiler.PROFILE_TABLE);
+        debugTable(SingleFileProfiler.CONTENTS_TABLE);
+        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
         assertEquals(8, fNameList.size());
         assertTrue("file1.pdf.json", fNameList.contains("file1.pdf.json"));
         assertTrue("file2_attachANotB.doc.json", fNameList.contains("file2_attachANotB.doc.json"));
@@ -101,4 +111,36 @@ public class ProfilerBatchTest {
         assertTrue("file7_badJson.pdf.json", fNameList.contains("file7_badJson.pdf.json"));
     }
     //TODO: lots more testing!
+
+    public void debugTable(TableInfo table) throws Exception {
+        Statement st = null;
+        try {
+            String sql = "select * from "+table.getName();
+            st = conn.createStatement();
+            ResultSet rs = st.executeQuery(sql);
+            int colCount = rs.getMetaData().getColumnCount();
+            System.out.println("TABLE: "+table.getName());
+            for (int i = 1; i <= colCount; i++) {
+                if (i > 1) {
+                    System.out.print(" | ");
+                }
+                System.out.print(rs.getMetaData().getColumnName(i));
+            }
+            System.out.println("");
+            while (rs.next()) {
+                for (int i = 1; i <= colCount; i++) {
+                    if (i > 1) {
+                        System.out.print(" | ");
+                    }
+                    System.out.print(rs.getString(i));
+                }
+                System.out.println("");
+            }
+        } finally {
+            if (st != null) {
+                st.close();
+            }
+        }
+
+    }
 }

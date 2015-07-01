@@ -162,10 +162,9 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                     getOriginalFileExtension(extractOrSourceFile.getName()));
         } else {
             data.put(Cols.IS_EMBEDDED, TRUE);
-            data.put(Cols.EMBEDDED_FILE_PATH,
-                    m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
             data.put(Cols.FILE_EXTENSION,
-                    FilenameUtils.getExtension(data.get(Cols.EMBEDDED_FILE_PATH))); }
+                    FilenameUtils.getExtension(data.get(Cols.EMBEDDED_FILE_PATH)));
+        }
 
         int numMetadataValues = countMetadataValues(m);
         data.put(Cols.NUM_METADATA_VALUES,

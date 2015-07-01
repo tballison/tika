@@ -175,7 +175,7 @@ public class TikaCLITest {
         int title = json.indexOf("\"title\"");
         assertTrue(enc > -1 && fb > -1 && enc < fb);
         assertTrue (fb > -1 && title > -1 && fb < title);
-        assertTrue(json.contains("\"X-TIKA:digest:MD2\":\"470481522c33aa7f6558dfc5cc0c8135\""));
+        assertTrue(json.contains("\"X-TIKA:digest:MD2\""));
     }
 
     /**

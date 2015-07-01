@@ -72,6 +72,13 @@ public class FileComparer extends AbstractProfiler {
     public static TableInfo PROFILES_B = new TableInfo( "profiles_b",
             SingleFileProfiler.PROFILE_TABLE.getColInfos());
 
+    public static TableInfo EMBEDDED_FILE_PATH_TABLE_A = new TableInfo( "emb_path_a",
+            SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
+
+    public static TableInfo EMBEDDED_FILE_PATH_TABLE_B = new TableInfo( "emb_path_b",
+            SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
+
+
     public static TableInfo CONTENTS_TABLE_A = new TableInfo( "contents_a",
             SingleFileProfiler.CONTENTS_TABLE.getColInfos());
 
@@ -195,9 +202,10 @@ public class FileComparer extends AbstractProfiler {
                     handledB.add(matchIndex);
                 }
                 if (metadataB != null) {
-                    writeProfileData(fileB, i, fileId,containerID, metadataB, PROFILES_B);
+                    writeProfileData(fileB, i, fileId, containerID, metadataB, PROFILES_B);
                     writeExceptionData(fileId, metadataB, EXCEPTIONS_B);
                 }
+                writeEmbeddedFilePathData(i, fileId, metadataA, metadataB);
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
                 TokenCounter tokenCounterA = new CounterA(tokens);
@@ -225,12 +233,49 @@ public class FileComparer extends AbstractProfiler {
                 Metadata m = metadataListB.get(i);
                 String fileId = Integer.toString(ID.getAndIncrement());
                 writeProfileData(fileB,i, fileId, containerID, m, PROFILES_B);
+                writeEmbeddedFilePathData(i, fileId, null, m);
                 writeExceptionData(fileId, m, EXCEPTIONS_B);
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
                 TokenCounter counter = new CounterB(tokens);
                 countTokens(m, counter);
                 writeContentData(fileId, m, counter, CONTENTS_TABLE_B);
+            }
+        }
+    }
+
+    private void writeEmbeddedFilePathData(int i, String fileId, Metadata mA, Metadata mB) {
+        //container file, don't write anything
+        if (i == 0) {
+            return;
+        }
+        String pathA = null;
+        String pathB = null;
+        if (mA != null) {
+            pathA = mA.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
+        }
+        if (mB != null) {
+            pathB = mB.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
+        }
+        if (pathA != null) {
+            Map<Cols, String> d = new HashMap<Cols, String>();
+            d.put(Cols.ID, fileId);
+            d.put(Cols.EMBEDDED_FILE_PATH, pathA);
+            try {
+                writer.writeRow(EMBEDDED_FILE_PATH_TABLE_A, d);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (pathB != null &&
+                (pathA == null || ! pathA.equals(pathB))) {
+            Map<Cols, String> d = new HashMap<Cols, String>();
+            d.put(Cols.ID, fileId);
+            d.put(Cols.EMBEDDED_FILE_PATH, pathB);
+            try {
+                writer.writeRow(EMBEDDED_FILE_PATH_TABLE_B, d);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
     }

@@ -68,6 +68,9 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         tableInfo.add(FileComparer.EXCEPTIONS_B);
         tableInfo.add(FileComparer.CONTENTS_TABLE_A);
         tableInfo.add(FileComparer.CONTENTS_TABLE_B);
+        tableInfo.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_A);
+        tableInfo.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_B);
+
         tableInfo.add(FileComparer.CONTENT_COMPARISONS);
         tableInfo.add(FileComparer.REF_PAIR_NAMES);
         tableInfo.add(AbstractProfiler.MIME_TABLE);
