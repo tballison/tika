@@ -175,7 +175,7 @@ public class TikaCLITest {
         int title = json.indexOf("\"title\"");
         assertTrue(enc > -1 && fb > -1 && enc < fb);
         assertTrue (fb > -1 && title > -1 && fb < title);
-        assertTrue(json.contains("\"X-TIKA:digest:MD2\""));
+        assertTrue(json.contains("\"X-TIKA:digest:MD2\":"));
     }
 
     /**
@@ -335,7 +335,7 @@ public class TikaCLITest {
         TikaCLI.main(params);
         String content = outContent.toString(IOUtils.UTF_8.name());
         assertTrue(content.contains("Extracting 'subdir/foo.txt'"));
-        // clean up. TODO: These should be in output.
+        // clean up. TODO: These should be in target.
         new File("target/subdir/foo.txt").delete();
         new File("target/subdir").delete();
     }
@@ -375,7 +375,7 @@ public class TikaCLITest {
                 "    \"Application-Version\": \"15.0000\",\n" +
                 "    \"Character Count\": \"28\",\n" +
                 "    \"Character-Count-With-Spaces\": \"31\","));
-        assertTrue(content.contains("\"X-TIKA:embedded_resource_path\": \"test_recursive_embedded.docx/embed1.zip\""));
+        assertTrue(content.contains("\"X-TIKA:embedded_resource_path\": \"/embed1.zip\""));
         assertFalse(content.contains("X-TIKA:content"));
 
     }
