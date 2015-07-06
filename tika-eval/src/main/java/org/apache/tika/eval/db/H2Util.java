@@ -24,7 +24,7 @@ import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.io.FilenameUtils;
+import org.apache.tika.io.FilenameUtils;
 
 
 public class H2Util extends DBUtil {

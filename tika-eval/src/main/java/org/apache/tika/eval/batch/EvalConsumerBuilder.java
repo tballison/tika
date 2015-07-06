@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -16,7 +17,7 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 
 public abstract class EvalConsumerBuilder {
-
+    private AtomicInteger count = new AtomicInteger(0);
     protected ArrayBlockingQueue<FileResource> queue;
     Map<String, String> localAttrs;
     DBUtil dbUtil;
@@ -34,22 +35,34 @@ public abstract class EvalConsumerBuilder {
 
     protected abstract IDBWriter getDBWriter() throws IOException, SQLException;
 
-    public void populateRefTables() throws IOException, SQLException {
-        IDBWriter writer = getDBWriter();
-        Map<Cols, String> m = new HashMap<Cols, String>();
-        for (AbstractProfiler.ERROR_TYPE t : AbstractProfiler.ERROR_TYPE.values()) {
+    public void populateRefTables(IDBWriter writer) throws IOException, SQLException {
+        //figure out cleaner way of doing this!
+        if (count.getAndIncrement() > 0) {
+            return;
+        }
+        Map<Cols, String> m = new HashMap<>();
+        for (AbstractProfiler.PARSE_ERROR_TYPE t : AbstractProfiler.PARSE_ERROR_TYPE.values()) {
             m.clear();
-            m.put(Cols.ERROR_TYPE_ID, Integer.toString(t.ordinal()));
-            m.put(Cols.ERROR_DESCRIPTION, t.name());
-            writer.writeRow(AbstractProfiler.REF_ERROR_TYPES, m);
+            m.put(Cols.PARSE_ERROR_TYPE_ID, Integer.toString(t.ordinal()));
+            m.put(Cols.PARSE_ERROR_DESCRIPTION, t.name());
+            writer.writeRow(AbstractProfiler.REF_PARSE_ERROR_TYPES, m);
         }
 
-        for (AbstractProfiler.EXCEPTION_TYPE t : AbstractProfiler.EXCEPTION_TYPE.values()) {
+        for (AbstractProfiler.PARSE_EXCEPTION_TYPE t : AbstractProfiler.PARSE_EXCEPTION_TYPE.values()) {
             m.clear();
-            m.put(Cols.EXCEPTION_TYPE_ID, Integer.toString(t.ordinal()));
-            m.put(Cols.EXCEPTION_DESCRIPTION, t.name());
-            writer.writeRow(AbstractProfiler.REF_EXCEPTION_TYPES, m);
+            m.put(Cols.PARSE_EXCEPTION_TYPE_ID, Integer.toString(t.ordinal()));
+            m.put(Cols.PARSE_EXCEPTION_DESCRIPTION, t.name());
+            writer.writeRow(AbstractProfiler.REF_PARSE_EXCEPTION_TYPES, m);
         }
+
+        for (AbstractProfiler.EXTRACT_ERROR_TYPE t :
+                AbstractProfiler.EXTRACT_ERROR_TYPE.values()) {
+            m.clear();
+            m.put(Cols.EXTRACT_ERROR_TYPE_ID, Integer.toString(t.ordinal()));
+            m.put(Cols.EXTRACT_ERROR_DESCRIPTION, t.name());
+            writer.writeRow(AbstractProfiler.REF_EXTRACT_ERROR_TYPES, m);
+        }
+
     }
 
 /*

@@ -38,45 +38,55 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
     @Override
     public FileResourceConsumer build() throws IOException, SQLException {
-        File thisRootDir = PropsUtil.getFile(localAttrs.get("thisDir"), null);
+        File thisRootDir = PropsUtil.getFile(localAttrs.get("extractDirA"), null);
         if (thisRootDir == null) {
-            throw new RuntimeException("Must specify \"thisDir\" -- directory to crawl");
+            throw new RuntimeException("Must specify \"extractDirA\" -- directory for 'A' extracts");
         }
-        File thatRootDir = PropsUtil.getFile(localAttrs.get("thatDir"), null);
+        File thatRootDir = PropsUtil.getFile(localAttrs.get("extractDirB"), null);
         if (thatRootDir == null) {
-            throw new RuntimeException("Must specify \"thatDir\" -- directory to crawl");
+            throw new RuntimeException("Must specify \"extractDirB\" -- directory for 'B' extracts");
         }
 
+        File inputRootDir = PropsUtil.getFile(localAttrs.get("inputDir"), null);
         boolean crawlingInputDir = PropsUtil.getBoolean(localAttrs.get("crawlingInputDir"), false);
 
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
         IDBWriter writer = getDBWriter();
-        return new FileComparer(queue, thisRootDir, thatRootDir, crawlingInputDir, writer,
+        //TODO: clean up the writing of the ref tables!!!
+        try {
+            populateRefTables(writer);
+        } catch (SQLException e) {
+            throw new RuntimeException("Can't populate ref tables", e);
+        }
+        return new FileComparer(queue, inputRootDir, thisRootDir, thatRootDir, writer,
                 minJsonLength, maxJsonLength);
     }
 
     @Override
     protected List<TableInfo> getTableInfo() {
-        List<TableInfo> tableInfo = new ArrayList<TableInfo>();
-        tableInfo.add(FileComparer.COMPARISON_CONTAINERS);
-        tableInfo.add(FileComparer.PROFILES_A);
-        tableInfo.add(FileComparer.PROFILES_B);
-        tableInfo.add(FileComparer.ERRORS_A);
-        tableInfo.add(FileComparer.ERRORS_B);
-        tableInfo.add(FileComparer.EXCEPTIONS_A);
-        tableInfo.add(FileComparer.EXCEPTIONS_B);
-        tableInfo.add(FileComparer.CONTENTS_TABLE_A);
-        tableInfo.add(FileComparer.CONTENTS_TABLE_B);
-        tableInfo.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_A);
-        tableInfo.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_B);
+        List<TableInfo> tableInfos = new ArrayList<>();
+        tableInfos.add(FileComparer.COMPARISON_CONTAINERS);
+        tableInfos.add(FileComparer.PROFILES_A);
+        tableInfos.add(FileComparer.PROFILES_B);
+        tableInfos.add(FileComparer.PARSE_ERRORS_A);
+        tableInfos.add(FileComparer.PARSE_ERRORS_B);
+        tableInfos.add(FileComparer.PARSE_EXCEPTIONS_A);
+        tableInfos.add(FileComparer.PARSE_EXCEPTIONS_B);
+        tableInfos.add(FileComparer.EXTRACT_ERRORS_A);
+        tableInfos.add(FileComparer.EXTRACT_ERRORS_B);
+        tableInfos.add(FileComparer.CONTENTS_TABLE_A);
+        tableInfos.add(FileComparer.CONTENTS_TABLE_B);
+        tableInfos.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_A);
+        tableInfos.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_B);
 
-        tableInfo.add(FileComparer.CONTENT_COMPARISONS);
-        tableInfo.add(FileComparer.REF_PAIR_NAMES);
-        tableInfo.add(AbstractProfiler.MIME_TABLE);
-        tableInfo.add(AbstractProfiler.REF_ERROR_TYPES);
-        tableInfo.add(AbstractProfiler.REF_EXCEPTION_TYPES);
-        return tableInfo;
+        tableInfos.add(FileComparer.CONTENT_COMPARISONS);
+        tableInfos.add(AbstractProfiler.MIME_TABLE);
+        tableInfos.add(FileComparer.REF_PAIR_NAMES);
+        tableInfos.add(AbstractProfiler.REF_PARSE_ERROR_TYPES);
+        tableInfos.add(AbstractProfiler.REF_PARSE_EXCEPTION_TYPES);
+        tableInfos.add(AbstractProfiler.REF_EXTRACT_ERROR_TYPES);
+        return tableInfos;
     }
 
     @Override

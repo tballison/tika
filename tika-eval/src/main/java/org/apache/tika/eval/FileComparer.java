@@ -1,5 +1,3 @@
-package org.apache.tika.eval;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +14,7 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +38,7 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
+import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
@@ -85,106 +85,110 @@ public class FileComparer extends AbstractProfiler {
     public static TableInfo CONTENTS_TABLE_B = new TableInfo( "contents_b",
             SingleFileProfiler.CONTENTS_TABLE.getColInfos());
 
-    public static TableInfo EXCEPTIONS_A = new TableInfo ("exceptions_a",
-            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
+    public static TableInfo PARSE_EXCEPTIONS_A = new TableInfo ("parse_exceptions_a",
+            SingleFileProfiler.PARSE_EXCEPTION_TABLE.getColInfos());
 
-    public static TableInfo EXCEPTIONS_B = new TableInfo ("exceptions_b",
-            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
+    public static TableInfo PARSE_EXCEPTIONS_B = new TableInfo ("parse_exceptions_b",
+            SingleFileProfiler.PARSE_EXCEPTION_TABLE.getColInfos());
 
-    public static TableInfo ERRORS_A = new TableInfo("errors_a",
-            SingleFileProfiler.ERROR_TABLE.getColInfos());
-    public static TableInfo ERRORS_B = new TableInfo("errors_b",
-            SingleFileProfiler.ERROR_TABLE.getColInfos());
+    public static TableInfo PARSE_ERRORS_A = new TableInfo("parse_errors_a",
+            SingleFileProfiler.PARSE_ERROR_TABLE.getColInfos());
+    public static TableInfo PARSE_ERRORS_B = new TableInfo("parse_errors_b",
+            SingleFileProfiler.PARSE_ERROR_TABLE.getColInfos());
+
+    public static TableInfo EXTRACT_ERRORS_A = new TableInfo("extract_errors_a",
+            SingleFileProfiler.EXTRACT_ERROR_TABLE.getColInfos());
+    public static TableInfo EXTRACT_ERRORS_B = new TableInfo("extract_errors_b",
+            SingleFileProfiler.EXTRACT_ERROR_TABLE.getColInfos());
+
 
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
-    private final File rootDirA;
-    private final File rootDirB;
+    private final File inputDir;
+    private final File extractDirA;
+    private final File extractDirB;
 
     private final long minJsonLength;
     private final long maxJsonLength;
 
 
     public FileComparer(ArrayBlockingQueue<FileResource> queue,
-                        File rootDirA, File rootDirB,
-                        boolean crawlingInputDir, IDBWriter writer, long minJsonLength,
+                        File inputDir, File extractDirA, File extractDirB,
+                        IDBWriter writer, long minJsonLength,
                         long maxJsonLength) {
-        super(queue, crawlingInputDir, writer);
+        super(queue, (extractDirA.equals(inputDir)), writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
-        this.rootDirA = rootDirA;
-        this.rootDirB = rootDirB;
+        this.inputDir = inputDir;
+        this.extractDirA = extractDirA;
+        this.extractDirB = extractDirB;
     }
 
     @Override
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
-        String relativePath = metadata.get(FSProperties.FS_REL_PATH);
 
-        File fileA = new File(rootDirA, relativePath);
-        File fileB = new File(rootDirB, relativePath);
+        EvalFilePaths fpsA = getFilePaths(metadata, inputDir, extractDirA);
+        EvalFilePaths fpsB = getFilePaths(metadata, inputDir, extractDirB);
+
         if (minJsonLength > -1) {
-            if (fileA.length() < minJsonLength && fileB.length() < minJsonLength) {
+            if (fpsA.extractFile.length() < minJsonLength
+                    && fpsB.extractFile.length() < minJsonLength) {
                 return false;
             }
         }
 
         if (maxJsonLength > -1) {
-            if (fileA.length() > maxJsonLength || fileB.length() > maxJsonLength) {
+            if (fpsA.extractFile.length() > maxJsonLength ||
+                    fpsA.extractFile.length() > maxJsonLength) {
                 return false;
             }
         }
 
         try {
-            compareFiles(relativePath, fileA, fileB);
+            compareFiles(fpsA, fpsB);
         } catch (Throwable e) {
             e.printStackTrace();
             //this should be cataclysmic...
-            throw new RuntimeException("Exception while working on: " + relativePath, e);
+            throw new RuntimeException("Exception while working on: " +
+                    metadata.get(FSProperties.FS_REL_PATH), e);
         }
         return true;
     }
 
-
-
     //protected for testing, should find better way so that this can be private!
-    protected void compareFiles(String relativePath, File fileA, File fileB) throws IOException, IOException {
-        List<Metadata> metadataListA = getMetadata(fileA);
-        List<Metadata> metadataListB = getMetadata(fileB);
+    protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException, IOException {
+        List<Metadata> metadataListA = getMetadata(fpsA.extractFile);
+        List<Metadata> metadataListB = getMetadata(fpsB.extractFile);
+
         //array indices for those metadata items handled in
         //"that"
-        Set<Integer> handledB = new HashSet<Integer>();
+        Set<Integer> handledB = new HashSet<>();
         String containerID = Integer.toString(CONTAINER_ID.getAndIncrement());
         //container table
-        Map<Cols, String> contData = new HashMap<Cols, String>();
+        Map<Cols, String> contData = new HashMap<>();
         contData.put(Cols.CONTAINER_ID, containerID);
-        contData.put(Cols.FILE_PATH, getInputFileName(relativePath));
-        contData.put(Cols.LENGTH, getFileLength(metadataListA, metadataListB));
-        contData.put(Cols.FILE_EXTENSION,
-                getOriginalFileExtension(contData.get(Cols.FILE_PATH)));
-        contData.put(Cols.EXTRACT_FILE_LENGTH_A, getFileLength(fileA));
-        contData.put(Cols.EXTRACT_FILE_LENGTH_B, getFileLength(fileB));
+        contData.put(Cols.FILE_PATH, fpsA.relativeSourceFilePath);
+        contData.put(Cols.LENGTH, getSourceFileLength(metadataListA, metadataListB));
+        contData.put(Cols.FILE_EXTENSION, FilenameUtils.getName(fpsA.relativeSourceFilePath));
+        contData.put(Cols.EXTRACT_FILE_LENGTH_A, getFileLength(fpsA.extractFile));
+        contData.put(Cols.EXTRACT_FILE_LENGTH_B, getFileLength(fpsB.extractFile));
 
         writer.writeRow(COMPARISON_CONTAINERS, contData);
 
-
         if (metadataListA == null) {
-            Map<Cols, String> errors = new HashMap<Cols, String>();
-            errors.put(Cols.CONTAINER_ID, containerID);
-            errors.put(Cols.JSON_EX, TRUE);
-            writer.writeRow(ERRORS_A, errors);
+            writeExtractError(EXTRACT_ERRORS_A, containerID, fpsA.extractFile);
         }
         if (metadataListB == null) {
-            Map<Cols, String> errors = new HashMap<Cols, String>();
-            errors.put(Cols.CONTAINER_ID, containerID);
-            errors.put(Cols.JSON_EX, TRUE);
-            writer.writeRow(ERRORS_B, errors);
+            writeExtractError(EXTRACT_ERRORS_B, containerID, fpsB.extractFile);
         }
 
         if (metadataListA == null && metadataListB == null) {
             return;
         }
+        List<Integer> numAttachmentsA = countAttachments(metadataListA);
+        List<Integer> numAttachmentsB = countAttachments(metadataListB);
 
         //now get that metadata
         if (metadataListA != null) {
@@ -193,8 +197,8 @@ public class FileComparer extends AbstractProfiler {
                 Metadata metadataA = metadataListA.get(i);
                 Metadata metadataB = null;
                 //TODO: shouldn't be fileA!!!!
-                writeProfileData(fileA, i, fileId,containerID, metadataA, PROFILES_A);
-                writeExceptionData(fileId, metadataA, EXCEPTIONS_A);
+                writeProfileData(fpsA, i, metadataA, fileId, containerID, numAttachmentsA, PROFILES_A);
+                writeExceptionData(fileId, metadataA, PARSE_EXCEPTIONS_A);
                 int matchIndex = getMatch(i, metadataListA, metadataListB);
 
                 if (matchIndex > -1) {
@@ -202,12 +206,12 @@ public class FileComparer extends AbstractProfiler {
                     handledB.add(matchIndex);
                 }
                 if (metadataB != null) {
-                    writeProfileData(fileB, i, fileId, containerID, metadataB, PROFILES_B);
-                    writeExceptionData(fileId, metadataB, EXCEPTIONS_B);
+                    writeProfileData(fpsB, i, metadataB, fileId, containerID, numAttachmentsB, PROFILES_B);
+                    writeExceptionData(fileId, metadataB, PARSE_EXCEPTIONS_B);
                 }
                 writeEmbeddedFilePathData(i, fileId, metadataA, metadataB);
                 //prep the token counting
-                Map<String, PairCount> tokens = new HashMap<String, PairCount>();
+                Map<String, PairCount> tokens = new HashMap<>();
                 TokenCounter tokenCounterA = new CounterA(tokens);
                 TokenCounter tokenCounterB = new CounterB(tokens);
                 //write content
@@ -216,7 +220,7 @@ public class FileComparer extends AbstractProfiler {
 
                 //now run comparisons
                 if (tokenCounterA.getTokenCount() > 0 && tokenCounterB.getTokenCount() > 0) {
-                    Map<Cols, String> data = new HashMap<Cols, String>();
+                    Map<Cols, String> data = new HashMap<>();
                     data.put(Cols.ID, fileId);
                     compareUnigramOverlap(tokens, tokenCounterA, tokenCounterB, data);
                     writer.writeRow(CONTENT_COMPARISONS, data);
@@ -232,9 +236,9 @@ public class FileComparer extends AbstractProfiler {
                 }
                 Metadata m = metadataListB.get(i);
                 String fileId = Integer.toString(ID.getAndIncrement());
-                writeProfileData(fileB,i, fileId, containerID, m, PROFILES_B);
+                writeProfileData(fpsB, i, m, fileId, containerID, numAttachmentsB, PROFILES_B);
                 writeEmbeddedFilePathData(i, fileId, null, m);
-                writeExceptionData(fileId, m, EXCEPTIONS_B);
+                writeExceptionData(fileId, m, PARSE_EXCEPTIONS_B);
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
                 TokenCounter counter = new CounterB(tokens);
@@ -269,7 +273,7 @@ public class FileComparer extends AbstractProfiler {
         }
         if (pathB != null &&
                 (pathA == null || ! pathA.equals(pathB))) {
-            Map<Cols, String> d = new HashMap<Cols, String>();
+            Map<Cols, String> d = new HashMap<>();
             d.put(Cols.ID, fileId);
             d.put(Cols.EMBEDDED_FILE_PATH, pathB);
             try {
@@ -280,39 +284,14 @@ public class FileComparer extends AbstractProfiler {
         }
     }
 
-    private String getFileLength(List<Metadata> metadataListA, List<Metadata> metadataListB) {
-        Metadata mA = null;
-        Metadata mB = null;
-        if (metadataListA != null && metadataListA.size() > 0) {
-            mA = metadataListA.get(0);
-        }
-        if (metadataListB != null && metadataListB.size() > 0) {
-            mB = metadataListB.get(0);
-        }
-        return getFileLength(mA, mB);
-    }
-
-    //try to read the content length out of the first entry in the metadata list
-    private String getFileLength(Metadata metadataA, Metadata metadataB) {
-        String len = null;
-        if (metadataA != null) {
-            len = metadataA.get(Metadata.CONTENT_LENGTH);
-        }
-        if (len != null) {
+    private String getSourceFileLength(List<Metadata> metadataListA, List<Metadata> metadataListB) {
+        String len = getSourceFileLength(metadataListA);
+        if (! len.equals("-1")) {
             return len;
         }
-        if (metadataB != null) {
-            len = metadataB.get(Metadata.CONTENT_LENGTH);
-        }
-        return (len == null) ? "-1" : len;
+        return getSourceFileLength(metadataListB);
     }
 
-    private String getFileLength(File file) {
-        if (file == null) {
-            return "-1";
-        }
-        return Long.toString(file.length());
-    }
 
     /**
      * Try to find the matching metadata based on the RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH
@@ -327,6 +306,7 @@ public class FileComparer extends AbstractProfiler {
     private int getMatch(int i,
                          List<Metadata> metadataListA,
                          List<Metadata> metadataListB) {
+        //TODO: could make this more robust
         if (metadataListB == null || metadataListB.size() == 0) {
             return -1;
         }
@@ -394,14 +374,12 @@ public class FileComparer extends AbstractProfiler {
         MutableValueAbsIntPriorityQueue aQueue = new MutableValueAbsIntPriorityQueue(topNDiffs);
         for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
             int diff = e.getValue().b - e.getValue().a;
-            if (diff == 0) {
-                continue;
-            } else if (diff > 0) {
+            if (diff > 0) {
                 if (bQueue.top() == null || bQueue.size() < topNDiffs ||
                         diff >= bQueue.top().getValue()) {
                     bQueue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
                 }
-            } else {
+            } else if (diff < 0) {
                 diff = Math.abs(diff);
                 if (aQueue.top() == null || aQueue.size() < topNDiffs ||
                         diff >= aQueue.top().getValue()) {
@@ -410,7 +388,7 @@ public class FileComparer extends AbstractProfiler {
             }
         }
 
-        List<TokenIntPair> tokenDiffs = new ArrayList<TokenIntPair>();
+        List<TokenIntPair> tokenDiffs = new ArrayList<>();
         //now we reverse the queue
         TokenIntPair term = aQueue.pop();
         while (term != null) {
@@ -475,7 +453,7 @@ public class FileComparer extends AbstractProfiler {
                 }
             }
         }
-        List<TokenIntPair> tokenCounts = new ArrayList<TokenIntPair>();
+        List<TokenIntPair> tokenCounts = new ArrayList<>();
         //now we reverse the queue
         TokenIntPair term = queue.pop();
         while (term != null) {

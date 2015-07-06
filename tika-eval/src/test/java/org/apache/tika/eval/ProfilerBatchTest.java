@@ -50,7 +50,7 @@ public class ProfilerBatchTest {
     private static Connection conn;
 
     private final static String profileTable = SingleFileProfiler.PROFILE_TABLE.getName();
-    private final static String exTable = SingleFileProfiler.EXCEPTION_TABLE.getName();
+    private final static String exTable = SingleFileProfiler.PARSE_EXCEPTION_TABLE.getName();
     private final static String fpCol = Cols.FILE_PATH.name();
 
     @BeforeClass
@@ -102,13 +102,13 @@ public class ProfilerBatchTest {
         debugTable(SingleFileProfiler.CONTAINER_TABLE);
         debugTable(SingleFileProfiler.PROFILE_TABLE);
         debugTable(SingleFileProfiler.CONTENTS_TABLE);
-        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
+        debugTable(SingleFileProfiler.PARSE_EXCEPTION_TABLE);
         assertEquals(8, fNameList.size());
-        assertTrue("file1.pdf.json", fNameList.contains("file1.pdf.json"));
-        assertTrue("file2_attachANotB.doc.json", fNameList.contains("file2_attachANotB.doc.json"));
-        assertTrue("file3_attachBNotA.doc.json", fNameList.contains("file3_attachBNotA.doc.json"));
-        assertTrue("file4_emptyB.pdf.json", fNameList.contains("file4_emptyB.pdf.json"));
-        assertTrue("file7_badJson.pdf.json", fNameList.contains("file7_badJson.pdf.json"));
+        assertTrue("file1.pdf", fNameList.contains("file1.pdf"));
+        assertTrue("file2_attachANotB.doc", fNameList.contains("file2_attachANotB.doc"));
+        assertTrue("file3_attachBNotA.doc", fNameList.contains("file3_attachBNotA.doc"));
+        assertTrue("file4_emptyB.pdf", fNameList.contains("file4_emptyB.pdf"));
+        assertTrue("file7_badJson.pdf", fNameList.contains("file7_badJson.pdf"));
     }
     //TODO: lots more testing!
 

@@ -26,9 +26,9 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.tika.eval.FileComparer;
 import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.sax.ToHTMLContentHandler;
 import org.apache.tika.sax.XHTMLContentHandler;
@@ -953,7 +953,7 @@ public class FileComparerResultDumper {
             if (rows == 0) {
                 handler = buildNoResultsHandler(header, sql);
             }
-            IOUtils.write(handler.toString(), fos, org.apache.tika.io.IOUtils.UTF_8);
+            IOUtils.write(handler.toString(), fos, IOUtils.UTF_8.name());
 
         } finally {
             if (fos != null) {

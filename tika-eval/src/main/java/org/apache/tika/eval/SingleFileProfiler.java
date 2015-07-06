@@ -28,7 +28,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
-import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
@@ -40,17 +39,22 @@ import org.apache.tika.parser.RecursiveParserWrapper;
 public class SingleFileProfiler extends AbstractProfiler {
 
 
-    public static TableInfo ERROR_TABLE = new TableInfo("errors",
+    public static TableInfo EXTRACT_ERROR_TABLE = new TableInfo("extract_errors",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.ERROR_TYPE_ID, Types.INTEGER),
-            new ColInfo(Cols.JSON_EX, Types.BOOLEAN)
+            new ColInfo(Cols.EXTRACT_ERROR_TYPE_ID, Types.INTEGER)
     );
 
-    public static TableInfo EXCEPTION_TABLE = new TableInfo("exceptions",
+    public static TableInfo PARSE_ERROR_TABLE = new TableInfo("parse_errors",
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.PARSE_ERROR_TYPE_ID, Types.INTEGER)
+    );
+
+
+    public static TableInfo PARSE_EXCEPTION_TABLE = new TableInfo("parse_exceptions",
             new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
             new ColInfo(Cols.ORIG_STACK_TRACE, Types.VARCHAR, 8192),
             new ColInfo(Cols.SORT_STACK_TRACE, Types.VARCHAR, 8192),
-            new ColInfo(Cols.EXCEPTION_TYPE_ID, Types.INTEGER)
+            new ColInfo(Cols.PARSE_EXCEPTION_TYPE_ID, Types.INTEGER)
     );
 
 
@@ -64,6 +68,7 @@ public class SingleFileProfiler extends AbstractProfiler {
     public static TableInfo PROFILE_TABLE = new TableInfo("profiles",
             new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),//, "FOREIGN KEY"),
+            new ColInfo(Cols.FILE_NAME, Types.VARCHAR, 256),
             new ColInfo(Cols.MD5, Types.CHAR, 32),
             new ColInfo(Cols.LENGTH, Types.BIGINT),
             new ColInfo(Cols.IS_EMBEDDED, Types.BOOLEAN),
@@ -97,42 +102,42 @@ public class SingleFileProfiler extends AbstractProfiler {
             new ColInfo(Cols.TOKEN_LENGTH_STD_DEV, Types.FLOAT)
     );
 
-    private final File rootDir;
+    private final File inputDir;
+    private final File extractDir;
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
-                              boolean crawlingInputDir, File rootDir,
+                              File inputDir, File extractDir,
                               IDBWriter dbWriter) {
-        super(queue, crawlingInputDir, dbWriter);
-        this.rootDir = rootDir;
+        super(queue, (inputDir !=null && inputDir.equals(extractDir)), dbWriter);
+        this.inputDir = inputDir;
+        this.extractDir = extractDir;
     }
 
     @Override
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
-        String relativePath = metadata.get(FSProperties.FS_REL_PATH);
-        File thisFile = new File(rootDir, relativePath);
-        System.err.println("trying to get: "+thisFile.getAbsolutePath());
-        List<Metadata> metadataList = getMetadata(thisFile);
+        EvalFilePaths fps = getFilePaths(metadata, inputDir, extractDir);
+        File extractA = fps.extractFile;
 
-        Map<Cols, String> contOutput = new HashMap<Cols, String>();
+        List<Metadata> metadataList = getMetadata(extractA);
+
+        Map<Cols, String> contOutput = new HashMap<>();
         String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());
-
+        contOutput.put(Cols.LENGTH, getSourceFileLength(fps, metadataList));
         contOutput.put(Cols.CONTAINER_ID, containerId);
-        contOutput.put(Cols.FILE_PATH, relativePath);
-        contOutput.put(Cols.EXTRACT_FILE_LENGTH,
-                Long.toString(thisFile.length()));
+        contOutput.put(Cols.FILE_PATH, fps.relativeSourceFilePath);
+        contOutput.put(Cols.EXTRACT_FILE_LENGTH, (extractA == null) ? NON_EXISTENT_FILE_LENGTH :
+                Long.toString(extractA.length()));
         try {
             writer.writeRow(CONTAINER_TABLE, contOutput);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
+
         if (metadataList == null) {
-            Map<Cols, String> errOutput = new HashMap<Cols,String>();
-            errOutput.put(Cols.CONTAINER_ID, containerId);
-            errOutput.put(Cols.JSON_EX, "TRUE");
             try {
-                writer.writeRow(ERROR_TABLE, errOutput);
+                writeExtractError(EXTRACT_ERROR_TABLE, containerId, extractA);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -140,12 +145,14 @@ public class SingleFileProfiler extends AbstractProfiler {
         }
 
         //TODO: calculate num_attachments, add to profile table
+
+        List<Integer> numAttachments = countAttachments(metadataList);
         int i = 0;
         for (Metadata m : metadataList) {
             String fileId = Integer.toString(ID.incrementAndGet());
-            writeProfileData(thisFile, i, fileId, containerId, m, PROFILE_TABLE);
+            writeProfileData(fps, i, m, fileId, containerId, numAttachments, PROFILE_TABLE);
             writeEmbeddedPathData(i, fileId, m, EMBEDDED_FILE_PATH_TABLE);
-            writeExceptionData(fileId, m, EXCEPTION_TABLE);
+            writeExceptionData(fileId, m, PARSE_EXCEPTION_TABLE);
             SingleFileTokenCounter counter = new SingleFileTokenCounter();
             writeContentData(fileId, m, counter, CONTENTS_TABLE);
             i++;
@@ -158,7 +165,7 @@ public class SingleFileProfiler extends AbstractProfiler {
         if (i == 0) {
             return;
         }
-        Map<Cols, String> data = new HashMap<Cols, String>();
+        Map<Cols, String> data = new HashMap<>();
         data.put(Cols.ID, fileId);
         data.put(Cols.EMBEDDED_FILE_PATH,
                 m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
@@ -171,7 +178,7 @@ public class SingleFileProfiler extends AbstractProfiler {
 
 
     class SingleFileTokenCounter extends TokenCounter {
-        private final Map<String, MutableValueInt> m = new HashMap<String, MutableValueInt>();
+        private final Map<String, MutableValueInt> m = new HashMap<>();
 
 
         @Override

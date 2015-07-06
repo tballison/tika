@@ -18,10 +18,12 @@
             description="dir to start crawling"/>
     <option opt="numConsumers" hasArg="true"
             description="number of fileConsumers threads"/>
-    <option opt="thisDir" hasArg="true"
-            description="this dir for analysis" required="false"/>
-    <option opt="thatDir" hasArg="true"
-            description="thatDir for analysis"/>
+    <option opt="inputDir" hasArg="true"
+            description="root directory for initial source binary files"/>
+    <option opt="rootDirA" hasArg="true"
+            description="root directory for 'A' run"/>
+    <option opt="rootDirB" hasArg="true"
+            description="root directory for 'B' run for analysis"/>
     <option opt="dbDir" hasArg="true"
             description="name of db directory or file to which to write results"/>
     <option opt="includeFilePat" hasArg="true"
@@ -46,8 +48,8 @@
 
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.FileComparerBuilder"
-               thisDir="src/test/resources/test-dirs/testA"
-               thatDir="src/test/resources/test-dirs/testB"
+               rootDirA="src/test/resources/test-dirs/testA"
+               rootDirB="src/test/resources/test-dirs/testB"
                dbAppend="false"
                crawlingInputDir="false"
                langModelDir="src/test/resources/langmodels"

@@ -18,8 +18,8 @@
             description="dir to start crawling"/>
     <option opt="numConsumers" hasArg="true"
             description="number of fileConsumers threads"/>
-    <option opt="thisDir" hasArg="true"
-            description="this dir for analysis" required="false"/>
+    <option opt="extractDir" hasArg="true"
+            description="this dir contains the files containing extracted metadata/content" required="false"/>
     <option opt="dbDir" hasArg="true"
             description="name of db directory or file to which to write results"/>
     </commandline>
@@ -42,7 +42,7 @@
 
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
-               thisDir="src/test/resources/test-dirs/testA"
+               extractDir="src/test/resources/test-dirs/testA"
                langModelDir="src/test/resources/langmodels"/>
 
 

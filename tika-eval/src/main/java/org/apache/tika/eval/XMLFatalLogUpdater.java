@@ -53,8 +53,8 @@ class XMLFatalLogUpdater {
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
         File dbFile = new File(args[2]);
-        writer.execute(xmlLogFileA, FileComparer.ERRORS_A.getName(), dbFile);
-        writer.execute(xmlLogFileB, FileComparer.ERRORS_B.getName(), dbFile);
+        writer.execute(xmlLogFileA, FileComparer.PARSE_ERRORS_A.getName(), dbFile);
+        writer.execute(xmlLogFileB, FileComparer.PARSE_ERRORS_B.getName(), dbFile);
     }
 
     private void execute(File xmlLogFile, String tableName, File dbFile) throws Exception {
@@ -108,11 +108,11 @@ class XMLFatalLogUpdater {
                             if ("timeout".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
                                 update(errorTablename, resourceId,
-                                        AbstractProfiler.ERROR_TYPE.TIMEOUT);
+                                        AbstractProfiler.PARSE_ERROR_TYPE.TIMEOUT);
 
                             } else if ("oom".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
-                                update(errorTablename, resourceId, AbstractProfiler.ERROR_TYPE.OOM);
+                                update(errorTablename, resourceId, AbstractProfiler.PARSE_ERROR_TYPE.OOM);
                             }
                             break;
                     }
@@ -124,7 +124,7 @@ class XMLFatalLogUpdater {
         }
 
         private void update(String errorTableName,
-                            String resourceId, AbstractProfiler.ERROR_TYPE type) throws SQLException {
+                            String resourceId, AbstractProfiler.PARSE_ERROR_TYPE type) throws SQLException {
 
             int containerId = -1;
             String sql = "SELECT " + Cols.CONTAINER_ID.name() +
@@ -167,7 +167,7 @@ class XMLFatalLogUpdater {
 
             if (hitCount > 0) {
                 sql = "UPDATE " + errorTableName +
-                        " SET " + Cols.ERROR_TYPE_ID +
+                        " SET " + Cols.PARSE_ERROR_TYPE_ID +
                         " = " + type.ordinal() +
                         " where "+Cols.CONTAINER_ID +
                         "="+containerId;

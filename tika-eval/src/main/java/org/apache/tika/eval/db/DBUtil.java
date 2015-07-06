@@ -120,6 +120,9 @@ public abstract class DBUtil {
                     }
                     st.setString(dbColOffset, value);
                     break;
+                case Types.CHAR:
+                    st.setString(dbColOffset, value);
+                    break;
                 case Types.DOUBLE:
                     st.setDouble(dbColOffset, Double.parseDouble(value));
                     break;

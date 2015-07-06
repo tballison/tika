@@ -12,10 +12,11 @@ public enum Cols {
     //profile table
     ID,
     LENGTH,
+    FILE_NAME,
+    FILE_EXTENSION,
     ELAPSED_TIME_MILLIS,
     NUM_METADATA_VALUES,
     IS_EMBEDDED,
-    FILE_EXTENSION,
     EMBEDDED_FILE_PATH,
     MIME_TYPE_ID,
     MD5,
@@ -46,19 +47,24 @@ public enum Cols {
     DICE_COEFFICIENT,
 
     //errors
-    ERROR_TYPE_ID,
-    JSON_EX,
+    PARSE_ERROR_TYPE_ID,
+
+    PARSE_ERROR_DESCRIPTION,
+    PARSE_EXCEPTION_DESCRIPTION,
+
+    EXTRACT_ERROR_TYPE_ID,
+    EXTRACT_ERROR_DESCRIPTION,
+
 
     //exceptions
     ORIG_STACK_TRACE,
     SORT_STACK_TRACE,
-    EXCEPTION_TYPE_ID,
+    PARSE_EXCEPTION_TYPE_ID,
 
 
     MIME_STRING,//string representation of mime type
 
     DIR_NAME_A,//for comparisons in REF_PAIR_NAMES
-    DIR_NAME_B, ERROR_DESCRIPTION, EXCEPTION_DESCRIPTION,
-
+    DIR_NAME_B,
     }
 

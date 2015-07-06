@@ -20,39 +20,44 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
 
     @Override
     public FileResourceConsumer build() throws IOException {
-        boolean crawlingInputDir = PropsUtil.getBoolean(localAttrs.get("crawlingInputDir"), false);
-        File rootDir = PropsUtil.getFile(localAttrs.get("thisDir"), null);
-        if (rootDir == null) {
-            throw new RuntimeException("Must specify \"thisDir\" -- directory to crawl");
+        File extractDir = PropsUtil.getFile(localAttrs.get("extractDir"), null);
+        if (extractDir == null) {
+            throw new RuntimeException("Must specify \"extractDir\" -- directory to crawl");
         }
-        if (!rootDir.isDirectory()) {
-            throw new RuntimeException("ROOT DIRECTORY DOES NOT EXIST: " + rootDir.getAbsolutePath());
+        if (!extractDir.isDirectory()) {
+            throw new RuntimeException("ROOT DIRECTORY DOES NOT EXIST: " + extractDir.getAbsolutePath());
         }
+
+        File inputDir = PropsUtil.getFile(localAttrs.get("inputDir"), null);
+
         IDBWriter writer = null;
         try {
             writer = getDBWriter();
         } catch (SQLException ex) {
             throw new IOException(ex);
         }
+
+        //TODO: clean up the writing of the ref tables!!!
         try {
-            populateRefTables();
+            populateRefTables(writer);
         } catch (SQLException e) {
             throw new RuntimeException("Can't populate ref tables", e);
         }
-
-        return new SingleFileProfiler(queue, crawlingInputDir, rootDir, writer);
+        return new SingleFileProfiler(queue, inputDir, extractDir, writer);
     }
 
     @Override
     protected List<TableInfo> getTableInfo() {
         List<TableInfo> tableInfos = new ArrayList<TableInfo>();
         tableInfos.add(AbstractProfiler.MIME_TABLE);
-        tableInfos.add(AbstractProfiler.REF_ERROR_TYPES);
-        tableInfos.add(AbstractProfiler.REF_EXCEPTION_TYPES);
+        tableInfos.add(AbstractProfiler.REF_PARSE_ERROR_TYPES);
+        tableInfos.add(AbstractProfiler.REF_PARSE_EXCEPTION_TYPES);
+        tableInfos.add(AbstractProfiler.REF_EXTRACT_ERROR_TYPES);
         tableInfos.add(SingleFileProfiler.CONTAINER_TABLE);
         tableInfos.add(SingleFileProfiler.PROFILE_TABLE);
-        tableInfos.add(SingleFileProfiler.EXCEPTION_TABLE);
-        tableInfos.add(SingleFileProfiler.ERROR_TABLE);
+        tableInfos.add(SingleFileProfiler.EXTRACT_ERROR_TABLE);
+        tableInfos.add(SingleFileProfiler.PARSE_EXCEPTION_TABLE);
+        tableInfos.add(SingleFileProfiler.PARSE_ERROR_TABLE);
         tableInfos.add(SingleFileProfiler.CONTENTS_TABLE);
         tableInfos.add(SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE);
         return tableInfos;

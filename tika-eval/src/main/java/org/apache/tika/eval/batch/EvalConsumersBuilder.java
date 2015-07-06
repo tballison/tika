@@ -14,7 +14,7 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.eval.SingleFileProfiler;
+import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.util.ClassLoaderUtil;
@@ -30,14 +30,14 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
     public ConsumersManager build(Node node, Map<String, String> runtimeAttributes,
                                   ArrayBlockingQueue<FileResource> queue) {
 
-        List<FileResourceConsumer> consumers = new LinkedList<FileResourceConsumer>();
+        List<FileResourceConsumer> consumers = new LinkedList<>();
         int numConsumers = BatchProcessBuilder.getNumConsumers(runtimeAttributes);
 
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
         File dbDir = getFile(localAttrs, "dbDir");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
-        SingleFileProfiler.initLangDetectorFactory(langModelDir, 31415962L);
+        AbstractProfiler.initLangDetectorFactory(langModelDir, 31415962L);
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
         //parameterize which db util to use
@@ -59,19 +59,11 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         for (int i = 0; i < numConsumers; i++) {
             try {
                 consumers.add(consumerBuilder.build());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            } catch (SQLException e) {
+            } catch (IOException | SQLException e) {
                 throw new RuntimeException(e);
             }
         }
-        try {
-            consumerBuilder.populateRefTables();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+
         return new DBConsumersManager(consumers);
     }
 

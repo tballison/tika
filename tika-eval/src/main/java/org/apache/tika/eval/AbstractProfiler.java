@@ -1,4 +1,3 @@
-package org.apache.tika.eval;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,6 +14,9 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package org.apache.tika.eval;
+
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,7 +42,6 @@ import com.cybozu.labs.langdetect.Language;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
@@ -52,6 +53,7 @@ import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
+import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
@@ -61,6 +63,7 @@ import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStats;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -70,14 +73,34 @@ import org.apache.tika.utils.ExceptionUtils;
 
 public abstract class AbstractProfiler extends FileResourceConsumer {
 
-    public static TableInfo REF_ERROR_TYPES = new TableInfo("ref_error_types",
-            new ColInfo(Cols.ERROR_TYPE_ID, Types.INTEGER),
-            new ColInfo(Cols.ERROR_DESCRIPTION, Types.VARCHAR, 128)
+    private static final String[] EXTRACT_EXTENSIONS = {
+            ".json",
+            ".txt",
+            ""
+    };
+
+    private static final String[] COMPRESSION_EXTENSIONS = {
+            "",
+            ".bz2",
+            ".gzip",
+            ".zip",
+    };
+    static final String NON_EXISTENT_FILE_LENGTH = "-1";
+
+    public static TableInfo REF_EXTRACT_ERROR_TYPES = new TableInfo("ref_extract_error_types",
+            new ColInfo(Cols.EXTRACT_ERROR_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.EXTRACT_ERROR_DESCRIPTION, Types.VARCHAR, 128)
     );
 
-    public static TableInfo REF_EXCEPTION_TYPES = new TableInfo("ref_exception_types",
-            new ColInfo(Cols.EXCEPTION_TYPE_ID, Types.INTEGER),
-            new ColInfo(Cols.EXCEPTION_DESCRIPTION, Types.VARCHAR, 128)
+
+    public static TableInfo REF_PARSE_ERROR_TYPES = new TableInfo("ref_parse_error_types",
+            new ColInfo(Cols.PARSE_ERROR_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.PARSE_ERROR_DESCRIPTION, Types.VARCHAR, 128)
+    );
+
+    public static TableInfo REF_PARSE_EXCEPTION_TYPES = new TableInfo("ref_parse_exception_types",
+            new ColInfo(Cols.PARSE_EXCEPTION_TYPE_ID, Types.INTEGER),
+            new ColInfo(Cols.PARSE_EXCEPTION_DESCRIPTION, Types.VARCHAR, 128)
     );
 
     public static final String TRUE = Boolean.toString(true);
@@ -87,16 +110,24 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     protected static final AtomicInteger ID = new AtomicInteger();
 
     private final static String UNKNOWN_EXTENSION = "unk";
+    private final static String DIGEST_KEY = "X-TIKA:digest:MD5";
+    private String lastExtractExtension = null;
 
 
-    public enum EXCEPTION_TYPE {
+    public enum EXTRACT_ERROR_TYPE {
+        NO_EXTRACT_FILE,
+        ZERO_BYTE_EXTRACT_FILE,
+        EXTRACT_PARSE_EXCEPTION
+    }
+
+    public enum PARSE_EXCEPTION_TYPE {
         RUNTIME,
         ENCRYPTION,
         ACCESS_PERMISSION,
         UNSUPPORTED_VERSION,
     }
 
-    public enum ERROR_TYPE {
+    public enum PARSE_ERROR_TYPE {
         OOM,
         TIMEOUT
     }
@@ -138,34 +169,56 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         this.writer = writer;
     }
 
-    public String getInputFileName(String fName) {
-        if (crawlingInputDir) {
-            return fName;
+
+    protected void writeExtractError(TableInfo extractErrorTable, String containerId, File extractA) throws IOException {
+        Map<Cols, String> data = new HashMap<>();
+        data.put(Cols.CONTAINER_ID, containerId);
+        int errorCode = -1;
+        if (extractA == null) {
+            errorCode = EXTRACT_ERROR_TYPE.NO_EXTRACT_FILE.ordinal();
+        } else if (extractA.length() == 0) {
+            errorCode = EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal();
+        } else {
+            errorCode = EXTRACT_ERROR_TYPE.EXTRACT_PARSE_EXCEPTION.ordinal();
         }
-        Matcher m = FILE_NAME_CLEANER.matcher(fName);
-        return m.replaceAll("");
+        data.put(Cols.EXTRACT_ERROR_TYPE_ID, Integer.toString(errorCode));
+        writer.writeRow(extractErrorTable, data);
+
     }
 
-    protected void writeProfileData(File extractOrSourceFile, int i, String fileId, String containerId, Metadata m, TableInfo profileTable) {
-        Map<Cols, String> data = new HashMap<Cols, String>();
+
+
+    protected void writeProfileData(EvalFilePaths fps, int i, Metadata m,
+                                    String fileId, String containerId,
+                                    List<Integer> numAttachments, TableInfo profileTable) {
+
+        Map<Cols, String> data = new HashMap<>();
         data.put(Cols.ID, fileId);
         data.put(Cols.CONTAINER_ID, containerId);
+        data.put(Cols.MD5, m.get(DIGEST_KEY));
 
+        if ( i < numAttachments.size()) {
+            data.put(Cols.NUM_ATTACHMENTS, Integer.toString(numAttachments.get(i)));
+        }
         data.put(Cols.ELAPSED_TIME_MILLIS, getTime(m));
         data.put(Cols.NUM_METADATA_VALUES,
                 Integer.toString(countMetadataValues(m)));
 
+
+
         //if the outer wrapper document
         if (i == 0) {
+
             data.put(Cols.IS_EMBEDDED, FALSE);
-            data.put(Cols.FILE_EXTENSION,
-                    getOriginalFileExtension(extractOrSourceFile.getName()));
+            data.put(Cols.FILE_NAME, fps.sourceFileName);
+            data.put(Cols.FILE_EXTENSION, FilenameUtils.getExtension(fps.sourceFileName));
         } else {
             data.put(Cols.IS_EMBEDDED, TRUE);
+            data.put(Cols.FILE_NAME, FilenameUtils.getName(m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH)));
             data.put(Cols.FILE_EXTENSION,
-                    FilenameUtils.getExtension(data.get(Cols.EMBEDDED_FILE_PATH)));
+                    FilenameUtils.getExtension(data.get(Cols.FILE_NAME)));
         }
-
+        data.put(Cols.LENGTH, getSourceFileLength(m));
         int numMetadataValues = countMetadataValues(m);
         data.put(Cols.NUM_METADATA_VALUES,
                 Integer.toString(numMetadataValues));
@@ -222,6 +275,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         Map<Cols, String> data = new HashMap<Cols, String>();
         data.put(Cols.ID, fileId);
+        data.put(Cols.CONTENT_LENGTH, Integer.toString(content.length()));
         try {
             countTokens(m, counter);
             handleWordCounts(data, counter);
@@ -349,19 +403,19 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
             Matcher matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(Cols.EXCEPTION_TYPE_ID,
-                        Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
+                data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
+                        Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
             matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
-                data.put(Cols.EXCEPTION_TYPE_ID,
-                        Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
+                data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
+                        Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
 
-            data.put(Cols.EXCEPTION_TYPE_ID,
-                    Integer.toString(EXCEPTION_TYPE.RUNTIME.ordinal()));
+            data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
+                    Integer.toString(PARSE_EXCEPTION_TYPE.RUNTIME.ordinal()));
 
             data.put(Cols.ORIG_STACK_TRACE, fullTrace);
             //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:
@@ -601,4 +655,130 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return false;
         }
     }
+
+    protected EvalFilePaths getFilePaths(Metadata metadata, File inputDir,
+                                         File extractRootDir) {
+        EvalFilePaths fp = new EvalFilePaths();
+        if (crawlingInputDir) {
+            fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
+            fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
+            fp.extractFile = findFile(extractRootDir, fp.relativeSourceFilePath);
+            File inputFile = new File(inputDir, fp.relativeSourceFilePath);
+            fp.sourceFileLength = inputFile.length();
+        } else {
+            String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
+            Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
+            fp.relativeSourceFilePath = m.replaceAll("");
+            fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
+            fp.extractFile = new File(extractRootDir, relExtractFilePath);
+        }
+        return fp;
+    }
+
+    /**
+     *
+     * @param extractRootDir
+     * @param relativeSourceFilePath
+     * @return extractFile or null if couldn't find one.
+     */
+    private File findFile(File extractRootDir, String relativeSourceFilePath) {
+        if (lastExtractExtension != null) {
+            File candidate = new File(extractRootDir, relativeSourceFilePath+lastExtractExtension);
+            if (candidate.exists() && candidate.isFile()) {
+                return candidate;
+            }
+        }
+        for (String ext : EXTRACT_EXTENSIONS) {
+            for (String compress : COMPRESSION_EXTENSIONS) {
+                File candidate = new File(extractRootDir, relativeSourceFilePath+ext+compress);
+                if (candidate.exists() && candidate.isFile()) {
+                    lastExtractExtension = ext+compress;
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
+    protected String getSourceFileLength(EvalFilePaths fps, List<Metadata> metadataList) {
+        if (fps.sourceFileLength > -1) {
+            return Long.toString(fps.sourceFileLength);
+        }
+        return getSourceFileLength(metadataList);
+    }
+
+    String getSourceFileLength(List<Metadata> metadataList) {
+        if (metadataList == null || metadataList.size() < 1) {
+            return NON_EXISTENT_FILE_LENGTH;
+        }
+        return getSourceFileLength(metadataList.get(0));
+    }
+
+    String getSourceFileLength(Metadata m) {
+        String len = m.get(Metadata.CONTENT_LENGTH);
+        return (len == null) ? NON_EXISTENT_FILE_LENGTH : len;
+    }
+
+    protected String getFileLength(File f) {
+        if (f != null && f.exists()) {
+            return Long.toString(f.length());
+        }
+        return NON_EXISTENT_FILE_LENGTH;
+    }
+
+    /**
+     *
+     * @param list
+     * @return empty list if input list is empty or null
+     */
+    static List<Integer> countAttachments(List<Metadata> list) {
+        List<Integer> ret = new ArrayList<Integer>();
+        if (list == null || list.size() == 0) {
+            return ret;
+        }
+        //container document attachment count = list.size()-1
+        ret.add(list.size()-1);
+
+        Map<String, Integer> counts = new HashMap<>();
+        for (int i = 1; i < list.size(); i++) {
+            String path = list.get(i).get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
+            if (path == null) {
+                //shouldn't ever happen
+                continue;
+            }
+            String[] parts = path.split("/");
+            StringBuilder parent = new StringBuilder();
+            for (int end = 1; end < parts.length-1; end++) {
+                parent.setLength(0);
+                join("/", parent, parts, 1, end);
+                String parentPath = parent.toString();
+                Integer count = counts.get(parentPath);
+                if (count == null) {
+                    count = 1;
+                } else {
+                    count++;
+                }
+                counts.put(parentPath, count);
+            }
+        }
+
+        for (int i = 1; i < list.size(); i++) {
+            Integer count = counts.get(list.get(i).get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH));
+            if (count == null) {
+                count = 0;
+            }
+            ret.add(i, count);
+        }
+        return ret;
+
+
+    }
+
+    private static void join(String delimiter, StringBuilder sb, String[] parts, int start, int end) {
+        for (int i = start; i <= end; i++) {
+            sb.append(delimiter);
+            sb.append(parts[i]);
+        }
+    }
 }
+

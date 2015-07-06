@@ -16,11 +16,13 @@
  */
 package org.apache.tika.eval;
 
+import static org.apache.tika.eval.AbstractProfiler.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -47,16 +49,19 @@ public class SimpleComparerTest extends TikaTest {
     @Before
     public void setUp() throws Exception {
         writer = new MockDBWriter();
-        comparer = new FileComparer(null, new File("testA"), new File("testB"),
-                false, writer, -1, -1);
+        comparer = new FileComparer(null, null, new File("testA"), new File("testB"),
+                writer, -1, -1);
     }
 
     @Test
     public void testBasic() throws Exception {
-
-        comparer.compareFiles("file1.pdf.json",
-                getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
-                getResourceAsFile("/test-dirs/testB/file1.pdf.json"));
+        EvalFilePaths fpsA = new EvalFilePaths();
+        EvalFilePaths fpsB = new EvalFilePaths();
+        fpsA.sourceFileName = "file1.pdf.json";
+        fpsB.sourceFileName = "file1.pdf.json";
+        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file1.pdf.json");
+        comparer.compareFiles(fpsA, fpsB);
 
         List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
         Map<Cols, String> row = tableInfos.get(0);
@@ -70,13 +75,18 @@ public class SimpleComparerTest extends TikaTest {
 
     @Test
     public void testEmpty() throws Exception {
-        comparer.compareFiles("relPath",
-                getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
-                getResourceAsFile("/test-dirs/testB/file4_emptyB.pdf.json"));
-        List<Map<Cols, String>> table = writer.getTable(FileComparer.ERRORS_B);
+        EvalFilePaths fpsA = new EvalFilePaths();
+        EvalFilePaths fpsB = new EvalFilePaths();
+        fpsA.sourceFileName = "file1.pdf";
+        fpsB.sourceFileName = "file1.pdf";
+        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file4_emptyB.pdf.json");
+        comparer.compareFiles(fpsA, fpsB);
+        List<Map<Cols, String>> table = writer.getTable(FileComparer.EXTRACT_ERRORS_B);
         Map<Cols, String> row = table.get(0);
         debugPrintRow(row);
-        assertTrue(row.get(Cols.JSON_EX).equals(AbstractProfiler.TRUE));
+        assertEquals(Integer.toString(EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal()),
+                row.get(Cols.EXTRACT_ERROR_TYPE_ID));
     }
 
 
@@ -85,52 +95,93 @@ public class SimpleComparerTest extends TikaTest {
         Metadata m = new Metadata();
         m.add(RecursiveParserWrapper.TIKA_CONTENT, "0123456789");
 
-        String content = AbstractProfiler.getContent(m, 10);
+        String content = getContent(m, 10);
         assertEquals(10, content.length());
 
-        content = AbstractProfiler.getContent(m, 4);
+        content = getContent(m, 4);
         assertEquals(4, content.length());
 
         //test Metadata with no content
-        content = AbstractProfiler.getContent(new Metadata(), 10);
+        content = getContent(new Metadata(), 10);
         assertEquals(0, content.length());
 
         //test null Metadata
-        content = AbstractProfiler.getContent(null, 10);
+        content = getContent(null, 10);
         assertEquals(0, content.length());
     }
 
     @Test
     public void testAccessException() throws Exception {
-        comparer.compareFiles("relPath",
-                getResourceAsFile("/test-dirs/testA/file6_accessEx.pdf.json"),
-                getResourceAsFile("/test-dirs/testB/file6_accessEx.pdf.json"));
+        EvalFilePaths fpsA = new EvalFilePaths();
+        EvalFilePaths fpsB = new EvalFilePaths();
+        fpsA.sourceFileName = "file6_accessEx.pdf.json";
+        fpsB.sourceFileName = "file6_accessEx.pdf.json";
+        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file6_accessEx.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file6_accessEx.pdf.json");
 
-        for (TableInfo t : new TableInfo[]{FileComparer.EXCEPTIONS_A, FileComparer.EXCEPTIONS_B}) {
+        comparer.compareFiles(fpsA, fpsB);
+        for (TableInfo t : new TableInfo[]{FileComparer.PARSE_EXCEPTIONS_A, FileComparer.PARSE_EXCEPTIONS_B}) {
             List<Map<Cols, String>> table = writer.getTable(t);
 
             Map<Cols, String> rowA = table.get(0);
             debugPrintRow(rowA);
-            assertEquals(Integer.toString(AbstractProfiler.EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
-                    rowA.get(Cols.EXCEPTION_TYPE_ID));
+            assertEquals(Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
+                    rowA.get(Cols.PARSE_EXCEPTION_TYPE_ID));
             assertNull(rowA.get(Cols.ORIG_STACK_TRACE));
             assertNull(rowA.get(Cols.SORT_STACK_TRACE));
         }
     }
 
 
+    @Test
+    public void testAttachmentCounts() {
+        List<Metadata> list = new ArrayList<>();
+        Metadata m0 = new Metadata();
+        m0.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "dir1/dir2/file.zip");//bad data should be ignored
+                                                                                    //in the first metadata object
+        list.add(m0);
+        Metadata m1 = new Metadata();
+        m1.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "/f1.docx/f2.zip/text1.txt");
+        list.add(m1);
+        Metadata m2 = new Metadata();
+        m2.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "/f1.docx/f2.zip/text2.txt");
+        list.add(m2);
+        Metadata m3 = new Metadata();
+        m3.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "/f1.docx/f2.zip");
+        list.add(m3);
+        Metadata m4 = new Metadata();
+        m4.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "/f1.docx");
+        list.add(m4);
+        Metadata m5 = new Metadata();
+        m5.set(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH, "/f1.docx/text3.txt");
+        list.add(m5);
+
+        List<Integer> counts = AbstractProfiler.countAttachments(list);
+
+        List<Integer> expected = new ArrayList<>();
+        expected.add(5);
+        expected.add(0);
+        expected.add(0);
+        expected.add(2);
+        expected.add(4);
+        expected.add(0);
+        assertEquals(expected, counts);
+    }
 
 
     public void testDebug() throws Exception {
-        comparer.compareFiles("relPath",
-                getResourceAsFile("/test-dirs/testA/file1.pdf.json"),
-                getResourceAsFile("/test-dirs/testB/file1.pdf.json"));
+        EvalFilePaths fpsA = new EvalFilePaths();
+        EvalFilePaths fpsB = new EvalFilePaths();
+        fpsA.sourceFileName = "file1.pdf.json";
+        fpsB.sourceFileName = "file1.pdf.json";
+        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file1.pdf.json");
         for (TableInfo t : new TableInfo[]{
                 FileComparer.COMPARISON_CONTAINERS,
-                FileComparer.ERRORS_A,
-                FileComparer.ERRORS_B,
-                FileComparer.EXCEPTIONS_A,
-                FileComparer.EXCEPTIONS_B,
+                FileComparer.PARSE_ERRORS_A,
+                FileComparer.PARSE_ERRORS_B,
+                FileComparer.PARSE_EXCEPTIONS_A,
+                FileComparer.PARSE_EXCEPTIONS_B,
                 FileComparer.PROFILES_A,
                 FileComparer.PROFILES_B,
                 FileComparer.CONTENTS_TABLE_A,
