@@ -43,7 +43,7 @@
     <!-- NOTE: sync with commons-compress -->
     <mime4j.version>0.7.2</mime4j.version>
     <vorbis.version>0.6</vorbis.version>
-    <pdfbox.version>1.8.9</pdfbox.version>
+    <pdfbox.version>2.0.0-SNAPSHOT</pdfbox.version>
     <netcdf-java.version>4.5.5</netcdf-java.version>
   </properties>
 
@@ -139,6 +139,11 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
       <version>1.52</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>xmpbox</artifactId>
+      <version>${pdfbox.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>

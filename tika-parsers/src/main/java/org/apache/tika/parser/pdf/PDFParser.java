@@ -25,27 +25,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import org.apache.jempbox.xmp.XMPSchema;
-import org.apache.jempbox.xmp.XMPSchemaDublinCore;
-import org.apache.jempbox.xmp.pdfa.XMPSchemaPDFAId;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSString;
-import org.apache.pdfbox.exceptions.CryptographyException;
-import org.apache.pdfbox.io.RandomAccess;
-import org.apache.pdfbox.io.RandomAccessBuffer;
-import org.apache.pdfbox.io.RandomAccessFile;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
-import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.io.CloseShieldInputStream;
-import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.AccessPermissions;
 import org.apache.tika.metadata.Metadata;
@@ -56,6 +48,13 @@ import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.PasswordProvider;
+import org.apache.tika.utils.ExceptionUtils;
+import org.apache.xmpbox.XMPMetadata;
+import org.apache.xmpbox.schema.DublinCoreSchema;
+import org.apache.xmpbox.schema.PDFAIdentificationSchema;
+import org.apache.xmpbox.schema.XMPSchema;
+import org.apache.xmpbox.xml.DomXmpParser;
+import org.apache.xmpbox.xml.XmpParsingException;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -106,7 +105,6 @@ public class PDFParser extends AbstractParser {
             throws IOException, SAXException, TikaException {
 
         PDDocument pdfDocument = null;
-        TemporaryResources tmp = new TemporaryResources();
         //config from context, or default if not set via context
         PDFParserConfig localConfig = context.get(PDFParserConfig.class, defaultConfig);
         String password = "";
@@ -118,26 +116,12 @@ public class PDFParser extends AbstractParser {
             password = getPassword(metadata, context);
             if (tstream != null && tstream.hasFile()) {
                 // File based, take that as a cue to use a temporary file
-                RandomAccess scratchFile = new RandomAccessFile(tmp.createTemporaryFile(), "rw");
-                if (localConfig.getUseNonSequentialParser() == true) {
-                    pdfDocument = PDDocument.loadNonSeq(new CloseShieldInputStream(stream), scratchFile, password);
-                } else {
-                    pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), scratchFile, true);
-                }
+                pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), password, true);
             } else {
                 // Go for the normal, stream based in-memory parsing
-                if (localConfig.getUseNonSequentialParser() == true) {
-                    pdfDocument = PDDocument.loadNonSeq(new CloseShieldInputStream(stream), new RandomAccessBuffer(), password);
-                } else {
-                    pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), true);
-                }
+                pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), password);
             }
             metadata.set("pdf:encrypted", Boolean.toString(pdfDocument.isEncrypted()));
-
-            //if using the classic parser and the doc is encrypted, we must manually decrypt
-            if (!localConfig.getUseNonSequentialParser() && pdfDocument.isEncrypted()) {
-                pdfDocument.decrypt(password);
-            }
 
             metadata.set(Metadata.CONTENT_TYPE, "application/pdf");
             extractMetadata(pdfDocument, metadata);
@@ -148,12 +132,11 @@ public class PDFParser extends AbstractParser {
                 PDF2XHTML.process(pdfDocument, handler, context, metadata, localConfig);
             }
 
-        } catch (CryptographyException e) {
-            //seq parser throws CryptographyException for bad password
+        } catch (InvalidPasswordException e) {
+            metadata.set("pdf:encrypted", Boolean.toString(true));
+
             throw new EncryptedDocumentException(e);
         } catch (IOException e) {
-            //nonseq parser throws IOException for bad password
-            //At the Tika level, we want the same exception to be thrown
             if (e.getMessage() != null &&
                     e.getMessage().contains("Error (CryptographyException)")) {
                 metadata.set("pdf:encrypted", Boolean.toString(true));
@@ -165,9 +148,6 @@ public class PDFParser extends AbstractParser {
             if (pdfDocument != null) {
                 pdfDocument.close();
             }
-            tmp.dispose();
-            //TODO: once we migrate to PDFBox 2.0, remove this (PDFBOX-2200)
-            PDFont.clearResources();
         }
     }
 
@@ -215,19 +195,24 @@ public class PDFParser extends AbstractParser {
         metadata.set(AccessPermissions.CAN_PRINT_DEGRADED,
                 Boolean.toString(ap.canPrintDegraded()));
 
-
         //now go for the XMP stuff
-        org.apache.jempbox.xmp.XMPMetadata xmp = null;
-        XMPSchemaDublinCore dcSchema = null;
+        XMPMetadata xmp = null;
+        DublinCoreSchema dcSchema = null;
         try {
+            DomXmpParser xmpParser = new DomXmpParser();
+            xmpParser.setStrictParsing(false);
+
             if (document.getDocumentCatalog().getMetadata() != null) {
-                xmp = document.getDocumentCatalog().getMetadata().exportXMPMetadata();
+                xmp = xmpParser.parse(document.getDocumentCatalog().getMetadata().exportXMPMetadata());
             }
             if (xmp != null) {
                 dcSchema = xmp.getDublinCoreSchema();
             }
-        } catch (IOException e) {
+        } catch (IOException|XmpParsingException e) {
             //swallow
+            //TODO: remove this!!!
+            e.printStackTrace();
+            metadata.set(TikaCoreProperties.TIKA_META_PREFIX + "pdf:metadata-xmp-parse-failed", ExceptionUtils.getStackTrace(e));
         }
         PDDocumentInformation info = document.getDocumentInformation();
         metadata.set(PagedText.N_PAGES, document.getNumberOfPages());
@@ -246,8 +231,6 @@ public class PDFParser extends AbstractParser {
             // TODO Remove these in Tika 2.0
             addMetadata(metadata, "created", info.getCreationDate());
             addMetadata(metadata, TikaCoreProperties.CREATED, info.getCreationDate());
-        } catch (IOException e) {
-            // Invalid date format, just ignore
         } catch (StringIndexOutOfBoundsException e) {
             //ditto
         }
@@ -255,8 +238,6 @@ public class PDFParser extends AbstractParser {
             Calendar modified = info.getModificationDate();
             addMetadata(metadata, Metadata.LAST_MODIFIED, modified);
             addMetadata(metadata, TikaCoreProperties.MODIFIED, modified);
-        } catch (IOException e) {
-            // Invalid date format, just ignore
         } catch (StringIndexOutOfBoundsException e) {
             //ditto
         }
@@ -265,10 +246,10 @@ public class PDFParser extends AbstractParser {
         // Copy this over as-is
         List<String> handledMetadata = Arrays.asList("Author", "Creator", "CreationDate", "ModDate",
                 "Keywords", "Producer", "Subject", "Title", "Trapped");
-        for (COSName key : info.getDictionary().keySet()) {
+        for (COSName key : info.getCOSObject().keySet()) {
             String name = key.getName();
             if (!handledMetadata.contains(name)) {
-                addMetadata(metadata, name, info.getDictionary().getDictionaryObject(key));
+                addMetadata(metadata, name, info.getCOSObject().getDictionaryObject(key));
             }
         }
 
@@ -282,30 +263,29 @@ public class PDFParser extends AbstractParser {
                 MEDIA_TYPE.toString() + "; version=" +
                         Float.toString(document.getDocument().getVersion()));
 
-        try {
-            if (xmp != null) {
-                xmp.addXMLNSMapping(XMPSchemaPDFAId.NAMESPACE, XMPSchemaPDFAId.class);
-                XMPSchemaPDFAId pdfaxmp = (XMPSchemaPDFAId) xmp.getSchemaByClass(XMPSchemaPDFAId.class);
-                if (pdfaxmp != null) {
-                    if (pdfaxmp.getPart() != null) {
-                        metadata.set("pdfaid:part", Integer.toString(pdfaxmp.getPart()));
-                    }
-                    if (pdfaxmp.getConformance() != null) {
-                        metadata.set("pdfaid:conformance", pdfaxmp.getConformance());
-                        String version = "A-" + pdfaxmp.getPart() + pdfaxmp.getConformance().toLowerCase(Locale.ROOT);
-                        metadata.set("pdfa:PDFVersion", version);
-                        metadata.add(TikaCoreProperties.FORMAT.getName(),
-                                MEDIA_TYPE.toString() + "; version=\"" + version + "\"");
-                    }
+        System.out.println("HERE: xmp:" + xmp);
+
+        if (xmp != null) {
+            PDFAIdentificationSchema pdfaidxmp = new PDFAIdentificationSchema(xmp);
+            if (pdfaidxmp != null) {
+                if (pdfaidxmp.getPart() != null) {
+                    metadata.set("pdfaid:part", Integer.toString(pdfaidxmp.getPart()));
                 }
-                // TODO WARN if this XMP version is inconsistent with document header version?          
+                if (pdfaidxmp.getConformance() != null) {
+                    metadata.set("pdfaid:conformance", pdfaidxmp.getConformance());
+                    String version = "A-" + pdfaidxmp.getPart() + pdfaidxmp.getConformance().toLowerCase(Locale.ROOT);
+                    metadata.set("pdfa:PDFVersion", version);
+                    metadata.add(TikaCoreProperties.FORMAT.getName(),
+                            MEDIA_TYPE.toString() + "; version=\"" + version + "\"");
+                }
             }
-        } catch (IOException e) {
-            metadata.set(TikaCoreProperties.TIKA_META_PREFIX + "pdf:metadata-xmp-parse-failed", "" + e);
+            // TODO WARN if this XMP version is inconsistent with document header version?
         }
+
         //TODO: Let's try to move this into PDFBox.
+        //or can we get this from the PDFAExtensionSchema
         //Attempt to determine Adobe extension level, if present:
-        COSDictionary root = document.getDocumentCatalog().getCOSDictionary();
+        COSDictionary root = document.getDocumentCatalog().getCOSObject();
         COSDictionary extensions = (COSDictionary) root.getDictionaryObject(COSName.getPDFName("Extensions"));
         if (extensions != null) {
             for (COSName extName : extensions.keySet()) {
@@ -352,21 +332,23 @@ public class PDFParser extends AbstractParser {
             return;
         }
 
-        for (String lang : schema.getLanguagePropertyLanguages(property.getName())) {
-            String value = schema.getLanguageProperty(property.getName(), lang);
+        List<String> langs = schema.getUnqualifiedLanguagePropertyLanguagesValue(property.getName());
+        if (langs != null) {
+            for (String lang : langs) {
+                String value = schema.getUnqualifiedLanguagePropertyValue(property.getName(), lang);
 
-            if (value != null && value.length() > 0) {
-                //if you're going to add it below in the baseline addition, don't add it now
-                if (pdfBoxBaseline != null && value.equals(pdfBoxBaseline)) {
-                    continue;
-                }
-                metadata.add(property, value);
-                if (!property.isMultiValuePermitted()) {
-                    return;
+                if (value != null && value.length() > 0) {
+                    //if you're going to add it below in the baseline addition, don't add it now
+                    if (pdfBoxBaseline != null && value.equals(pdfBoxBaseline)) {
+                        continue;
+                    }
+                    metadata.add(property, value);
+                    if (!property.isMultiValuePermitted()) {
+                        return;
+                    }
                 }
             }
         }
-
         if (pdfBoxBaseline != null && pdfBoxBaseline.length() > 0) {
             //if we've already added something above and multivalue is not permitted
             //return.
@@ -400,7 +382,7 @@ public class PDFParser extends AbstractParser {
      * @param metadata
      */
     private void extractDublinCoreListItems(Metadata metadata, Property property,
-                                            String pdfBoxBaseline, XMPSchemaDublinCore dc) {
+                                            String pdfBoxBaseline, DublinCoreSchema dc) {
         //if no dc, add baseline and return
         if (dc == null) {
             if (pdfBoxBaseline != null && pdfBoxBaseline.length() > 0) {
@@ -437,9 +419,9 @@ public class PDFParser extends AbstractParser {
      * @return list of values or null
      */
     private List<String> getXMPBagOrSeqList(XMPSchema schema, String name) {
-        List<String> ret = schema.getBagList(name);
+        List<String> ret = schema.getUnqualifiedBagValueList(name);
         if (ret == null) {
-            ret = schema.getSequenceList(name);
+            ret = schema.getUnqualifiedSequenceValueList(name);
         }
         return ret;
     }
@@ -493,25 +475,6 @@ public class PDFParser extends AbstractParser {
 
     public void setPDFParserConfig(PDFParserConfig config) {
         this.defaultConfig = config;
-    }
-
-    /**
-     * @see #setUseNonSequentialParser(boolean)
-     * @deprecated use {@link #getPDFParserConfig()}
-     */
-    public boolean getUseNonSequentialParser() {
-        return defaultConfig.getUseNonSequentialParser();
-    }
-
-    /**
-     * If true, the parser will use the NonSequentialParser.  This may
-     * be faster than the full doc parser.
-     * If false (default), this will use the full doc parser.
-     *
-     * @deprecated use {@link #setPDFParserConfig(PDFParserConfig)}
-     */
-    public void setUseNonSequentialParser(boolean v) {
-        defaultConfig.setUseNonSequentialParser(v);
     }
 
     /**

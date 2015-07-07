@@ -24,14 +24,18 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.List;
 
-import org.apache.jempbox.xmp.XMPMetadata;
-import org.apache.jempbox.xmp.XMPSchemaDublinCore;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
-import org.xml.sax.InputSource;
+import org.apache.xmpbox.XMPMetadata;
+import org.apache.xmpbox.schema.DublinCoreSchema;
+import org.apache.xmpbox.xml.DomXmpParser;
+import org.apache.xmpbox.xml.XmpParsingException;
 
+/**
+ * For historical reasons, this is still called Jempbox, even though it is now using xmpbox.
+ */
 public class JempboxExtractor {
 
     // The XMP spec says it must be unicode, but for most file formats it specifies "must be encoded in UTF-8"
@@ -53,8 +57,11 @@ public class JempboxExtractor {
                 new ByteArrayInputStream(xmpraw.toByteArray()),
                 DEFAULT_XMP_CHARSET);
         try {
-            XMPMetadata xmp = XMPMetadata.load(new InputSource(decoded));
-            XMPSchemaDublinCore dc = xmp.getDublinCoreSchema();
+            DomXmpParser xmpParser = new DomXmpParser();
+            xmpParser.setStrictParsing(false);
+
+            XMPMetadata xmp = xmpParser.parse(xmpraw.toByteArray());
+            DublinCoreSchema dc = new DublinCoreSchema(xmp);
             if (dc != null) {
                 if (dc.getTitle() != null) {
                     metadata.set(TikaCoreProperties.TITLE, dc.getTitle());
@@ -73,7 +80,7 @@ public class JempboxExtractor {
                     // All tested photo managers set the same in Iptc.Application2.Keywords and Xmp.dc.subject
                 }
             }
-        } catch (IOException e) {
+        } catch (XmpParsingException e) {
             // Could not parse embedded XMP metadata. That's not a serious
             // problem, so we'll just ignore the issue for now.
             // TODO: Make error handling like this configurable.
