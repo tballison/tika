@@ -51,19 +51,21 @@ public class FileComparer extends AbstractProfiler {
 
     public static TableInfo COMPARISON_CONTAINERS = new TableInfo("containers",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
+            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, 512),
+            new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12),
             new ColInfo(Cols.LENGTH, Types.BIGINT),
             new ColInfo(Cols.EXTRACT_FILE_LENGTH_A, Types.BIGINT),
             new ColInfo(Cols.EXTRACT_FILE_LENGTH_B, Types.BIGINT)
     );
 
-    public static TableInfo CONTENT_COMPARISONS = new TableInfo( "content_comparisons",
-            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY_KEY"),
+    public static TableInfo CONTENT_COMPARISONS = new TableInfo("content_comparisons",
+            new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
             new ColInfo(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A, Types.VARCHAR, 1024),
             new ColInfo(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_B, Types.VARCHAR, 1024),
-        new ColInfo(Cols.TOP_10_MORE_IN_A, Types.VARCHAR, 1024),
-        new ColInfo(Cols.TOP_10_MORE_IN_B, Types.VARCHAR, 1024),
-        new ColInfo(Cols.DICE_COEFFICIENT, Types.FLOAT),
-        new ColInfo(Cols.OVERLAP, Types.FLOAT)
+            new ColInfo(Cols.TOP_10_MORE_IN_A, Types.VARCHAR, 1024),
+            new ColInfo(Cols.TOP_10_MORE_IN_B, Types.VARCHAR, 1024),
+            new ColInfo(Cols.DICE_COEFFICIENT, Types.FLOAT),
+            new ColInfo(Cols.OVERLAP, Types.FLOAT)
     );
 
     public static TableInfo PROFILES_A = new TableInfo( "profiles_a",

@@ -196,4 +196,14 @@ public class UnpackerResourceTest extends CXFTestBase {
         assertTrue(responseMsg.contains("test"));
     }
 
+    @Test
+    public void testFullRecursion() throws Exception {
+        Response response = WebClient.create(endPoint + UNPACKER_PATH)
+                .accept("application/zip")
+                .put(ClassLoader.getSystemResourceAsStream("test_recursive_embedded.docx"));
+
+        Map<String, String> data = readZipArchive((InputStream) response.getEntity());
+        assertEquals(2, data.size());
+    }
+
 }

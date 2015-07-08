@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<reports>
+    <before>
+<!--        <sql>create index on x</sql> -->
+    </before>
+    <report reportName="simpleReport"
+            reportDirectory="reportOut"
+            reportFilename="simpleReport.csv"
+            format="csv"
+            encoding="UTF-8"
+            includeSql="true">
+        <sql>select * from test_table</sql>
+        <colformats>
+            <col name="ID" type="numberFormatter">###,###</col>
+        </colformats>
+    </report>
+    <after>
+<!--        <sql>drop index on x</sql> -->
+    </after>
+</reports>

@@ -228,9 +228,9 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         String content = getContent(m, MAX_STRING_LENGTH);
         if (content == null || content.trim().length() == 0) {
-            data.put(Cols.HAS_CONTENT, TRUE);
-        } else {
             data.put(Cols.HAS_CONTENT, FALSE);
+        } else {
+            data.put(Cols.HAS_CONTENT, TRUE);
         }
         getFileTypes(m, data);
         try {
