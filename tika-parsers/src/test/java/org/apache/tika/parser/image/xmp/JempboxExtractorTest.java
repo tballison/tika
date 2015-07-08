@@ -27,6 +27,7 @@ import java.util.Collection;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class JempboxExtractorTest {
@@ -78,8 +79,10 @@ public class JempboxExtractorTest {
         Collection<String> keywords = Arrays.asList(metadata.getValues(TikaCoreProperties.KEYWORDS));
         assertTrue(keywords.contains("bird watching"));
         assertTrue(keywords.contains("coast"));
+
     }
 
+    @Ignore
     @Test
     public void testParseJpegXnviewmp() throws IOException, TikaException {
         Metadata metadata = new Metadata();

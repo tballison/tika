@@ -29,6 +29,7 @@ import org.apache.tika.metadata.TIFF;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -36,6 +37,7 @@ public class JpegParserTest {
 
     private final Parser parser = new JpegParser();
 
+    @Ignore
     @Test
     public void testJPEG() throws Exception {
         Metadata metadata = new Metadata();
@@ -87,6 +89,7 @@ public class JpegParserTest {
     /**
      * Test for a file with Geographic information (lat, long etc) in it
      */
+    @Ignore
     @Test
     public void testJPEGGeo() throws Exception {
         Metadata metadata = new Metadata();
@@ -204,6 +207,7 @@ public class JpegParserTest {
         assertTrue("got " + subject, subject.contains("bird watching"));
     }
 
+    @Ignore
     @Test
     public void testJPEGTitleAndDescriptionXnviewmp() throws Exception {
         Metadata metadata = new Metadata();

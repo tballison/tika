@@ -71,7 +71,6 @@ public class AdobeFontMetricParser extends AbstractParser {
        AFMParser  parser      = new AFMParser( stream );
 
        // Have FontBox process the file
-       parser.parse();
        fontMetrics = parser.parse();
 
        // Get the comments in the file to display in xhtml

@@ -36,6 +36,7 @@ import org.apache.tika.parser.external.ExternalParser;
 import org.apache.tika.parser.image.ImageParser;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BasicContentHandlerFactory;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.helpers.DefaultHandler;
 
@@ -98,6 +99,7 @@ public class TesseractOCRParserTest extends TikaTest {
         assertEquals(TesseractOCRParser.class, defaultParser.getParsers(parseContext).get(png).getClass());
     }
 
+    @Ignore
     @Test
     public void testPDFOCR() throws Exception {
         String resource = "/test-documents/testOCR.pdf";

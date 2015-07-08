@@ -33,49 +33,55 @@ import java.io.UnsupportedEncodingException;
  * <p/>
  * Thic class was branched from http://xmlgraphics.apache.org/ XMPPacketParser.
  * See also org.semanticdesktop.aperture.extractor.xmp.XMPExtractor, a variant.
+ * <p/>
+ * PDFBox's XMPBox started requiring the xpacket begin to parse.
+ * This differs from the original PacketScanner in that it captures the xpacket
+ * stream begin and end
  */
-public class XMPPacketScanner {
+public class NewXMPPacketScanner {
 
     private static final byte[] PACKET_HEADER;
     private static final byte[] PACKET_HEADER_END;
     private static final byte[] PACKET_TRAILER;
+    private static final byte[] PACKET_TRAILER_END;
+
+    private boolean inHit = false;//should we be capturing all bytes...are we in a hit?
 
     static {
         try {
             PACKET_HEADER = "<?xpacket begin=".getBytes("US-ASCII");
             PACKET_HEADER_END = "?>".getBytes("US-ASCII");
             PACKET_TRAILER = "<?xpacket".getBytes("US-ASCII");
+            PACKET_TRAILER_END = "?>".getBytes("US-ASCII");
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Incompatible JVM! US-ASCII encoding not supported.");
         }
     }
 
-    private static boolean skipAfter(InputStream in, byte[] match) throws IOException {
-        return skipAfter(in, match, null);
-    }
-
-    private static boolean skipAfter(InputStream in, byte[] match, OutputStream out)
+    private boolean find(InputStream in, byte[] match, OutputStream out)
             throws IOException {
         int found = 0;
         int len = match.length;
         int b;
+        boolean foundIt = false;
         while ((b = in.read()) >= 0) {
+            if (inHit) {
+                out.write(b);
+            }
             if (b == match[found]) {
                 found++;
                 if (found == len) {
-                    return true;
+                    foundIt = true;
+                    break;
                 }
             } else {
-                if (out != null) {
-                    if (found > 0) {
-                        out.write(match, 0, found);
-                    }
-                    out.write(b);
-                }
                 found = 0;
             }
         }
-        return false;
+        if (foundIt && !inHit) {//if you haven't already recorded it
+            out.write(match);
+        }
+        return foundIt;
     }
 
     /**
@@ -93,20 +99,23 @@ public class XMPPacketScanner {
      * @throws IOException          if an I/O error occurs
      */
     public boolean parse(InputStream in, OutputStream xmlOut) throws IOException {
-        if (!in.markSupported()) {
-            in = new java.io.BufferedInputStream(in);
-        }
-        boolean foundXMP = skipAfter(in, PACKET_HEADER);
+        inHit = false;//reset for consecutive parses
+
+        boolean foundXMP = find(in, PACKET_HEADER, xmlOut);
         if (!foundXMP) {
             return false;
         }
+        inHit = true;
         //TODO Inspect "begin" attribute!
-        if (!skipAfter(in, PACKET_HEADER_END)) {
+        if (!find(in, PACKET_HEADER_END, xmlOut)) {
             throw new IOException("Invalid XMP packet header!");
         }
         //TODO Do with TeeInputStream when Commons IO 1.4 is available
-        if (!skipAfter(in, PACKET_TRAILER, xmlOut)) {
+        if (!find(in, PACKET_TRAILER, xmlOut)) {
             throw new IOException("XMP packet not properly terminated!");
+        }
+        if (!find(in, PACKET_TRAILER_END, xmlOut)) {
+            throw new IOException("XMP packet trailer not properly terminated!");
         }
         return true;
     }

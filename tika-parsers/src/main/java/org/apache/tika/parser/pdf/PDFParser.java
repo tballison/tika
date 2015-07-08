@@ -263,8 +263,6 @@ public class PDFParser extends AbstractParser {
                 MEDIA_TYPE.toString() + "; version=" +
                         Float.toString(document.getDocument().getVersion()));
 
-        System.out.println("HERE: xmp:" + xmp);
-
         if (xmp != null) {
             PDFAIdentificationSchema pdfaidxmp = new PDFAIdentificationSchema(xmp);
             if (pdfaidxmp != null) {

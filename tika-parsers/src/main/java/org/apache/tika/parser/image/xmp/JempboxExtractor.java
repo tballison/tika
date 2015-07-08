@@ -16,12 +16,9 @@
  */
 package org.apache.tika.parser.image.xmp;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.List;
 
 import org.apache.tika.exception.TikaException;
@@ -40,7 +37,7 @@ public class JempboxExtractor {
 
     // The XMP spec says it must be unicode, but for most file formats it specifies "must be encoded in UTF-8"
     private static final String DEFAULT_XMP_CHARSET = IOUtils.UTF_8.name();
-    private XMPPacketScanner scanner = new XMPPacketScanner();
+    private NewXMPPacketScanner scanner = new NewXMPPacketScanner();
     private Metadata metadata;
 
     public JempboxExtractor(Metadata metadata) {
@@ -53,15 +50,15 @@ public class JempboxExtractor {
             return;
         }
 
-        Reader decoded = new InputStreamReader(
-                new ByteArrayInputStream(xmpraw.toByteArray()),
-                DEFAULT_XMP_CHARSET);
+
+        System.out.println(IOUtils.toString(xmpraw.toByteArray()));
         try {
             DomXmpParser xmpParser = new DomXmpParser();
             xmpParser.setStrictParsing(false);
 
             XMPMetadata xmp = xmpParser.parse(xmpraw.toByteArray());
-            DublinCoreSchema dc = new DublinCoreSchema(xmp);
+            DublinCoreSchema dc = xmp.getDublinCoreSchema();
+
             if (dc != null) {
                 if (dc.getTitle() != null) {
                     metadata.set(TikaCoreProperties.TITLE, dc.getTitle());
@@ -84,6 +81,7 @@ public class JempboxExtractor {
             // Could not parse embedded XMP metadata. That's not a serious
             // problem, so we'll just ignore the issue for now.
             // TODO: Make error handling like this configurable.
+            throw new RuntimeException(e);
         }
     }
 
