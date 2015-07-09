@@ -36,7 +36,7 @@
         child directory of the srcDir directory.
     -->
 	<crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
-        inputDir="src/test/resources/test-dirs/testA"
+        inputDir="src/test/resources/test-dirs/raw_input"
 		crawlOrder="sorted"
         maxConsecWaitMillis="5000"
 		maxFilesToAdd="-1" 
@@ -48,10 +48,10 @@
 
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.FileComparerBuilder"
-               rootDirA="src/test/resources/test-dirs/testA"
-               rootDirB="src/test/resources/test-dirs/testB"
+               rootDirA="src/test/resources/test-dirs/extractA"
+               rootDirB="src/test/resources/test-dirs/extractB"
+               inputDir="src/test/resources/test-dirs/raw_input"
                dbAppend="false"
-               crawlingInputDir="false"
                langModelDir="src/test/resources/langmodels"
                minJsonFileSizeBytes="-1"
                maxJsonFileSizeBytes="2000000"

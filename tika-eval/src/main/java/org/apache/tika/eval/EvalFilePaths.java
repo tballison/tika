@@ -25,8 +25,43 @@ import java.io.File;
  */
 class EvalFilePaths {
 
-        String sourceFileName;
-        String relativeSourceFilePath;
-        File extractFile;
-        long sourceFileLength = -1l;
+    String sourceFileName;
+    String relativeSourceFilePath;
+    File extractFile;
+    long sourceFileLength = -1l;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        EvalFilePaths that = (EvalFilePaths) o;
+
+        if (sourceFileLength != that.sourceFileLength) return false;
+        if (sourceFileName != null ? !sourceFileName.equals(that.sourceFileName) : that.sourceFileName != null)
+            return false;
+        if (relativeSourceFilePath != null ? !relativeSourceFilePath.equals(that.relativeSourceFilePath) : that.relativeSourceFilePath != null)
+            return false;
+        return !(extractFile != null ? !extractFile.equals(that.extractFile) : that.extractFile != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = sourceFileName != null ? sourceFileName.hashCode() : 0;
+        result = 31 * result + (relativeSourceFilePath != null ? relativeSourceFilePath.hashCode() : 0);
+        result = 31 * result + (extractFile != null ? extractFile.hashCode() : 0);
+        result = 31 * result + (int) (sourceFileLength ^ (sourceFileLength >>> 32));
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "EvalFilePaths{" +
+                "sourceFileName='" + sourceFileName + '\'' +
+                ", relativeSourceFilePath='" + relativeSourceFilePath + '\'' +
+                ", extractFile=" + extractFile +
+                ", sourceFileLength=" + sourceFileLength +
+                '}';
+    }
 }

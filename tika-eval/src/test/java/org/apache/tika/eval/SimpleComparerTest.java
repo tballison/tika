@@ -49,7 +49,7 @@ public class SimpleComparerTest extends TikaTest {
     @Before
     public void setUp() throws Exception {
         writer = new MockDBWriter();
-        comparer = new FileComparer(null, null, new File("testA"), new File("testB"),
+        comparer = new FileComparer(null, null, new File("extractA"), new File("extractB"),
                 writer, -1, -1);
     }
 
@@ -59,8 +59,8 @@ public class SimpleComparerTest extends TikaTest {
         EvalFilePaths fpsB = new EvalFilePaths();
         fpsA.sourceFileName = "file1.pdf.json";
         fpsB.sourceFileName = "file1.pdf.json";
-        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
-        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file1.pdf.json");
+        fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file1.pdf.json");
         comparer.compareFiles(fpsA, fpsB);
 
         List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
@@ -79,8 +79,8 @@ public class SimpleComparerTest extends TikaTest {
         EvalFilePaths fpsB = new EvalFilePaths();
         fpsA.sourceFileName = "file1.pdf";
         fpsB.sourceFileName = "file1.pdf";
-        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
-        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file4_emptyB.pdf.json");
+        fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file4_emptyB.pdf.json");
         comparer.compareFiles(fpsA, fpsB);
         List<Map<Cols, String>> table = writer.getTable(FileComparer.EXTRACT_ERRORS_B);
         Map<Cols, String> row = table.get(0);
@@ -116,8 +116,8 @@ public class SimpleComparerTest extends TikaTest {
         EvalFilePaths fpsB = new EvalFilePaths();
         fpsA.sourceFileName = "file6_accessEx.pdf.json";
         fpsB.sourceFileName = "file6_accessEx.pdf.json";
-        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file6_accessEx.pdf.json");
-        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file6_accessEx.pdf.json");
+        fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file6_accessEx.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file6_accessEx.pdf.json");
 
         comparer.compareFiles(fpsA, fpsB);
         for (TableInfo t : new TableInfo[]{FileComparer.PARSE_EXCEPTIONS_A, FileComparer.PARSE_EXCEPTIONS_B}) {
@@ -174,8 +174,8 @@ public class SimpleComparerTest extends TikaTest {
         EvalFilePaths fpsB = new EvalFilePaths();
         fpsA.sourceFileName = "file1.pdf.json";
         fpsB.sourceFileName = "file1.pdf.json";
-        fpsA.extractFile = getResourceAsFile("/test-dirs/testA/file1.pdf.json");
-        fpsB.extractFile = getResourceAsFile("/test-dirs/testB/file1.pdf.json");
+        fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file1.pdf.json");
+        fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file1.pdf.json");
         for (TableInfo t : new TableInfo[]{
                 FileComparer.COMPARISON_CONTAINERS,
                 FileComparer.PARSE_ERRORS_A,

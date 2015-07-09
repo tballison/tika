@@ -17,20 +17,19 @@
 
 package org.apache.tika.eval;
 
+import java.nio.file.Path;
+import java.sql.Connection;
+
 import org.apache.tika.batch.fs.FSBatchTestBase;
 
 public class ComparerBatchTest extends FSBatchTestBase {
-    /*
+
     public final static String COMPARER_PROCESS_CLASS = "org.apache.tika.batch.fs.FSBatchProcessCLI";
 
     private static Path dbDir;
     private static Connection conn;
 
-    private final static String compTable = FileComparer.COMPARISONS_TABLE;
-    private final static String contTable = AbstractProfiler.CONTAINERS_TABLE;
-    private final static String thisExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.aExtension;
-    private final static String thatExTable = AbstractProfiler.EXCEPTIONS_TABLE+ FileComparer.bExtension;
-    private final static String fp = AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name();
+    /*
     private final static String compJoinCont = FileComparer.COMPARISONS_TABLE+" cmp " +
             "join "+FileComparer.CONTAINERS_TABLE + " cnt "+
             "on cmp."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID+

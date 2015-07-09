@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<tika-batch-config
+        maxAliveTimeSeconds="-1"
+        pauseOnEarlyTerminationMillis="500"
+        timeoutCheckPulseMillis="1000"
+        maxQueueSize="10000"
+        numConsumers="5"
+        timeoutThresholdMillis="300000">
+
+    <commandline>
+        <option opt="c" longOpt="tika-config" hasArg="true"
+                description="TikaConfig file"/>
+
+        <option opt="bc" longOpt="batch-config" hasArg="true"
+                description="xml batch config file" required="true"/>
+        <option opt="inputDir" hasArg="true"
+                description="dir to start crawling"/>
+        <option opt="numConsumers" hasArg="true"
+                description="number of fileConsumers threads"/>
+        <option opt="extractDir" hasArg="true"
+                description="this dir contains the files containing extracted metadata/content" required="false"/>
+        <option opt="dbDir" hasArg="true"
+                description="name of db directory or file to which to write results"/>
+    </commandline>
+
+
+    <!--
+        Can also add startDir: this tells the crawler to start indexing a
+        child directory of the inputDir directory.
+    -->
+    <crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
+             inputDir="src/test/resources/test-dirs/raw_input"
+             crawlOrder="sorted"
+             maxConsecWaitMillis="5000"
+             maxFilesToAdd="-1"
+             maxFilesToConsider="-1"
+             includeFilePat=""
+             excludeFilePat=""
+             maxFileSizeBytes="-1"
+            />
+
+    <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
+               consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
+               extractDir="src/test/resources/test-dirs/extractA"
+               inputDir="src/test/resources/test-dirs/raw_input"
+               langModelDir="src/test/resources/langmodels"/>
+
+
+    <!-- reporter and interrupter are optional -->
+    <reporter builderClass="org.apache.tika.batch.builders.SimpleLogReporterBuilder" sleepMillis="1000"
+              staleThresholdMillis="500000"/>
+    <interrupter builderClass="org.apache.tika.batch.builders.InterrupterBuilder"/>
+</tika-batch-config>

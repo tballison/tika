@@ -159,13 +159,10 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     protected IDBWriter writer;
-    private final boolean crawlingInputDir;
 
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue,
-                            boolean crawlingInputDir,
                             IDBWriter writer) {
         super(fileQueue);
-        this.crawlingInputDir = crawlingInputDir;
         this.writer = writer;
     }
 
@@ -313,8 +310,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     List<Metadata> getMetadata(File thisFile) {
-        Reader reader = null;
         List<Metadata> metadataList = null;
+        if (thisFile == null || ! thisFile.exists()) {
+            return metadataList;
+        }
+        Reader reader = null;
         try {
             InputStream is = new FileInputStream(thisFile);
             if (thisFile.getName().endsWith("bz2")) {
@@ -659,18 +659,22 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     protected EvalFilePaths getFilePaths(Metadata metadata, File inputDir,
                                          File extractRootDir) {
         EvalFilePaths fp = new EvalFilePaths();
-        if (crawlingInputDir) {
+        if (inputDir != null && ! inputDir.equals(extractRootDir)) {
+            System.err.println("CRAWLING INPUTDIR");
             fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
             fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
             fp.extractFile = findFile(extractRootDir, fp.relativeSourceFilePath);
             File inputFile = new File(inputDir, fp.relativeSourceFilePath);
             fp.sourceFileLength = inputFile.length();
+            System.err.println(fp);
         } else {
+            System.err.println("NOT CRAWLING INPUTDIR");
             String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
             Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
             fp.relativeSourceFilePath = m.replaceAll("");
             fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
             fp.extractFile = new File(extractRootDir, relExtractFilePath);
+            System.err.println(fp);
         }
         return fp;
     }

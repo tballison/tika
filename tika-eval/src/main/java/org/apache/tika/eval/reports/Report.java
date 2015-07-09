@@ -28,6 +28,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,7 +42,7 @@ public class Report {
         HTML
     }
 
-    Map<String, ColFormatter> colFormats;
+    Map<String, ColFormatter> colFormats = new HashMap<>();
     String sql;
     String reportFilename;
     String reportDirectory;
@@ -91,6 +92,7 @@ public class Report {
                 p.printRecord(output);
             }
             p.flush();
+            w.flush();
             p.close();
         }
     }

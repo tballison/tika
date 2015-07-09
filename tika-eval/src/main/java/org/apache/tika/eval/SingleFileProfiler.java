@@ -108,7 +108,7 @@ public class SingleFileProfiler extends AbstractProfiler {
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
                               File inputDir, File extractDir,
                               IDBWriter dbWriter) {
-        super(queue, (inputDir !=null && inputDir.equals(extractDir)), dbWriter);
+        super(queue, dbWriter);
         this.inputDir = inputDir;
         this.extractDir = extractDir;
     }
@@ -118,7 +118,7 @@ public class SingleFileProfiler extends AbstractProfiler {
         Metadata metadata = fileResource.getMetadata();
         EvalFilePaths fps = getFilePaths(metadata, inputDir, extractDir);
         File extractA = fps.extractFile;
-
+        System.err.println("FPS: "+fps);
         List<Metadata> metadataList = getMetadata(extractA);
 
         Map<Cols, String> contOutput = new HashMap<>();

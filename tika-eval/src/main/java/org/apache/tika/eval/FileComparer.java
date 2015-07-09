@@ -119,7 +119,7 @@ public class FileComparer extends AbstractProfiler {
                         File inputDir, File extractDirA, File extractDirB,
                         IDBWriter writer, long minJsonLength,
                         long maxJsonLength) {
-        super(queue, (extractDirA.equals(inputDir)), writer);
+        super(queue, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
         this.inputDir = inputDir;
