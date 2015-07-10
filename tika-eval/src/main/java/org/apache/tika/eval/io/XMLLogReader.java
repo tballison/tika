@@ -37,42 +37,38 @@ public class XMLLogReader {
 
     public void read(InputStream xmlLogFileIs, XMLLogMsgHandler handler) throws XMLStreamException {
         InputStream is = new LogXMLWrappingInputStream(xmlLogFileIs);
-        XMLStreamReader reader = XMLInputFactory.newInstance().createXMLStreamReader(is);
+       /* try {
+            System.out.println("WRAPPED: " + IOUtils.toString(is)+ "<<WRAPPED");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }*/
+        XMLInputFactory factory = XMLInputFactory.newInstance();
+        XMLStreamReader reader = factory.createXMLStreamReader(is);
 
-        boolean inEvent = false;
-        boolean inMessage = false;
         Level level = null;
         while (reader.hasNext()) {
             reader.next();
             switch (reader.getEventType()) {
                 case XMLStreamConstants.START_ELEMENT :
                     if ("event".equals(reader.getLocalName())) {
-                        inEvent = true;
                         level = Level.toLevel(reader.getAttributeValue("", "level"), Level.DEBUG);
                     } else if ("message".equals(reader.getLocalName())) {
-                        inMessage = true;
-                    }
-                    System.out.println("Start"+reader.getLocalName());
-                    for (int i = 0; i < reader.getAttributeCount(); i++) {
-                        System.out.println("ATTR: " + reader.getAttributeName(i) + " : " + reader.getAttributeValue(i));
+                        try {
+                            handler.handleMsg(level, reader.getElementText());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            logger.warn("Error parsing: "+reader.getElementText());
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.warn("SQLException: "+e.getMessage());
+                        }
                     }
                     break;
                 case XMLStreamConstants.END_ELEMENT :
                     if ("event".equals(reader.getLocalName())) {
-                        inEvent = false;
                         level = null;
                     } else if ("message".equals(reader.getLocalName())) {
-                        inMessage = false;
-                    }
-                    System.out.println("END"+reader.getLocalName());
-                    break;
-                case XMLStreamConstants.CDATA :
-                    try {
-                        handler.handleMsg(level, reader.getText());
-                    } catch (IOException e) {
-                        logger.warn("Error parsing: "+reader.getText());
-                    } catch (SQLException e) {
-                        logger.warn("SQLException: "+reader.getText());
+                        //sdo we care any more?
                     }
                     break;
             };

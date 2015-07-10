@@ -24,7 +24,7 @@ import org.junit.Test;
 public class FatalExceptionReaderTest {
     @Test
     public void testSimpleRead() throws Exception {
-        InputStream is = this.getClass().getResourceAsStream("/test-documents/batch-process-fatal.xml");
+        InputStream is = this.getClass().getResourceAsStream("/test-dirs/batch-logs/batch-process-fatal.xml");
         XMLLogReader reader = new XMLLogReader();
         //reader.read(is);
     }

@@ -115,12 +115,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
 
     public enum EXTRACT_ERROR_TYPE {
+        //what do you see when you look at the extract file
         NO_EXTRACT_FILE,
         ZERO_BYTE_EXTRACT_FILE,
         EXTRACT_PARSE_EXCEPTION
     }
 
-    public enum PARSE_EXCEPTION_TYPE {
+    public enum EXCEPTION_TYPE {
         RUNTIME,
         ENCRYPTION,
         ACCESS_PERMISSION,
@@ -128,6 +129,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     public enum PARSE_ERROR_TYPE {
+        //what was gathered from the log file during the batch run
         OOM,
         TIMEOUT
     }
@@ -143,6 +145,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
 
 
+    final static int FILE_PATH_MAX_LEN = 512;//max len for varchar for file_path
     final static int MAX_STRING_LENGTH = 1000000;
     final static int MAX_LEN_FOR_LANG_ID = 20000;
     final static int TOP_N_WORDS = 10;
@@ -167,9 +170,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
 
-    protected void writeExtractError(TableInfo extractErrorTable, String containerId, File extractA) throws IOException {
+    protected void writeError(TableInfo extractErrorTable, String containerId,
+                              String filePath, File extractA) throws IOException {
         Map<Cols, String> data = new HashMap<>();
         data.put(Cols.CONTAINER_ID, containerId);
+        data.put(Cols.FILE_PATH, filePath);
         int errorCode = -1;
         if (extractA == null) {
             errorCode = EXTRACT_ERROR_TYPE.NO_EXTRACT_FILE.ordinal();
@@ -404,18 +409,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Matcher matcher = ACCESS_PERMISSION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
                 data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
-                        Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
+                        Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
             matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
                 data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
-                        Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
+                        Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
                 return;
             }
 
             data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
-                    Integer.toString(PARSE_EXCEPTION_TYPE.RUNTIME.ordinal()));
+                    Integer.toString(EXCEPTION_TYPE.RUNTIME.ordinal()));
 
             data.put(Cols.ORIG_STACK_TRACE, fullTrace);
             //TikaExceptions can have object ids, as in the "@2b1ea6ee" in:

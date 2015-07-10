@@ -17,26 +17,36 @@ package org.apache.tika.eval.batch;
  * limitations under the License.
  */
 
+import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.tika.batch.ConsumersManager;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.eval.AbstractProfiler;
+import org.apache.tika.eval.XMLErrorLogUpdater;
+import org.apache.tika.eval.db.DBUtil;
+import org.apache.tika.eval.db.TableInfo;
 
 
 public class DBConsumersManager extends ConsumersManager {
 
-//    private final Connection conn;
+    private Connection conn;
+    List<LogTablePair> errorLogs = new ArrayList<LogTablePair>();
 
-    public DBConsumersManager(List<FileResourceConsumer> consumers) {
+    public DBConsumersManager(DBUtil dbUtil, List<FileResourceConsumer> consumers)
+            throws IOException {
         super(consumers);
-  //      this.conn = conn;
+        this.conn = dbUtil.getConnection();
     }
 
 
     @Override
     public void shutdown() {
+
         for (FileResourceConsumer consumer : getConsumers()) {
             if (consumer instanceof AbstractProfiler) {
                 try{
@@ -46,7 +56,18 @@ public class DBConsumersManager extends ConsumersManager {
                 }
             }
         }
-/*        try {
+        //MUST HAPPEN AFTER consumers have closed and
+        //committed container information!!!
+        XMLErrorLogUpdater up = new XMLErrorLogUpdater();
+        for (LogTablePair p : errorLogs) {
+            try {
+                up.update(conn, p.tableInfo, p.log);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        try {
             conn.commit();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -55,6 +76,18 @@ public class DBConsumersManager extends ConsumersManager {
             conn.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
-        }*/
+        }
+    }
+
+    public void addErrorLogTablePair(File log, TableInfo tableName) {
+        LogTablePair p = new LogTablePair();
+        p.log = log;
+        p.tableInfo = tableName;
+        errorLogs.add(p);
+    }
+
+    class LogTablePair {
+        File log;
+        TableInfo tableInfo;
     }
 }

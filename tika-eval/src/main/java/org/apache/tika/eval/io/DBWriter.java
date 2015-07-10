@@ -130,11 +130,15 @@ public class DBWriter implements IDBWriter {
             mimeBuffer.close();
             conn.commit();
         } catch (SQLException e){
+            e.printStackTrace();
             throw new IOExceptionWithCause(e);
         }
-        try{
+        try {
+            System.err.println("dbwriter about to close");
             conn.close();
+            System.err.println("dbwriter closed");
         } catch (SQLException e) {
+            e.printStackTrace();
             throw new IOExceptionWithCause(e);
         }
 

@@ -55,9 +55,8 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         tableInfos.add(AbstractProfiler.REF_EXTRACT_ERROR_TYPES);
         tableInfos.add(SingleFileProfiler.CONTAINER_TABLE);
         tableInfos.add(SingleFileProfiler.PROFILE_TABLE);
-        tableInfos.add(SingleFileProfiler.EXTRACT_ERROR_TABLE);
-        tableInfos.add(SingleFileProfiler.PARSE_EXCEPTION_TABLE);
-        tableInfos.add(SingleFileProfiler.PARSE_ERROR_TABLE);
+        tableInfos.add(SingleFileProfiler.ERROR_TABLE);
+        tableInfos.add(SingleFileProfiler.EXCEPTION_TABLE);
         tableInfos.add(SingleFileProfiler.CONTENTS_TABLE);
         tableInfos.add(SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE);
         return tableInfos;
@@ -66,5 +65,15 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
     @Override
     protected IDBWriter getDBWriter() throws IOException, SQLException {
         return new DBWriter(getTableInfo(), TikaConfig.getDefaultConfig(), dbUtil);
+    }
+
+    @Override
+    protected void addErrorLogTablePairs(DBConsumersManager manager) {
+        File errorLog = PropsUtil.getFile(localAttrs.get("errorLogFile"), null);
+        System.err.println("ADDING ERROR LOG:"+errorLog);
+        if (errorLog == null) {
+            return;
+        }
+        manager.addErrorLogTablePair(errorLog, SingleFileProfiler.ERROR_TABLE);
     }
 }

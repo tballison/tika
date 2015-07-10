@@ -64,7 +64,15 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
             }
         }
 
-        return new DBConsumersManager(consumers);
+        DBConsumersManager manager;
+        try {
+            manager = new DBConsumersManager(util, consumers);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        consumerBuilder.addErrorLogTablePairs(manager);
+
+        return manager;
     }
 
 

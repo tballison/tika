@@ -35,6 +35,7 @@ import org.apache.log4j.Level;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.XMLLogMsgHandler;
 import org.apache.tika.eval.io.XMLLogReader;
 import org.apache.tika.io.IOExceptionWithCause;
@@ -44,28 +45,30 @@ import org.apache.tika.io.IOUtils;
  * This is a very task specific class that reads a log file and updates
  * the "comparisons" table.  It should not be run in a multithreaded environment.
  */
-class XMLFatalLogUpdater {
+public class XMLErrorLogUpdater {
     private Statement statement;
 
     public static void main(String[] args) throws Exception {
 
-        XMLFatalLogUpdater writer = new XMLFatalLogUpdater();
+        XMLErrorLogUpdater writer = new XMLErrorLogUpdater();
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
         File dbFile = new File(args[2]);
-        writer.execute(xmlLogFileA, FileComparer.PARSE_ERRORS_A.getName(), dbFile);
-        writer.execute(xmlLogFileB, FileComparer.PARSE_ERRORS_B.getName(), dbFile);
-    }
-
-    private void execute(File xmlLogFile, String tableName, File dbFile) throws Exception {
         DBUtil dbUtil = new H2Util(dbFile);
         Connection connection = dbUtil.getConnection();
+        writer.update(connection, FileComparer.ERROR_TABLE_A, xmlLogFileA);
+        writer.update(connection, FileComparer.ERROR_TABLE_B, xmlLogFileB);
+        connection.commit();
+        connection.close();
+    }
+
+    public void update(Connection connection, TableInfo tableInfo, File xmlLogFile) throws Exception {
         statement = connection.createStatement();
         XMLLogReader reader = new XMLLogReader();
         InputStream is = null;
         try {
             is = new FileInputStream(xmlLogFile);
-            reader.read(is, new FatalMsgUpdater(tableName));
+            reader.read(is, new ErrorMsgUpdater(tableInfo.getName()));
         } catch (IOException e) {
             throw new RuntimeException("Doh!");
         } finally {
@@ -73,23 +76,22 @@ class XMLFatalLogUpdater {
             try {
                 connection.commit();
                 statement.close();
-                connection.close();
             } catch (SQLException e) {
                 throw new RuntimeException("Failed to close db connection!", e);
             }
         }
     }
 
-    private class FatalMsgUpdater implements XMLLogMsgHandler {
+    private class ErrorMsgUpdater implements XMLLogMsgHandler {
         private final String errorTablename;
 
-        private FatalMsgUpdater(String errorTablename) {
+        private ErrorMsgUpdater(String errorTablename) {
             this.errorTablename = errorTablename;
         }
 
         @Override
         public void handleMsg(Level level, String xml) throws SQLException, IOException {
-            if (! level.equals(Level.FATAL)) {
+            if (! level.equals(Level.ERROR)) {
                 return;
             }
             XMLStreamReader reader = null;
@@ -105,7 +107,7 @@ class XMLFatalLogUpdater {
                     reader.next();
                     switch (reader.getEventType()) {
                         case XMLStreamConstants.START_ELEMENT:
-                            if ("timeout".equals(reader.getLocalName())) {
+                            if ("timed_out".equals(reader.getLocalName())) {
                                 resourceId = reader.getAttributeValue("", "resourceId");
                                 update(errorTablename, resourceId,
                                         AbstractProfiler.PARSE_ERROR_TYPE.TIMEOUT);
@@ -124,13 +126,63 @@ class XMLFatalLogUpdater {
         }
 
         private void update(String errorTableName,
-                            String resourceId, AbstractProfiler.PARSE_ERROR_TYPE type) throws SQLException {
+                            String filePath, AbstractProfiler.PARSE_ERROR_TYPE type) throws SQLException {
+            int containerId = getContainerId(filePath);
+            String sql = "SELECT count(1) from "+errorTableName +
+                    " where "+Cols.CONTAINER_ID +
+                    " = "+containerId + " or "+
+                    Cols.FILE_PATH + "='"+filePath+"'";
+            ResultSet rs = statement.executeQuery(sql);
 
+            //now try to figure out if that file already exists
+            //in parse errors
+            int hitCount = 0;
+            while (rs.next()) {
+                hitCount = rs.getInt(1);
+            }
+
+            //if it does, update all records matching that path or container id
+            if (hitCount > 0) {
+                sql = "UPDATE " + errorTableName +
+                        " SET " + Cols.PARSE_ERROR_TYPE_ID +
+                        " = " + type.ordinal() + ","+
+                        Cols.FILE_PATH + "='" +filePath+"'"+
+                        " where "+Cols.CONTAINER_ID +
+                        "="+containerId + " or "+
+                        Cols.FILE_PATH + "='"+filePath+"'";;
+
+            } else {
+                //if not and container id > -1
+                //insert full record
+                if (containerId > -1) {
+                    sql = "INSERT INTO " + errorTableName +
+                            " ("+Cols.CONTAINER_ID+","+Cols.FILE_PATH +","+Cols.PARSE_ERROR_TYPE_ID+")"+
+                            " values (" + containerId + ", '" + filePath + "'," +
+                            type.ordinal() + ");";
+                } else {
+                    //if container id == -1, insert only file path and parse error type id
+                    sql = "INSERT INTO " + errorTableName +
+                            " ("+Cols.FILE_PATH.name()+","+Cols.PARSE_ERROR_TYPE_ID+")"+
+                            "values ('" + filePath + "'," +
+                            type.ordinal() + ");";
+                }
+
+            }
+            int updated = statement.executeUpdate(sql);
+            if (updated == 0) {
+                //TODO: log
+                System.err.println("made no updates in xmlerrorlogupdater!");
+            } else if (updated > 1) {
+                System.err.println("made too many updates");
+            }
+        }
+
+        private int getContainerId(String resourceId) throws SQLException {
             int containerId = -1;
             String sql = "SELECT " + Cols.CONTAINER_ID.name() +
                     " from " + SingleFileProfiler.CONTAINER_TABLE.getName()+
                     " where " + Cols.FILE_PATH +
-                    " ="+resourceId;
+                    " ='"+resourceId+"'";
             ResultSet rs = statement.executeQuery(sql);
             int resultCount = 0;
             while (rs.next()) {
@@ -139,46 +191,31 @@ class XMLFatalLogUpdater {
             }
             rs.close();
 
+            if (resultCount == 0) {
+                //TODO: log
+                //log doh!
+            } else if (resultCount > 1) {
+                //this should _NEVER_ happen
+            }
+/*
             if (containerId < 0) {
-                sql = "SELECT MAX("+ Cols.CONTAINER_ID +
-                        ") from "+SingleFileProfiler.CONTAINER_TABLE;
+                System.err.println("CONTAINER ID < 0!!!");
+                sql = "SELECT MAX("+ Cols.CONTAINER_ID.name() +
+                        ") from "+SingleFileProfiler.CONTAINER_TABLE.getName();
                 rs = statement.executeQuery(sql);
                 while (rs.next()) {
                     containerId = rs.getInt(1);
                 }
                 rs.close();
                 if (containerId < 0) {
-                    containerId = 0;
+                    //log and abort
+                    //return -1?
                 } else {
                     containerId++;
                 }
 
-            }
-//TODO: DO NOT ALLOW GENERATION OF NEW FILE ID!!!!
-            sql = "SELECT count(1) from "+errorTableName +
-                    " where "+Cols.CONTAINER_ID +
-                    " = "+containerId;
-            rs = statement.executeQuery(sql);
-
-            int hitCount = 0;
-            while (rs.next()) {
-                hitCount++;
-            }
-
-            if (hitCount > 0) {
-                sql = "UPDATE " + errorTableName +
-                        " SET " + Cols.PARSE_ERROR_TYPE_ID +
-                        " = " + type.ordinal() +
-                        " where "+Cols.CONTAINER_ID +
-                        "="+containerId;
-
-            } else {
-                sql = "INSERT INTO " + errorTableName +
-                        " values (" + containerId+", "+type.ordinal()+","+
-                        AbstractProfiler.FALSE+");";
-
-            }
-            statement.executeUpdate(sql);
+            }*/
+            return containerId;
         }
 
 

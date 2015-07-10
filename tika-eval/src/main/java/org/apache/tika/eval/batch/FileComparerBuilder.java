@@ -69,12 +69,12 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         tableInfos.add(FileComparer.COMPARISON_CONTAINERS);
         tableInfos.add(FileComparer.PROFILES_A);
         tableInfos.add(FileComparer.PROFILES_B);
-        tableInfos.add(FileComparer.PARSE_ERRORS_A);
-        tableInfos.add(FileComparer.PARSE_ERRORS_B);
-        tableInfos.add(FileComparer.PARSE_EXCEPTIONS_A);
-        tableInfos.add(FileComparer.PARSE_EXCEPTIONS_B);
-        tableInfos.add(FileComparer.EXTRACT_ERRORS_A);
-        tableInfos.add(FileComparer.EXTRACT_ERRORS_B);
+        tableInfos.add(FileComparer.ERROR_TABLE_A);
+        tableInfos.add(FileComparer.ERROR_TABLE_B);
+        tableInfos.add(FileComparer.EXCEPTION_TABLE_A);
+        tableInfos.add(FileComparer.EXCEPTION_TABLE_B);
+        tableInfos.add(FileComparer.ERROR_TABLE_A);
+        tableInfos.add(FileComparer.ERROR_TABLE_B);
         tableInfos.add(FileComparer.CONTENTS_TABLE_A);
         tableInfos.add(FileComparer.CONTENTS_TABLE_B);
         tableInfos.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_A);
@@ -93,4 +93,20 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
     protected IDBWriter getDBWriter() throws IOException, SQLException {
         return new DBWriter(getTableInfo(), TikaConfig.getDefaultConfig(), dbUtil);
     }
+
+    @Override
+    protected void addErrorLogTablePairs(DBConsumersManager manager) {
+        File errorLogA = PropsUtil.getFile(localAttrs.get("errorLogFileA"), null);
+        if (errorLogA == null) {
+            return;
+        }
+        manager.addErrorLogTablePair(errorLogA, FileComparer.ERROR_TABLE_A);
+        File errorLogB = PropsUtil.getFile(localAttrs.get("errorLogFileB"), null);
+        if (errorLogB == null) {
+            return;
+        }
+        manager.addErrorLogTablePair(errorLogA, FileComparer.ERROR_TABLE_B);
+
+    }
+
 }

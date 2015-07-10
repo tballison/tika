@@ -39,18 +39,14 @@ import org.apache.tika.parser.RecursiveParserWrapper;
 public class SingleFileProfiler extends AbstractProfiler {
 
 
-    public static TableInfo EXTRACT_ERROR_TABLE = new TableInfo("extract_errors",
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.EXTRACT_ERROR_TYPE_ID, Types.INTEGER)
-    );
-
-    public static TableInfo PARSE_ERROR_TABLE = new TableInfo("parse_errors",
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
+    public static TableInfo ERROR_TABLE = new TableInfo("errors",
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),
+            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, FILE_PATH_MAX_LEN),
+            new ColInfo(Cols.EXTRACT_ERROR_TYPE_ID, Types.INTEGER),
             new ColInfo(Cols.PARSE_ERROR_TYPE_ID, Types.INTEGER)
     );
 
-
-    public static TableInfo PARSE_EXCEPTION_TABLE = new TableInfo("parse_exceptions",
+    public static TableInfo EXCEPTION_TABLE = new TableInfo("parse_exceptions",
             new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
             new ColInfo(Cols.ORIG_STACK_TRACE, Types.VARCHAR, 8192),
             new ColInfo(Cols.SORT_STACK_TRACE, Types.VARCHAR, 8192),
@@ -60,7 +56,7 @@ public class SingleFileProfiler extends AbstractProfiler {
 
     public static TableInfo CONTAINER_TABLE = new TableInfo("containers",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, 512),
+            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, FILE_PATH_MAX_LEN),
             new ColInfo(Cols.LENGTH, Types.BIGINT),
             new ColInfo(Cols.EXTRACT_FILE_LENGTH, Types.BIGINT)
     );
@@ -137,7 +133,8 @@ public class SingleFileProfiler extends AbstractProfiler {
 
         if (metadataList == null) {
             try {
-                writeExtractError(EXTRACT_ERROR_TABLE, containerId, extractA);
+                writeError(ERROR_TABLE, containerId,
+                        fps.relativeSourceFilePath, extractA);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -152,7 +149,7 @@ public class SingleFileProfiler extends AbstractProfiler {
             String fileId = Integer.toString(ID.incrementAndGet());
             writeProfileData(fps, i, m, fileId, containerId, numAttachments, PROFILE_TABLE);
             writeEmbeddedPathData(i, fileId, m, EMBEDDED_FILE_PATH_TABLE);
-            writeExceptionData(fileId, m, PARSE_EXCEPTION_TABLE);
+            writeExceptionData(fileId, m, EXCEPTION_TABLE);
             SingleFileTokenCounter counter = new SingleFileTokenCounter();
             writeContentData(fileId, m, counter, CONTENTS_TABLE);
             i++;

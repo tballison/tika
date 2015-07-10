@@ -53,7 +53,7 @@ public class ProfilerBatchTest {
     private static Connection conn;
 
     private final static String profileTable = SingleFileProfiler.PROFILE_TABLE.getName();
-    private final static String exTable = SingleFileProfiler.PARSE_EXCEPTION_TABLE.getName();
+    private final static String exTable = SingleFileProfiler.EXCEPTION_TABLE.getName();
     private final static String fpCol = Cols.FILE_PATH.name();
 
     @BeforeClass
@@ -116,9 +116,9 @@ public class ProfilerBatchTest {
         debugTable(SingleFileProfiler.CONTAINER_TABLE);
         debugTable(SingleFileProfiler.PROFILE_TABLE);
         debugTable(SingleFileProfiler.CONTENTS_TABLE);
-        debugTable(SingleFileProfiler.PARSE_EXCEPTION_TABLE);
-        debugTable(SingleFileProfiler.EXTRACT_ERROR_TABLE);
-        assertEquals(9, fNameList.size());
+        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
+        debugTable(SingleFileProfiler.ERROR_TABLE);
+        assertEquals(11, fNameList.size());
         assertTrue("file1.pdf", fNameList.contains("file1.pdf"));
         assertTrue("file2_attachANotB.doc", fNameList.contains("file2_attachANotB.doc"));
         assertTrue("file3_attachBNotA.doc", fNameList.contains("file3_attachBNotA.doc"));
@@ -137,8 +137,8 @@ public class ProfilerBatchTest {
         debugTable(SingleFileProfiler.CONTAINER_TABLE);
         debugTable(SingleFileProfiler.PROFILE_TABLE);
         debugTable(SingleFileProfiler.CONTENTS_TABLE);
-        debugTable(SingleFileProfiler.PARSE_EXCEPTION_TABLE);
-        debugTable(SingleFileProfiler.EXTRACT_ERROR_TABLE);
+        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
+        debugTable(SingleFileProfiler.ERROR_TABLE);
 
         sql = "select EXTRACT_ERROR_TYPE_ID from extract_errors e" +
                 " join containers c on c.container_id = e.container_id "+
@@ -150,6 +150,27 @@ public class ProfilerBatchTest {
                 " join containers c on c.container_id = e.container_id "+
                 " where file_path='file7_badJson.pdf'";
         assertEquals("extract error:file7_badJson.pdf", "2",
+                getSingleResult(sql));
+
+    }
+
+    @Test
+    public void testParseErrors() throws Exception {
+        debugTable(SingleFileProfiler.ERROR_TABLE);
+        String sql = "select file_path from errors where container_id is null";
+        assertEquals("file10_permahang.txt",
+                getSingleResult(sql));
+
+        sql = "select extract_error_type_id from errors where file_path='file11_oom.txt'";
+        assertEquals(Integer.toString(AbstractProfiler.
+                        EXTRACT_ERROR_TYPE.
+                        ZERO_BYTE_EXTRACT_FILE.ordinal()),
+                getSingleResult(sql));
+
+        sql = "select parse_error_type_id from errors where file_path='file11_oom.txt'";
+        assertEquals(Integer.toString(AbstractProfiler.
+                        PARSE_ERROR_TYPE.
+                        OOM.ordinal()),
                 getSingleResult(sql));
 
     }
@@ -187,14 +208,19 @@ public class ProfilerBatchTest {
                 System.out.print(rs.getMetaData().getColumnName(i));
             }
             System.out.println("");
+            int rowCount = 0;
             while (rs.next()) {
                 for (int i = 1; i <= colCount; i++) {
                     if (i > 1) {
                         System.out.print(" | ");
                     }
                     System.out.print(rs.getString(i));
+                    rowCount++;
                 }
                 System.out.println("");
+            }
+            if (rowCount == 0) {
+                System.out.println(table.getName() + " was empty");
             }
         } finally {
             if (st != null) {

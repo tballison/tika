@@ -82,7 +82,7 @@ public class SimpleComparerTest extends TikaTest {
         fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file1.pdf.json");
         fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file4_emptyB.pdf.json");
         comparer.compareFiles(fpsA, fpsB);
-        List<Map<Cols, String>> table = writer.getTable(FileComparer.EXTRACT_ERRORS_B);
+        List<Map<Cols, String>> table = writer.getTable(FileComparer.ERROR_TABLE_B);
         Map<Cols, String> row = table.get(0);
         debugPrintRow(row);
         assertEquals(Integer.toString(EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal()),
@@ -120,12 +120,12 @@ public class SimpleComparerTest extends TikaTest {
         fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file6_accessEx.pdf.json");
 
         comparer.compareFiles(fpsA, fpsB);
-        for (TableInfo t : new TableInfo[]{FileComparer.PARSE_EXCEPTIONS_A, FileComparer.PARSE_EXCEPTIONS_B}) {
+        for (TableInfo t : new TableInfo[]{FileComparer.EXCEPTION_TABLE_A, FileComparer.EXCEPTION_TABLE_B}) {
             List<Map<Cols, String>> table = writer.getTable(t);
 
             Map<Cols, String> rowA = table.get(0);
             debugPrintRow(rowA);
-            assertEquals(Integer.toString(PARSE_EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
+            assertEquals(Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
                     rowA.get(Cols.PARSE_EXCEPTION_TYPE_ID));
             assertNull(rowA.get(Cols.ORIG_STACK_TRACE));
             assertNull(rowA.get(Cols.SORT_STACK_TRACE));
@@ -178,10 +178,10 @@ public class SimpleComparerTest extends TikaTest {
         fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file1.pdf.json");
         for (TableInfo t : new TableInfo[]{
                 FileComparer.COMPARISON_CONTAINERS,
-                FileComparer.PARSE_ERRORS_A,
-                FileComparer.PARSE_ERRORS_B,
-                FileComparer.PARSE_EXCEPTIONS_A,
-                FileComparer.PARSE_EXCEPTIONS_B,
+                FileComparer.ERROR_TABLE_A,
+                FileComparer.ERROR_TABLE_B,
+                FileComparer.EXCEPTION_TABLE_A,
+                FileComparer.EXCEPTION_TABLE_B,
                 FileComparer.PROFILES_A,
                 FileComparer.PROFILES_B,
                 FileComparer.CONTENTS_TABLE_A,

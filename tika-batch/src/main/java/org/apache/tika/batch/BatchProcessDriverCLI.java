@@ -54,6 +54,8 @@ public class BatchProcessDriverCLI {
     //message has been received through stdout, but the
     //child process has not yet exited
     private int waitNumLoopsAfterRestartmessage = 60;
+    int loopsAfterRestartMessageReceived = 0;
+
 
 
     private volatile boolean userInterrupted = false;
@@ -136,10 +138,11 @@ public class BatchProcessDriverCLI {
             //if we've gotten the message via stdout to restart
             //but the process hasn't exited yet, give it another
             //chance
-            if (receivedRestartMsg && exit == null) {
+            if (receivedRestartMsg && exit == null &&
+                    loopsAfterRestartMessageReceived <= waitNumLoopsAfterRestartmessage) {
                 loopsAfterRestartMessageReceived++;
                 logger.warn("Must restart, still not exited; loops after restart: " +
-                            loopsAfterRestartMessageReceived);
+                        loopsAfterRestartMessageReceived);
                 continue;
             }
             if (loopsAfterRestartMessageReceived > waitNumLoopsAfterRestartmessage) {
@@ -225,6 +228,8 @@ public class BatchProcessDriverCLI {
                 " receivedRestartMessage="+receivedRestartMsg+")");
         stop();
         start();
+        loopsAfterRestartMessageReceived = 0;
+
         numRestarts++;
         return true;
     }

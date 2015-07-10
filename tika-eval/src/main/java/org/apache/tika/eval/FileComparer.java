@@ -51,7 +51,7 @@ public class FileComparer extends AbstractProfiler {
 
     public static TableInfo COMPARISON_CONTAINERS = new TableInfo("containers",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, 512),
+            new ColInfo(Cols.FILE_PATH, Types.VARCHAR, FILE_PATH_MAX_LEN),
             new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12),
             new ColInfo(Cols.LENGTH, Types.BIGINT),
             new ColInfo(Cols.EXTRACT_FILE_LENGTH_A, Types.BIGINT),
@@ -87,21 +87,16 @@ public class FileComparer extends AbstractProfiler {
     public static TableInfo CONTENTS_TABLE_B = new TableInfo( "contents_b",
             SingleFileProfiler.CONTENTS_TABLE.getColInfos());
 
-    public static TableInfo PARSE_EXCEPTIONS_A = new TableInfo ("parse_exceptions_a",
-            SingleFileProfiler.PARSE_EXCEPTION_TABLE.getColInfos());
+    public static TableInfo EXCEPTION_TABLE_A = new TableInfo ("exceptions_a",
+            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
 
-    public static TableInfo PARSE_EXCEPTIONS_B = new TableInfo ("parse_exceptions_b",
-            SingleFileProfiler.PARSE_EXCEPTION_TABLE.getColInfos());
+    public static TableInfo EXCEPTION_TABLE_B = new TableInfo ("exceptions_b",
+            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
 
-    public static TableInfo PARSE_ERRORS_A = new TableInfo("parse_errors_a",
-            SingleFileProfiler.PARSE_ERROR_TABLE.getColInfos());
-    public static TableInfo PARSE_ERRORS_B = new TableInfo("parse_errors_b",
-            SingleFileProfiler.PARSE_ERROR_TABLE.getColInfos());
-
-    public static TableInfo EXTRACT_ERRORS_A = new TableInfo("extract_errors_a",
-            SingleFileProfiler.EXTRACT_ERROR_TABLE.getColInfos());
-    public static TableInfo EXTRACT_ERRORS_B = new TableInfo("extract_errors_b",
-            SingleFileProfiler.EXTRACT_ERROR_TABLE.getColInfos());
+    public static TableInfo ERROR_TABLE_A = new TableInfo("extract_errors_a",
+            SingleFileProfiler.ERROR_TABLE.getColInfos());
+    public static TableInfo ERROR_TABLE_B = new TableInfo("extract_errors_b",
+            SingleFileProfiler.ERROR_TABLE.getColInfos());
 
 
     //need to parameterize?
@@ -180,10 +175,12 @@ public class FileComparer extends AbstractProfiler {
         writer.writeRow(COMPARISON_CONTAINERS, contData);
 
         if (metadataListA == null) {
-            writeExtractError(EXTRACT_ERRORS_A, containerID, fpsA.extractFile);
+            writeError(ERROR_TABLE_A, containerID, fpsA.relativeSourceFilePath,
+                    fpsA.extractFile);
         }
         if (metadataListB == null) {
-            writeExtractError(EXTRACT_ERRORS_B, containerID, fpsB.extractFile);
+            writeError(ERROR_TABLE_B, containerID, fpsB.relativeSourceFilePath,
+                    fpsB.extractFile);
         }
 
         if (metadataListA == null && metadataListB == null) {
@@ -200,7 +197,7 @@ public class FileComparer extends AbstractProfiler {
                 Metadata metadataB = null;
                 //TODO: shouldn't be fileA!!!!
                 writeProfileData(fpsA, i, metadataA, fileId, containerID, numAttachmentsA, PROFILES_A);
-                writeExceptionData(fileId, metadataA, PARSE_EXCEPTIONS_A);
+                writeExceptionData(fileId, metadataA, EXCEPTION_TABLE_A);
                 int matchIndex = getMatch(i, metadataListA, metadataListB);
 
                 if (matchIndex > -1) {
@@ -209,7 +206,7 @@ public class FileComparer extends AbstractProfiler {
                 }
                 if (metadataB != null) {
                     writeProfileData(fpsB, i, metadataB, fileId, containerID, numAttachmentsB, PROFILES_B);
-                    writeExceptionData(fileId, metadataB, PARSE_EXCEPTIONS_B);
+                    writeExceptionData(fileId, metadataB, EXCEPTION_TABLE_B);
                 }
                 writeEmbeddedFilePathData(i, fileId, metadataA, metadataB);
                 //prep the token counting
@@ -240,7 +237,7 @@ public class FileComparer extends AbstractProfiler {
                 String fileId = Integer.toString(ID.getAndIncrement());
                 writeProfileData(fpsB, i, m, fileId, containerID, numAttachmentsB, PROFILES_B);
                 writeEmbeddedFilePathData(i, fileId, null, m);
-                writeExceptionData(fileId, m, PARSE_EXCEPTIONS_B);
+                writeExceptionData(fileId, m, EXCEPTION_TABLE_B);
                 //prep the token counting
                 Map<String, PairCount> tokens = new HashMap<String, PairCount>();
                 TokenCounter counter = new CounterB(tokens);

@@ -35,6 +35,8 @@ public abstract class EvalConsumerBuilder {
 
     protected abstract IDBWriter getDBWriter() throws IOException, SQLException;
 
+    protected abstract void addErrorLogTablePairs(DBConsumersManager manager);
+
     public void populateRefTables(IDBWriter writer) throws IOException, SQLException {
         //figure out cleaner way of doing this!
         if (count.getAndIncrement() > 0) {
@@ -48,7 +50,7 @@ public abstract class EvalConsumerBuilder {
             writer.writeRow(AbstractProfiler.REF_PARSE_ERROR_TYPES, m);
         }
 
-        for (AbstractProfiler.PARSE_EXCEPTION_TYPE t : AbstractProfiler.PARSE_EXCEPTION_TYPE.values()) {
+        for (AbstractProfiler.EXCEPTION_TYPE t : AbstractProfiler.EXCEPTION_TYPE.values()) {
             m.clear();
             m.put(Cols.PARSE_EXCEPTION_TYPE_ID, Integer.toString(t.ordinal()));
             m.put(Cols.PARSE_EXCEPTION_DESCRIPTION, t.name());
