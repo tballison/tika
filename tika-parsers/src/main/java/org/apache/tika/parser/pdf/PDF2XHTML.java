@@ -54,6 +54,7 @@ import org.apache.pdfbox.pdmodel.interactive.form.PDAcroForm;
 import org.apache.pdfbox.pdmodel.interactive.form.PDField;
 import org.apache.pdfbox.pdmodel.interactive.form.PDNonTerminalField;
 import org.apache.pdfbox.pdmodel.interactive.form.PDSignatureField;
+import org.apache.pdfbox.pdmodel.interactive.form.PDTerminalField;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
 import org.apache.tika.exception.TikaException;
@@ -577,8 +578,6 @@ class PDF2XHTML extends PDFTextStripper {
             return;
         }
 
-        addFieldString(field, handler);
-
         if (field instanceof PDNonTerminalField) {
             int r = currentRecursiveDepth + 1;
             handler.startElement("ol");
@@ -587,10 +586,12 @@ class PDF2XHTML extends PDFTextStripper {
                 processAcroField(child, handler, r);
             }
             handler.endElement("ol");
+        } else if (field instanceof PDTerminalField) {
+            addFieldString((PDTerminalField)field, handler);
         }
     }
 
-    private void addFieldString(PDField field, XHTMLContentHandler handler) throws SAXException {
+    private void addFieldString(PDTerminalField field, XHTMLContentHandler handler) throws SAXException {
         //Pick partial name to present in content and altName for attribute
         //Ignoring FullyQualifiedName for now
         String partName = field.getPartialName();
