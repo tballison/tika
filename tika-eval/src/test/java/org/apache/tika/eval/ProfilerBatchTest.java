@@ -118,7 +118,7 @@ public class ProfilerBatchTest {
         debugTable(SingleFileProfiler.CONTENTS_TABLE);
         debugTable(SingleFileProfiler.EXCEPTION_TABLE);
         debugTable(SingleFileProfiler.ERROR_TABLE);
-        assertEquals(11, fNameList.size());
+        assertEquals(10, fNameList.size());
         assertTrue("file1.pdf", fNameList.contains("file1.pdf"));
         assertTrue("file2_attachANotB.doc", fNameList.contains("file2_attachANotB.doc"));
         assertTrue("file3_attachBNotA.doc", fNameList.contains("file3_attachBNotA.doc"));
@@ -128,9 +128,9 @@ public class ProfilerBatchTest {
 
     @Test
     public void testExtractErrors() throws Exception {
-        String sql = "select EXTRACT_ERROR_TYPE_ID from extract_errors e" +
+        String sql = "select EXTRACT_ERROR_TYPE_ID from errors e" +
                 " join containers c on c.container_id = e.container_id "+
-                " where file_path='file9_noextract.txt'";
+                " where c.file_path='file9_noextract.txt'";
 
         assertEquals("missing extract: file9_noextract.txt", "0",
                 getSingleResult(sql));
@@ -140,15 +140,15 @@ public class ProfilerBatchTest {
         debugTable(SingleFileProfiler.EXCEPTION_TABLE);
         debugTable(SingleFileProfiler.ERROR_TABLE);
 
-        sql = "select EXTRACT_ERROR_TYPE_ID from extract_errors e" +
+        sql = "select EXTRACT_ERROR_TYPE_ID from errors e" +
                 " join containers c on c.container_id = e.container_id "+
-                " where file_path='file5_emptyA.pdf'";
+                " where c.file_path='file5_emptyA.pdf'";
         assertEquals("empty extract: file5_emptyA.pdf", "1",
                 getSingleResult(sql));
 
-        sql = "select EXTRACT_ERROR_TYPE_ID from extract_errors e" +
+        sql = "select EXTRACT_ERROR_TYPE_ID from errors e" +
                 " join containers c on c.container_id = e.container_id "+
-                " where file_path='file7_badJson.pdf'";
+                " where c.file_path='file7_badJson.pdf'";
         assertEquals("extract error:file7_badJson.pdf", "2",
                 getSingleResult(sql));
 

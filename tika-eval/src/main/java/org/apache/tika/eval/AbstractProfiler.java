@@ -661,26 +661,38 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    protected EvalFilePaths getFilePaths(Metadata metadata, File inputDir,
-                                         File extractRootDir) {
+    /**
+     *
+     * @param metadata
+     * @param extractDir
+     * @return evalfilepaths for files if crawling an extract directory
+     */
+    protected EvalFilePaths getPathsFromExtractCrawl(Metadata metadata,
+                                                     File extractDir) {
         EvalFilePaths fp = new EvalFilePaths();
-        if (inputDir != null && ! inputDir.equals(extractRootDir)) {
-            System.err.println("CRAWLING INPUTDIR");
-            fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
-            fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
-            fp.extractFile = findFile(extractRootDir, fp.relativeSourceFilePath);
-            File inputFile = new File(inputDir, fp.relativeSourceFilePath);
-            fp.sourceFileLength = inputFile.length();
-            System.err.println(fp);
-        } else {
-            System.err.println("NOT CRAWLING INPUTDIR");
-            String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
-            Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
-            fp.relativeSourceFilePath = m.replaceAll("");
-            fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
-            fp.extractFile = new File(extractRootDir, relExtractFilePath);
-            System.err.println(fp);
+        String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
+        Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
+        fp.relativeSourceFilePath = m.replaceAll("");
+        fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
+        //just try slapping the relextractfilepath on the extractdir
+        fp.extractFile = new File(extractDir, relExtractFilePath);
+        if (! fp.extractFile.exists()) {
+            //if that doesn't work, try to find the right extract file.
+            //This is necessary if crawling extractDirA and trying to find a file in
+            //extractDirB that is not in the same format: json vs txt or compressed
+            fp.extractFile = findFile(extractDir, fp.relativeSourceFilePath);
         }
+        return fp;
+    }
+    //call this if the crawler is crawling through the src directory
+    protected EvalFilePaths getPathsFromSrcCrawl(Metadata metadata, File srcDir,
+                                                 File extractDir) {
+        EvalFilePaths fp = new EvalFilePaths();
+        fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
+        fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
+        fp.extractFile = findFile(extractDir, fp.relativeSourceFilePath);
+        File inputFile = new File(srcDir, fp.relativeSourceFilePath);
+        fp.sourceFileLength = inputFile.length();
         return fp;
     }
 

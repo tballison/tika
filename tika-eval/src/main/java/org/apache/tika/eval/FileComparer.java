@@ -125,9 +125,19 @@ public class FileComparer extends AbstractProfiler {
     @Override
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
+        EvalFilePaths fpsA = null;
+        EvalFilePaths fpsB = null;
 
-        EvalFilePaths fpsA = getFilePaths(metadata, inputDir, extractDirA);
-        EvalFilePaths fpsB = getFilePaths(metadata, inputDir, extractDirB);
+        if (inputDir != null && (inputDir.equals(extractDirA) ||
+                inputDir.equals(extractDirB))) {
+            //crawling an extract dir
+            fpsA = getPathsFromExtractCrawl(metadata, extractDirA);
+            fpsB = getPathsFromExtractCrawl(metadata, extractDirB);
+
+        } else {
+            fpsA = getPathsFromSrcCrawl(metadata, inputDir, extractDirA);
+            fpsB = getPathsFromSrcCrawl(metadata, inputDir, extractDirB);
+        }
 
         if (minJsonLength > -1) {
             if (fpsA.extractFile.length() < minJsonLength

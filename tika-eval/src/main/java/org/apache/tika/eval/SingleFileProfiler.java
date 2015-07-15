@@ -112,7 +112,14 @@ public class SingleFileProfiler extends AbstractProfiler {
     @Override
     public boolean processFileResource(FileResource fileResource) {
         Metadata metadata = fileResource.getMetadata();
-        EvalFilePaths fps = getFilePaths(metadata, inputDir, extractDir);
+        EvalFilePaths fps = null;
+
+        if (inputDir != null && inputDir.equals(extractDir)) {
+            //crawling an extract dir
+            fps = getPathsFromExtractCrawl(metadata, extractDir);
+        } else {
+            fps = getPathsFromSrcCrawl(metadata, inputDir, extractDir);
+        }
         File extractA = fps.extractFile;
         System.err.println("FPS: "+fps);
         List<Metadata> metadataList = getMetadata(extractA);
