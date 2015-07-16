@@ -684,7 +684,6 @@ public class PDFParserTest extends TikaTest {
         assertTrue("found", (xml.contains("<li>aTextField: TIKA-1226</li>")));
     }
 
-    @Ignore
     @Test // TIKA-1228, TIKA-1268
     public void testEmbeddedFilesInChildren() throws Exception {
         String xml = getXML("/testPDF_childAttachments.pdf").xml;
@@ -716,11 +715,11 @@ public class PDFParserTest extends TikaTest {
         assertEquals(5, metadatas.size());
         assertNull(metadatas.get(0).get(Metadata.RESOURCE_NAME_KEY));
         assertEquals("image0.jpg", metadatas.get(1).get(Metadata.RESOURCE_NAME_KEY));
-        assertEquals("Press Quality(1).joboptions", metadatas.get(3).get(Metadata.RESOURCE_NAME_KEY));
-        assertEquals("Unit10.doc", metadatas.get(4).get(Metadata.RESOURCE_NAME_KEY));
         assertEquals(MediaType.image("jpeg").toString(), metadatas.get(1).get(Metadata.CONTENT_TYPE));
-        assertEquals(MediaType.image("tiff").toString(), metadatas.get(2).get(Metadata.CONTENT_TYPE));
+        assertEquals("image/tiff", metadatas.get(2).get(Metadata.CONTENT_TYPE));
+        assertEquals("Press Quality(1).joboptions", metadatas.get(3).get(Metadata.RESOURCE_NAME_KEY));
         assertEquals("text/plain; charset=ISO-8859-1", metadatas.get(3).get(Metadata.CONTENT_TYPE));
+        assertEquals("Unit10.doc", metadatas.get(4).get(Metadata.RESOURCE_NAME_KEY));
         assertEquals(TYPE_DOC.toString(), metadatas.get(4).get(Metadata.CONTENT_TYPE));
     }
 
@@ -745,8 +744,8 @@ public class PDFParserTest extends TikaTest {
         assertEquals(1, ((EventCountingHandler) h).getEndDocument());
     }
 
-    @Ignore
     @Test
+    @Ignore
     public void testVersions() throws Exception {
 
         Map<String, String> dcFormat = new HashMap<>();
@@ -879,7 +878,6 @@ public class PDFParserTest extends TikaTest {
         assertEquals("Hello World", m.get("dc:title"));
     }
 
-    @Ignore
     @Test
     public void testInlineSelector() throws Exception {
 
@@ -947,7 +945,6 @@ public class PDFParserTest extends TikaTest {
     }
 
 
-    @Ignore
     @Test
     public void testInlineConfig() throws Exception {
 
@@ -1056,7 +1053,6 @@ public class PDFParserTest extends TikaTest {
 
     }
 
-    @Ignore
     @Test //TIKA-1427
     public void testEmbeddedFileMarkup() throws Exception {
         Parser parser = new AutoDetectParser();

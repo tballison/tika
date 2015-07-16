@@ -16,8 +16,8 @@
  */
 package org.apache.tika.parser.pdf;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -57,6 +57,7 @@ import org.apache.pdfbox.pdmodel.interactive.form.PDSignatureField;
 import org.apache.pdfbox.pdmodel.interactive.form.PDTerminalField;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
+import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
@@ -360,10 +361,14 @@ class PDF2XHTML extends PDFTextStripper {
                 EmbeddedDocumentExtractor extractor =
                         getEmbeddedDocumentExtractor();
                 if (extractor.shouldParseEmbedded(metadata)) {
-
-                    try (InputStream imageIs = image.getStream().createInputStream()){
+                    try {
+                        ByteArrayOutputStream os = new ByteArrayOutputStream();
+                        //if a file type is to be processed (e.g. tiff) for which
+                        //there is no library available, a 0-byte array will be passed
+                        //into the parser and an exception will be thrown.
+                        ImageIOUtil.writeImage(image.getImage(), extension, os);
                         extractor.parseEmbedded(
-                                imageIs,
+                                TikaInputStream.get(os.toByteArray()),
                                 new EmbeddedContentHandler(handler),
                                 metadata, false);
                     } catch (IOException e) {

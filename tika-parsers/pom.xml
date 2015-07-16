@@ -77,12 +77,22 @@
       <artifactId>vorbis-java-tika</artifactId>
       <version>${vorbis.version}</version>
     </dependency>
-<dependency>
+    <dependency>
       <groupId>com.healthmarketscience.jackcess</groupId>
       <artifactId>jackcess</artifactId>
       <version>2.1.2</version>
     </dependency>
-
+    <dependency>
+      <groupId>com.healthmarketscience.jackcess</groupId>
+      <artifactId>jackcess-encrypt</artifactId>
+      <version>2.1.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk15</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <!-- Optional OSGi dependencies, used only when running within OSGi -->
     <dependency>
       <groupId>org.apache.felix</groupId>
@@ -127,9 +137,16 @@
       <artifactId>pdfbox</artifactId>
       <version>${pdfbox.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox-tools</artifactId>
+      <version>${pdfbox.version}</version>
+    </dependency>
+
     <!-- TIKA-370: PDFBox declares the Bouncy Castle dependencies
          as optional, but we prefer to have them always to avoid
-         problems with encrypted PDFs. -->
+         problems with encrypted PDFs.
+         POI and Jackcess also require these libraries -->
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcmail-jdk15on</artifactId>

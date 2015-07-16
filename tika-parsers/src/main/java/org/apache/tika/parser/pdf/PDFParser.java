@@ -91,6 +91,7 @@ public class PDFParser extends AbstractParser {
      * Serial version UID
      */
     private static final long serialVersionUID = -752276948656079347L;
+    private static final long SCRATCH_THRESHOLD = 10L*1024L*1024L;//10 MB
     private static final Set<MediaType> SUPPORTED_TYPES =
             Collections.singleton(MEDIA_TYPE);
     private PDFParserConfig defaultConfig = new PDFParserConfig();
@@ -107,16 +108,18 @@ public class PDFParser extends AbstractParser {
         PDDocument pdfDocument = null;
         //config from context, or default if not set via context
         PDFParserConfig localConfig = context.get(PDFParserConfig.class, defaultConfig);
-        String password = "";
+        String password = getPassword(metadata, context);
         try {
-            // PDFBox can process entirely in memory, or can use a temp file
-            //  for unpacked / processed resources
-            // Decide which to do based on if we're reading from a file or not already
+            // PDFBox can process entirely in memory, or can use scratch files
             TikaInputStream tstream = TikaInputStream.cast(stream);
-            password = getPassword(metadata, context);
             if (tstream != null && tstream.hasFile()) {
-                // File based, take that as a cue to use a temporary file
-                pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), password, true);
+                //if this is a tstream, use the file...this will save
+                //pdfbox from rebuffering the file to disk
+                if (tstream.getFile().length() > SCRATCH_THRESHOLD) {
+                    pdfDocument = PDDocument.load(tstream.getFile(), password, true);
+                } else {
+                    pdfDocument = PDDocument.load(tstream.getFile(), password);
+                }
             } else {
                 // Go for the normal, stream based in-memory parsing
                 pdfDocument = PDDocument.load(new CloseShieldInputStream(stream), password);
@@ -227,20 +230,14 @@ public class PDFParser extends AbstractParser {
         // TODO: Move to description in Tika 2.0
         addMetadata(metadata, TikaCoreProperties.TRANSITION_SUBJECT_TO_OO_SUBJECT, info.getSubject());
         addMetadata(metadata, "trapped", info.getTrapped());
-        try {
-            // TODO Remove these in Tika 2.0
-            addMetadata(metadata, "created", info.getCreationDate());
-            addMetadata(metadata, TikaCoreProperties.CREATED, info.getCreationDate());
-        } catch (StringIndexOutOfBoundsException e) {
-            //ditto
-        }
-        try {
-            Calendar modified = info.getModificationDate();
-            addMetadata(metadata, Metadata.LAST_MODIFIED, modified);
-            addMetadata(metadata, TikaCoreProperties.MODIFIED, modified);
-        } catch (StringIndexOutOfBoundsException e) {
-            //ditto
-        }
+        // TODO Remove these in Tika 2.0
+        addMetadata(metadata, "created", info.getCreationDate());
+        addMetadata(metadata, TikaCoreProperties.CREATED, info.getCreationDate());
+
+        Calendar modified = info.getModificationDate();
+        addMetadata(metadata, Metadata.LAST_MODIFIED, modified);
+        addMetadata(metadata, TikaCoreProperties.MODIFIED, modified);
+
 
         // All remaining metadata is custom
         // Copy this over as-is
