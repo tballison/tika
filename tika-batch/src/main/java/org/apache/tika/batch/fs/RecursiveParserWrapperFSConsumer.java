@@ -81,6 +81,7 @@ public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
 
         //try to open outputstream first
         OutputStream os = getOutputStream(fsOSFactory, fileResource);
+        logger.trace("working on: "+fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
 
         if (os == null) {
             logger.debug("Skipping: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
@@ -94,6 +95,7 @@ public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
         InputStream is = getInputStream(fileResource);
         if (is == null) {
             IOUtils.closeQuietly(os);
+            logger.trace("couldn't open output stream: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             return false;
         }
 
@@ -101,10 +103,15 @@ public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
         List<Metadata> metadataList = null;
         Metadata containerMetadata = fileResource.getMetadata();
         try {
+            logger.trace("about to parse: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             parse(fileResource.getResourceId(), parser, is, new DefaultHandler(),
                     containerMetadata, context);
+            logger.trace("finished parse: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             metadataList = parser.getMetadata();
         } catch (Throwable t) {
+            logger.trace("caught exception: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
+            logger.warn(fileResource.getMetadata().get(FSProperties.FS_REL_PATH) + " : " +
+                    ExceptionUtils.getStackTrace(t));
             thrown = t;
             metadataList = parser.getMetadata();
             if (metadataList == null) {
@@ -128,6 +135,7 @@ public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
 
         try {
             writer = new OutputStreamWriter(os, getOutputEncoding());
+            logger.trace("about to write json: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             JsonMetadataList.toJson(metadataList, writer);
         } catch (Exception e) {
             //this is a stop the world kind of thing
@@ -135,7 +143,9 @@ public class RecursiveParserWrapperFSConsumer extends AbstractFSConsumer {
                     fileResource.getResourceId(), e));
             throw new RuntimeException(e);
         } finally {
+            logger.trace("about to close json writer: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
             flushAndClose(writer);
+            logger.trace("closed json writer: " + fileResource.getMetadata().get(FSProperties.FS_REL_PATH));
         }
 
         if (thrown != null) {

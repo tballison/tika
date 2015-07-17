@@ -32,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.tika.io.IOUtils;
+import org.apache.tika.utils.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -162,9 +163,13 @@ public class BatchProcess implements Callable<ParallelFileProcessingResult> {
                         CAUSE_FOR_TERMINATION.CONSUMERS_MANAGER_DIDNT_INIT_IN_TIME_NO_RESTART.toString());
 
             }
-
             State state = mainLoop(completionService, timeoutChecker);
-            result = shutdown(ex, completionService, timeoutChecker, state);
+
+            try {
+                result = shutdown(ex, completionService, timeoutChecker, state);
+            } catch (Throwable t) {
+                logger.warn("SHUTDOWN EXCEPTION: " + ExceptionUtils.getStackTrace(t));
+            }
         } finally {
             shutdownConsumersManager();
         }
