@@ -386,10 +386,10 @@ public class PDFParserTest extends TikaTest {
         assertContains("Here is a comment", content);
 
         // Test w/ annotation text disabled:
-        PDFParser pdfParser = new PDFParser();
-        pdfParser.getPDFParserConfig().setExtractAnnotationText(false);
+        PDFParser PDFParser = new PDFParser();
+        PDFParser.getPDFParserConfig().setExtractAnnotationText(false);
         stream = getResourceAsStream("/test-documents/testAnnotations.pdf");
-        content = getText(stream, pdfParser);
+        content = getText(stream, PDFParser);
         content = content.replaceAll("[\\s\u00a0]+", " ");
         assertContains("Here is some text", content);
         assertEquals(-1, content.indexOf("Here is a comment"));
@@ -1320,5 +1320,20 @@ public class PDFParserTest extends TikaTest {
         DomXmpParser p = new DomXmpParser();
         p.setStrictParsing(false);
         //p.parse(doc.getDocumentCatalog().getMetadata().exportXMPMetadata());
+    }
+
+    @Test
+    public void testOctalInXMP() throws Exception {
+        XMLResult r = getXML("testPDF_OctalEncodedXMP.pdf");
+        String title = r.metadata.get(TikaCoreProperties.TITLE);
+        for (String n : r.metadata.names()) {
+            System.out.println(n + " : " + r.metadata.get(n));
+        }
+        assertEquals("Microsoft ", title);
+    }
+    @Test
+    public void testUnicodeXMP() throws Exception {
+        XMLResult r = getXML("testPDFUnicodeInXMP.pdf");
+        System.out.println(r.metadata.get(TikaCoreProperties.TITLE));
     }
 }

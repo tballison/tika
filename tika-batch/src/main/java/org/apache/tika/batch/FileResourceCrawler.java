@@ -105,10 +105,14 @@ public abstract class FileResourceCrawler implements Callable<IFileProcessorFutu
     protected int tryToAdd(FileResource fileResource) throws InterruptedException {
 
         if (maxFilesToAdd > -1 && added >= maxFilesToAdd) {
+            logger.trace("FileResourceCrawler has added enough already. Stopping now with"+
+            maxFilesToAdd + " (maxFilesToAdd) and " + added + "(added)");
             return STOP_NOW;
         }
 
         if (maxFilesToConsider > -1 && considered > maxFilesToConsider) {
+            logger.trace("FileResourceCrawler has considered enough already. Stopping now with"+
+                    maxFilesToConsider + " (maxFilesToConsider) and " + considered + "(considered)");
             return STOP_NOW;
         }
 
