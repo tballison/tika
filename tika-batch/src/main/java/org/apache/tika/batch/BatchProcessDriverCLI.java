@@ -109,7 +109,6 @@ public class BatchProcessDriverCLI {
         interruptWatcherThread.start();
         logger.info("about to start driver");
         start();
-        int loopsAfterRestartMessageReceived = 0;
         while (!userInterrupted) {
             Integer exit = null;
             try {
@@ -231,6 +230,7 @@ public class BatchProcessDriverCLI {
         loopsAfterRestartMessageReceived = 0;
 
         numRestarts++;
+        loopsAfterRestartMessageReceived = 0;
         return true;
     }
 
