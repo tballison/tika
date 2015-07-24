@@ -17,11 +17,10 @@
 
 package org.apache.pdfbox.pdfparser;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 import org.apache.pdfbox.cos.COSString;
-import org.apache.pdfbox.io.RandomAccessBuffer;
-import org.apache.pdfbox.io.RandomAccessRead;
 
 /**
  * In fairly rare cases, a PDF's XMP will contain a string that
@@ -73,10 +72,8 @@ public class PDFOctalUnicodeDecoder {
     public String decode(String value) {
         try {
             byte[] bytes = new String("(" + value + ")").getBytes("ISO-8859-1");
-            RandomAccessBuffer buffer = new RandomAccessBuffer();
-            buffer.write(bytes);
-            buffer.rewind(bytes.length);
-            COSStringParser p = new COSStringParser(buffer);
+            SequentialSource source = new InputStreamSource(new ByteArrayInputStream(bytes));
+            COSStringParser p = new COSStringParser(source);
             COSString cosString = p.parseCOSString();
             if (cosString != null) {
                 return cosString.getString();
@@ -90,7 +87,7 @@ public class PDFOctalUnicodeDecoder {
 
     private class COSStringParser extends BaseParser {
 
-        private COSStringParser(RandomAccessRead buffer) throws IOException {
+        private COSStringParser(SequentialSource buffer) throws IOException {
             super(buffer);
         }
     }
