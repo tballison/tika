@@ -1351,6 +1351,13 @@ public class PDFParserTest extends TikaTest {
         }
     }
 
+    @Test
+    public void testPDFEncodedStringsInXMP() throws Exception {
+        //TIKA-1678
+        XMLResult r = getXML("testPDF_PDFEncodedStringInXMP.pdf");
+        assertEquals("Microsoft", r.metadata.get(TikaCoreProperties.TITLE));
+    }
+
     private void assertException(String path, Parser parser, ParseContext context, Class expected) {
         boolean noEx = false;
         InputStream is = getResourceAsStream(path);
