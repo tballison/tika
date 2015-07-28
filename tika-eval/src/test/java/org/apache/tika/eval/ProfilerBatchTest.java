@@ -175,6 +175,11 @@ public class ProfilerBatchTest {
 
     }
 
+    @Test
+    public void testParseExceptions() throws Exception {
+        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
+    }
+
     private String getSingleResult(String sql) throws Exception {
         Statement st = null;
         st = conn.createStatement();

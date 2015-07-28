@@ -415,7 +415,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             matcher = ENCRYPTION_EXCEPTION.matcher(fullTrace);
             if (matcher.find()) {
                 data.put(Cols.PARSE_EXCEPTION_TYPE_ID,
-                        Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()));
+                        Integer.toString(EXCEPTION_TYPE.ENCRYPTION.ordinal()));
                 return;
             }
 
