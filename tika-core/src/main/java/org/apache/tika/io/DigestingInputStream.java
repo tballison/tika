@@ -45,7 +45,7 @@ public class DigestingInputStream extends ProxyInputStream {
         position++;
         if (lastDigestedPosition < position) {
             digest.update((byte) i);
-            lastDigestedPosition = position;
+            lastDigestedPosition =  position;
         }
 
         return i;
