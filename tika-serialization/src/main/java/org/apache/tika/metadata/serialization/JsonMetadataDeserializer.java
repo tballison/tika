@@ -17,18 +17,15 @@ package org.apache.tika.metadata.serialization;
  * limitations under the License.
  */
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.google.gson.*;
 import org.apache.tika.metadata.Metadata;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
+import org.apache.tika.metadata.MetadataValue;
 
 
 /**
@@ -58,18 +55,70 @@ public class JsonMetadataDeserializer implements JsonDeserializer<Metadata> {
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()){
             String key = entry.getKey();
             JsonElement v = entry.getValue();
-            if (v.isJsonPrimitive()){
-                m.set(key, v.getAsString());
-            } else if (v.isJsonArray()){
+            if (v.isJsonArray()){
                 JsonArray vArr = v.getAsJsonArray();
                 Iterator<JsonElement> itr = vArr.iterator();
-                while (itr.hasNext()){
+                while (itr.hasNext()) {
                     JsonElement valueItem = itr.next();
-                    m.add(key, valueItem.getAsString());
+                    m.add(key, buildMetadataValue(valueItem));
                 }
-
+            } else {
+                m.set(key, buildMetadataValue(v));
             }
         }
         return m;
+    }
+
+    private MetadataValue buildMetadataValue(JsonElement v) {
+
+        if (v.isJsonPrimitive()) {
+            return new MetadataValue(v.getAsString());
+        } else if (v.isJsonObject()) {
+            JsonElement el = v.getAsJsonObject().get(JsonMetadataBase.CLASS_KEY);
+            if (el == null) {
+                throw new IllegalArgumentException("Map must contain key: "+ JsonMetadataBase.CLASS_KEY);
+            }
+            if (! el.isJsonPrimitive()) {
+                throw new IllegalArgumentException("Value must be a primitive, not:"+getType(el));
+            }
+            String className = el.getAsString();
+
+            el = v.getAsJsonObject().get(JsonMetadataBase.METADATA_VALUE_KEY);
+            if (el == null) {
+                throw new IllegalArgumentException("Map must contain a value for key: "+
+                        JsonMetadataBase.METADATA_VALUE_KEY);
+            }
+            return buildMetadataValue(className, el);
+        }
+        throw new IllegalArgumentException("Metadata value must be primitive or jsonObject, not:"+
+                getType(v));
+    }
+
+    private MetadataValue buildMetadataValue(String className, JsonElement metadataValueJson) {
+        //TODO: should we do static caching of c? Benchmark to determine if it matters...
+        Class c = null;
+        try {
+            c = Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("Class not found", e);
+        }
+
+        Object obj = JsonMetadataBase.METADATA_VALUE_GSON.fromJson(metadataValueJson, c);
+        if (obj instanceof MetadataValue) {
+            return (MetadataValue)obj;
+        }
+        throw new IllegalArgumentException(className + " must be an instance of MetadataValue!");
+    }
+
+    private String getType(JsonElement el) {
+        String jType = "";
+        if (el.isJsonObject()) {
+            jType = "jsonObject";
+        } else if (el.isJsonArray()) {
+            jType = "jsonArray";
+        } else if (el.isJsonNull()) {
+            jType = "jsonNull";
+        }
+        return jType;
     }
 }

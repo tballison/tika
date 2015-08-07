@@ -20,8 +20,6 @@ package org.apache.tika.metadata.serialization;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 
-import org.apache.tika.metadata.Metadata;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
@@ -29,6 +27,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.MetadataValue;
 
 
 /**
@@ -51,37 +51,51 @@ public class JsonMetadataSerializer implements JsonSerializer<Metadata> {
      */
     @Override
     public JsonElement serialize(Metadata metadata, Type type, JsonSerializationContext context) {
+
         if (metadata == null){
             return JsonNull.INSTANCE;
         }
+
         String[] names = getNames(metadata);
         if (names == null) {
             return JsonNull.INSTANCE;
         }
-
         JsonObject root = new JsonObject();
 
         for (String n : names) {
             
-            String[] vals = metadata.getValues(n);
+            MetadataValue[] vals = metadata.getMetadataValues(n);
             if (vals == null) {
                 //silently skip
                 continue;
             }
             
             if (vals.length == 1){
-                root.addProperty(n, vals[0]);
+                JsonElement el = getElement(vals[0]);
+                root.add(n, el);
             } else {
                 JsonArray jArr = new JsonArray();
                 for (int i = 0; i < vals.length; i++) {
-                    jArr.add(new JsonPrimitive(vals[i]));
+                    JsonElement el = getElement(vals[i]);
+                    jArr.add(el);
                 }
                 root.add(n, jArr);
             }
         }
         return root;
     }
-    
+
+    private JsonElement getElement(MetadataValue val) {
+        if (val.getClass().getName().equals(MetadataValue.class.getName())) {
+            return new JsonPrimitive(val.getString());
+        } else {
+            JsonObject jObj = new JsonObject();
+            jObj.addProperty(JsonMetadataBase.CLASS_KEY, val.getClass().getName());
+            jObj.add(JsonMetadataBase.METADATA_VALUE_KEY, JsonMetadataBase.METADATA_VALUE_GSON.toJsonTree(val));
+            return jObj;
+        }
+    }
+
     /**
      * Override to get a custom sort order
      * or to filter names.

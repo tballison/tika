@@ -17,16 +17,20 @@ package org.apache.tika.metadata.serialization;
 * limitations under the License.
 */
 
-import java.io.StringReader;
-import java.io.StringWriter;
-
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.metadata.Metadata;
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.Date;
+
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.MetadataValue;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.metadata.values.*;
+import org.junit.Test;
 
 public class JsonMetadataTest {
 
@@ -128,5 +132,64 @@ public class JsonMetadataTest {
         JsonMetadata.toJson(m, writer);
         Metadata deserialized = JsonMetadata.fromJson(new StringReader(writer.toString()));
         assertEquals(m, deserialized);        
+    }
+
+    @Test
+    public void testDemo() throws Exception {
+        //not actually a test, just used to demo draft of TIKA-1607
+        Metadata metadata = new Metadata();
+        metadata.add("k1", "v1");
+        metadata.add("k1", "v2");
+        //test duplicate value
+        metadata.add("k3", "v3");
+        metadata.add("k3", "v3");
+        //test numeral with comma
+        metadata.add("k4", "500,000");
+        //test Chinese
+        metadata.add("alma_mater", "\u666E\u6797\u65AF\u987F\u5927\u5B66");
+        //test url
+        metadata.add("url", "/myApp/myAction.html?method=router&cmd=1");
+        //simple html entities
+        metadata.add("html", "<html><body>&amp;&nbsp;</body></html>");
+        //simple json escape chars
+        metadata.add("json_escapes", "the: \"quick\" brown, fox");
+        metadata.add(TikaCoreProperties.METADATA_DATE, new DateMetadataValue(new Date(1000)));
+
+        MultiLingualValue mlv = new MultiLingualValue("hello world!");
+        mlv.addValue("en", "hello world!");
+        mlv.addValue("fr", "bonjour le monde!");
+        metadata.add(TikaCoreProperties.TITLE, mlv);
+
+        PhoneNumberValue pnv = new PhoneNumberValue("+8675309", "us", "international");
+        //need to add property!
+        metadata.add("phonenumber", new PhoneNumberValue("+17048675309", "us", "international"));
+        metadata.add("phonenumber", new PhoneNumberValue("+8675309", "us", "local"));
+
+        MultimediaTracksValue mmtv = new MultimediaTracksValue();
+        MediaTrack mt = new MediaTrack();
+        mt.setEssenceTrackEncoding("some encoding");
+        mt.setEssenceTrackIdentifier("1");
+        mt.setEssenceTrackStandard("a viable standard");
+        mt.setEssenceTrackType("audio");
+
+        mmtv.addMediaTrack("1", mt);
+        //ditto, need to add property
+        metadata.add("mediatracksprop", mmtv);
+        StringWriter writer = new StringWriter();
+        JsonMetadata.toJson(metadata, writer);
+        System.out.println(writer.toString());
+
+        Metadata rebuilt = JsonMetadata.fromJson(new StringReader(writer.toString()));
+        for (String n : rebuilt.names()) {
+            for (MetadataValue v : rebuilt.getMetadataValues(n)) {
+                if (v instanceof MultiLingualValue) {
+                    MultiLingualValue mlv2 = (MultiLingualValue)v;
+                    for (String lang : mlv2.getLangs()) {
+                        System.out.println(lang + ": "+mlv2.getValueForLanguage(lang));
+                    }
+                }
+                System.out.println(n + " : " + v.getClass() + " : " + v.getString());
+            }
+        }
     }
 }

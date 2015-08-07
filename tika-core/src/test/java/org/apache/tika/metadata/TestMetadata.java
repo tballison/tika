@@ -17,20 +17,20 @@
 package org.apache.tika.metadata;
 
 //JDK imports
-import java.util.Date;
-import java.util.Properties;
-
-import org.apache.tika.utils.DateUtils;
-import org.junit.Test;
-
-
-//Junit imports
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import java.util.Date;
+import java.util.Properties;
+
+import org.apache.tika.utils.DateUtils;
+import org.junit.Test;
+
+//Junit imports
 
 /**
  * JUnit based tests of class {@link org.apache.tika.metadata.Metadata}.
@@ -283,7 +283,7 @@ public class TestMetadata {
         
         // Can set it and retrieve it
         meta.set(TikaCoreProperties.CREATED, new Date(1000));
-        assertEquals("1970-01-01T00:00:01Z", meta.get(TikaCoreProperties.CREATED));
+        assertEquals("1970-01-01T00:00:01Z", meta.getMetadataValue(TikaCoreProperties.CREATED).getString());
         assertEquals(1000, meta.getDate(TikaCoreProperties.CREATED).getTime());
         
         // If you save a non date value, you get null

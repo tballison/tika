@@ -24,7 +24,9 @@ import com.google.gson.GsonBuilder;
 import org.apache.tika.metadata.Metadata;
 
 public class JsonMetadataBase {
-
+    public final static String CLASS_KEY = "c";
+    public final static String METADATA_VALUE_KEY = "mv";
+    public final static Gson METADATA_VALUE_GSON = new GsonBuilder().create();
 
     static Gson defaultInit() {
         GsonBuilder builder = new GsonBuilder();
