@@ -31,6 +31,7 @@ import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.ICell;
 import org.apache.poi.xwpf.usermodel.IRunElement;
 import org.apache.poi.xwpf.usermodel.ISDTContent;
+import org.apache.poi.xwpf.usermodel.XWPFComment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFHeaderFooter;
 import org.apache.poi.xwpf.usermodel.XWPFHyperlink;
@@ -73,6 +74,11 @@ public class XWPFWordExtractorDecorator extends AbstractOOXMLExtractor {
         super(context, extractor);
 
         document = (XWPFDocument) extractor.getDocument();
+
+        for (XWPFComment c : document.getComments()) {
+            addCommenter(c.getAuthor());
+        }
+
         styles = document.getStyles();
     }
 

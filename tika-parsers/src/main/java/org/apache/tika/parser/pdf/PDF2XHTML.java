@@ -99,6 +99,7 @@ class PDF2XHTML extends PDFTextStripper {
     private final ParseContext context;
     private final XHTMLContentHandler handler;
     private final PDFParserConfig config;
+    private final Metadata metadata;
     /**
      * This keeps track of the pdf object ids for inline
      * images that have been processed.
@@ -111,6 +112,9 @@ class PDF2XHTML extends PDFTextStripper {
      * TIKA-1742, we're limiting the export to one image per page.
      */
     private Map<String, Integer> processedInlineImages = new HashMap<>();
+    private Set<String> commentAuthors = new HashSet<>();
+    private Set<String> signers = new HashSet<>();
+
     private int inlineImageCounter = 0;
     private PDF2XHTML(ContentHandler handler, ParseContext context, Metadata metadata,
                       PDFParserConfig config)
@@ -121,6 +125,7 @@ class PDF2XHTML extends PDFTextStripper {
         this.originalHandler = handler;
         this.context = context;
         this.handler = new XHTMLContentHandler(handler, metadata);
+        this.metadata = metadata;
     }
 
     /**
@@ -211,6 +216,12 @@ class PDF2XHTML extends PDFTextStripper {
             if (config.getExtractAcroFormContent() == true) {
                 extractAcroForm(pdf, handler);
             }
+            for (String s : signers) {
+                metadata.add(TikaCoreProperties.DIGITAL_SIGNER, s);
+            }
+            for (String a : commentAuthors) {
+                metadata.add(TikaCoreProperties.COMMENT_AUTHOR, a);
+            }
             handler.endDocument();
         } catch (TikaException e) {
             throw new IOExceptionWithCause("Unable to end a document", e);
@@ -250,7 +261,14 @@ class PDF2XHTML extends PDFTextStripper {
                         throw new IOExceptionWithCause("file embedded in annotation tika exception", e);
                     }
                 }
-                // TODO: remove once PDFBOX-1143 is fixed:
+                if (annotation instanceof PDAnnotationMarkup) {
+                    PDAnnotationMarkup annotationMarkup = (PDAnnotationMarkup) annotation;
+                    String commentAuthor = annotationMarkup.getTitlePopup();
+                    if (commentAuthor != null) {
+                        commentAuthors.add(commentAuthor);
+                    }
+                }
+                    // TODO: remove once PDFBOX-1143 is fixed:
                 if (config.getExtractAnnotationText()) {
                     if (annotation instanceof PDAnnotationLink) {
                         PDAnnotationLink annotationlink = (PDAnnotationLink) annotation;
@@ -678,6 +696,11 @@ class PDF2XHTML extends PDFTextStripper {
             return;
         }
         Map<String, String> vals = new TreeMap<String, String>();
+
+        if (sig.getName() != null) {
+            signers.add(sig.getName());
+        }
+
         vals.put("name", sig.getName());
         vals.put("contactInfo", sig.getContactInfo());
         vals.put("location", sig.getLocation());

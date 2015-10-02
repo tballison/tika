@@ -22,7 +22,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.poi.POIXMLDocument;
 import org.apache.poi.POIXMLTextExtractor;
@@ -64,11 +66,16 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
     static final String RELATION_IMAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     static final String RELATION_OLE_OBJECT = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject";
     static final String RELATION_PACKAGE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/package";
+    static final String RELATION_PEOPLE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/people";
 
     private static final String TYPE_OLE_OBJECT =
             "application/vnd.openxmlformats-officedocument.oleObject";
     private final EmbeddedDocumentExtractor embeddedExtractor;
     protected POIXMLTextExtractor extractor;
+
+    private Set<String> revisers = new HashSet<>();
+    private Set<String> signers = new HashSet<>();
+    private Set<String> commenters = new HashSet<>();
 
     public AbstractOOXMLExtractor(ParseContext context, POIXMLTextExtractor extractor) {
         this.extractor = extractor;
@@ -109,13 +116,39 @@ public abstract class AbstractOOXMLExtractor implements OOXMLExtractor {
 
         buildXHTML(xhtml);
 
-        // Now do any embedded parts
+        //Now record signers/commenters/revisers
+        for (String s : signers) {
+            metadata.add(TikaCoreProperties.DIGITAL_SIGNER, s);
+        }
+        for (String s : commenters) {
+            metadata.add(TikaCoreProperties.COMMENT_AUTHOR, s);
+        }
+        for (String s : revisers) {
+            metadata.add(TikaCoreProperties.REVISION_AUTHOR, s);
+        }
+
+            // Now do any embedded parts
         handleEmbeddedParts(handler);
 
         // thumbnail
         handleThumbnail(handler);
 
         xhtml.endDocument();
+    }
+
+    protected void addSigner(String s) {
+        if (s != null && s.trim().length() > 0)
+            signers.add(s);
+    }
+
+    protected void addCommenter(String s) {
+        if (s != null && s.trim().length() > 0)
+            commenters.add(s);
+    }
+
+    protected void addRevisers(String s) {
+        if (s != null && s.trim().length() > 0)
+            revisers.add(s);
     }
 
     protected String getJustFileName(String desc) {

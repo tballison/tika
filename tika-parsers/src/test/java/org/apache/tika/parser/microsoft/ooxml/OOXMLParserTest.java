@@ -1192,6 +1192,13 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("Footer - For Internal Use Only", content);
         assertContains("Footer - Author: John Smith", content);
     }
+
+    @Test
+    public void testWordRevisionAuthors() throws Exception {
+        XMLResult r = getXML("testWORD_track_changes.docx");
+        System.out.println(r.xml);
+
+    }
 }
 
 

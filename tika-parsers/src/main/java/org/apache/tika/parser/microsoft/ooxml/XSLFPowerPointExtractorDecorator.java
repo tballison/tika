@@ -31,6 +31,7 @@ import org.apache.poi.xslf.XSLFSlideShow;
 import org.apache.poi.xslf.extractor.XSLFPowerPointExtractor;
 import org.apache.poi.xslf.usermodel.Placeholder;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
+import org.apache.poi.xslf.usermodel.XSLFCommentAuthors;
 import org.apache.poi.xslf.usermodel.XSLFComments;
 import org.apache.poi.xslf.usermodel.XSLFGraphicFrame;
 import org.apache.poi.xslf.usermodel.XSLFGroupShape;
@@ -52,6 +53,8 @@ import org.apache.tika.sax.XHTMLContentHandler;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTComment;
+import org.openxmlformats.schemas.presentationml.x2006.main.CTCommentAuthor;
+import org.openxmlformats.schemas.presentationml.x2006.main.CTCommentAuthorList;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTPicture;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTSlideIdList;
 import org.openxmlformats.schemas.presentationml.x2006.main.CTSlideIdListEntry;
@@ -68,6 +71,7 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
      */
     protected void buildXHTML(XHTMLContentHandler xhtml) throws SAXException, IOException {
         XMLSlideShow slideShow = (XMLSlideShow) extractor.getDocument();
+        addCommenters(slideShow.getCommentAuthors());
 
         List<XSLFSlide> slides = slideShow.getSlides();
         for (XSLFSlide slide : slides) {
@@ -109,6 +113,22 @@ public class XSLFPowerPointExtractorDecorator extends AbstractOOXMLExtractor {
                 }
             }
         }
+    }
+
+    private void addCommenters(XSLFCommentAuthors commentAuthors) {
+        CTCommentAuthorList ctList = commentAuthors.getCTCommentAuthorsList();
+        if (ctList == null)
+            return;
+
+        CTCommentAuthor[] ctArr = ctList.getCmAuthorArray();
+        if (ctArr == null)
+            return;
+
+        for (int i = 0; i < ctList.sizeOfCmAuthorArray(); i++) {
+            addCommenter(ctArr[i].getName());
+            addCommenter(ctArr[i].getInitials());
+        }
+
     }
 
     private void extractContent(List<? extends XSLFShape> shapes, boolean skipPlaceholders, XHTMLContentHandler xhtml, String slideDesc)

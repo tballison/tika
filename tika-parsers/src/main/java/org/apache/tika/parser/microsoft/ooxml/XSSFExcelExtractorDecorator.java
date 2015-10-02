@@ -54,6 +54,8 @@ import org.apache.tika.metadata.TikaMetadataKeys;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.apache.xmlbeans.XmlException;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTAuthors;
+import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTComments;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.InputSource;
@@ -126,7 +128,7 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
 
             SheetTextAsHTML sheetExtractor = new SheetTextAsHTML(xhtml);
             CommentsTable comments = iter.getSheetComments();
-
+            addCommenters(comments.getCTComments());
             // Start, and output the sheet name
             xhtml.startElement("div");
             xhtml.element("h1", iter.getSheetName());
@@ -152,6 +154,20 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
             processShapes(iter.getShapes(), xhtml);
             // All done with this sheet
             xhtml.endElement("div");
+        }
+    }
+
+    private void addCommenters(CTComments ctComments) {
+        CTAuthors ctAuthors = ctComments.getAuthors();
+        if (ctAuthors == null)
+            return;
+
+        String[] ctArr = ctAuthors.getAuthorArray();
+        if (ctArr == null)
+            return;
+
+        for (String a : ctArr) {
+            addCommenter(a);
         }
     }
 

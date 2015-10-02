@@ -399,6 +399,21 @@ public class PDFParserTest extends TikaTest {
                 substringCount("</p>", xml));
     }
 
+    @Test
+    public void testCommentAuthor() throws Exception {
+        Parser parser = new AutoDetectParser(); // Should auto-detect!
+        InputStream stream = getResourceAsStream("/test-documents/testAnnotations2.pdf");
+        Metadata m = new Metadata();
+        String content = getText(stream, parser, m);
+        int hits = 0;
+        for (String s : m.getValues(TikaCoreProperties.COMMENT_AUTHOR)) {
+            if (s.equals("TALLISON") || s.equals("Michael McCandless")) {
+                hits++;
+            }
+        }
+        assertEquals(2, hits);
+    }
+
     // TIKA-981
     @Test
     public void testPopupAnnotation() throws Exception {

@@ -79,8 +79,8 @@ public interface TikaCoreProperties {
     /**
      * @see DublinCore#FORMAT
      */
-    public static final Property FORMAT = Property.composite(DublinCore.FORMAT, 
-            new Property[] { Property.internalText(Metadata.FORMAT) });
+    public static final Property FORMAT = Property.composite(DublinCore.FORMAT,
+            new Property[]{Property.internalText(Metadata.FORMAT)});
     
    /**
     * @see DublinCore#IDENTIFIER
@@ -115,7 +115,20 @@ public interface TikaCoreProperties {
      */
      public static final Property MODIFIER = Property.composite(Office.LAST_AUTHOR, 
              new Property[] { Property.internalText(Metadata.LAST_AUTHOR) });
-    
+
+     public static final Property DIGITAL_SIGNER = Property.internalTextBag(
+             "digital-signer"
+     );
+
+     public static final Property COMMENT_AUTHOR = Property.internalTextBag(
+             "comment-author"
+     );
+
+     public static final Property REVISION_AUTHOR = Property.internalTextBag(
+             "revision-author"
+     );
+
+
     /**
      * @see XMP#CREATOR_TOOL
      */
