@@ -31,6 +31,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.tika.TikaTest;
@@ -40,7 +41,6 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ContainerExtractor;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.ParserContainerExtractor;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.OfficeOpenXMLCore;
@@ -141,13 +141,9 @@ public class PDFParserTest extends TikaTest {
         Parser parser = new AutoDetectParser(); // Should auto-detect!
         Metadata metadata = new Metadata();
 
-        InputStream stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF.pdf");
-
-        try {
+        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
+                "/test-documents/testPDF.pdf")) {
             parser.parse(stream, null, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
@@ -193,12 +189,9 @@ public class PDFParserTest extends TikaTest {
         Metadata metadata = new Metadata();
         ParseContext context = new ParseContext();
 
-        InputStream stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF_protected.pdf");
-        try {
+        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
+                "/test-documents/testPDF_protected.pdf")) {
             parser.parse(stream, handler, metadata, context);
-        } finally {
-            stream.close();
         }
 
         assertEquals("true", metadata.get("pdf:encrypted"));
@@ -226,12 +219,9 @@ public class PDFParserTest extends TikaTest {
             }
         });
 
-        stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF_protected.pdf");
-        try {
+        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
+                "/test-documents/testPDF_protected.pdf")) {
             parser.parse(stream, handler, metadata, context);
-        } finally {
-            stream.close();
         }
         assertEquals("true", metadata.get("pdf:encrypted"));
 
@@ -255,15 +245,12 @@ public class PDFParserTest extends TikaTest {
             }
         });
 
-        stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF_protected.pdf");
         boolean ex = false;
-        try {
+        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
+                "/test-documents/testPDF_protected.pdf")) {
             parser.parse(stream, handler, metadata, context);
         } catch (EncryptedDocumentException e) {
             ex = true;
-        } finally {
-            stream.close();
         }
         content = handler.toString();
 
@@ -287,15 +274,13 @@ public class PDFParserTest extends TikaTest {
         config.setUseNonSequentialParser(true);
         context.set(PDFParserConfig.class, config);
 
-        stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF_protected.pdf");
+        ;
         ex = false;
-        try {
+        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
+                "/test-documents/testPDF_protected.pdf")) {
             parser.parse(stream, handler, metadata, context);
         } catch (EncryptedDocumentException e) {
             ex = true;
-        } finally {
-            stream.close();
         }
         content = handler.toString();
         assertTrue("encryption exception", ex);
@@ -779,7 +764,6 @@ public class PDFParserTest extends TikaTest {
 
         RecursiveParserWrapper p = new RecursiveParserWrapper(new AutoDetectParser(),
                 new BasicContentHandlerFactory(BasicContentHandlerFactory.HANDLER_TYPE.IGNORE, -1));
-        TikaInputStream tis = null;
         ParseContext context = new ParseContext();
         PDFParserConfig config = new PDFParserConfig();
         config.setExtractInlineImages(true);
@@ -787,14 +771,9 @@ public class PDFParserTest extends TikaTest {
         context.set(org.apache.tika.parser.pdf.PDFParserConfig.class, config);
         context.set(org.apache.tika.parser.Parser.class, p);
 
-        try {
-            tis = TikaInputStream.get(
-                    getResourceAsStream("/test-documents/testPDF_childAttachments.pdf"));
+        try (TikaInputStream tis = TikaInputStream.get(
+                getResourceAsStream("/test-documents/testPDF_childAttachments.pdf"))) {
             p.parse(tis, new BodyContentHandler(-1), new Metadata(), context);
-        } finally {
-            if (tis != null) {
-                tis.close();
-            }
         }
 
         List<Metadata> metadatas = p.getMetadata();

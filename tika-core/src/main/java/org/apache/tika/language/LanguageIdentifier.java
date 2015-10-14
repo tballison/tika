@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.tika.io.IOUtils;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Identifier of the language that best matches a given content profile.
@@ -73,11 +73,11 @@ public class LanguageIdentifier {
         try {
             LanguageProfile profile = new LanguageProfile();
 
-            InputStream stream =
-                LanguageIdentifier.class.getResourceAsStream(language + PROFILE_SUFFIX);
-            try {
+            try (InputStream stream =
+                    LanguageIdentifier.class.getResourceAsStream(
+                            language + PROFILE_SUFFIX)) {
                 BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(stream, IOUtils.UTF_8));
+                    new BufferedReader(new InputStreamReader(stream, UTF_8));
                 String line = reader.readLine();
                 while (line != null) {
                     if (line.length() > 0 && !line.startsWith("#")) {
@@ -88,8 +88,6 @@ public class LanguageIdentifier {
                     }
                     line = reader.readLine();
                 }
-            } finally {
-                stream.close();
             }
 
             addProfile(language, profile);

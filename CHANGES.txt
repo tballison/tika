@@ -1,4 +1,57 @@
-Release 1.10 - Current Development
+Release 1.11 - Current Development
+
+  * Upgrade to Jackcess Encrypt 2.1.1 to avoid binary incompatibility
+    with Bouncy Castle (TIKA-1736).
+  
+  * Make div and other markup more consistent between PPT and 
+    PPTX (TIKA-1755).
+
+  * Parse multiple authors from MSOffice's semi-colon delimited
+    author field (TIKA-1765).
+  
+  * Include CTAKESConfig.properties within tika-parsers resources 
+    by default (TIKA-1741).
+  
+  * Prevent infinite recursion when processing inline images
+    in PDF files by limiting extraction of duplicate images
+    within the same page (TIKA-1742).
+
+  * Upgrade to POI 3.13-final (via Andreas Beeker) (TIKA-1707).
+
+  * Upgraded tika-batch to use Path throughout (TIKA-1747 and
+    (TIKA-1754).
+
+  * Upgraded to Path in TikaInputStream (via Yaniv Kunda) (TIKA-1744).
+
+  * Changed default content handler type for "/rmeta" in tika-server
+    to "xml" to align with "-J" option in tika-app.  
+    Clients can now specify handler types via PathParam. (TIKA-1716).
+
+  * The fantastic GROBID (or Grobid) GeneRation Of BIbliographic Data
+    for machine learning from PDF files is now integrated as a 
+    Tika parser (TIKA-1699, TIKA-1712).
+
+  * The ability to specify the Tesseract Config Path was added
+    to the OCR Parser (TIKA-1703).
+
+  * Upgraded to ASM 5.0.4 (TIKA-1705).
+
+  * Corrected Tika Config XML detector definition explicit loading 
+    of MimeTypes (TIKA-1708)
+
+  * In Tika Parsers, Batch, Server, App and Examples, use Apache
+    Commons IO instead of inlined ex-Commons classes, and the Java 7
+    Standard Charset definitions (TIKA-1710)
+
+  * Upgraded to Commons Compress 1.10, which enables zlib compressed
+    archives support (TIKA-1718)
+
+
+Release 1.10 - 8/1/2015
+
+  * Tika Config XML can now be used to create composite detectors,
+    and exclude detectors that DefaultDetector would otherwise
+    have used. This brings support in-line with Parsers. (TIKA-1702)
 
   * Reverted to legacy sort order of parsers that was 
     mistakenly reversed in Tika 1.9 (TIKA-1689).

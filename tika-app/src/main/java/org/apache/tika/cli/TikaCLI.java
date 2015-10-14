@@ -16,6 +16,8 @@
  */
 package org.apache.tika.cli;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
@@ -40,6 +42,9 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -52,6 +57,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Level;
@@ -72,9 +80,6 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.fork.ForkParser;
 import org.apache.tika.gui.TikaGUI;
-import org.apache.tika.io.CloseShieldInputStream;
-import org.apache.tika.io.FilenameUtils;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.language.LanguageProfilerBuilder;
 import org.apache.tika.language.ProfilingHandler;
@@ -465,12 +470,9 @@ public class TikaCLI {
             if (serverMode) {
                 new TikaServer(Integer.parseInt(arg)).start();
             } else if (arg.equals("-")) {
-                InputStream stream =
-                    TikaInputStream.get(new CloseShieldInputStream(System.in));
-                try {
+                try (InputStream stream = TikaInputStream.get(
+                        new CloseShieldInputStream(System.in))) {
                     type.process(stream, System.out, new Metadata());
-                } finally {
-                    stream.close();
                 }
             } else {
                 URL url;
@@ -484,11 +486,10 @@ public class TikaCLI {
                     handleRecursiveJson(url, System.out);
                 } else {
                     Metadata metadata = new Metadata();
-                    InputStream input = TikaInputStream.get(url, metadata);
-                    try {
+                    try (InputStream input =
+                            TikaInputStream.get(url, metadata)) {
                         type.process(input, System.out, metadata);
                     } finally {
-                        input.close();
                         System.out.flush();
                     }
                 }
@@ -498,12 +499,9 @@ public class TikaCLI {
 
     private void handleRecursiveJson(URL url, OutputStream output) throws IOException, SAXException, TikaException {
         Metadata metadata = new Metadata();
-        InputStream input = TikaInputStream.get(url, metadata);
         RecursiveParserWrapper wrapper = new RecursiveParserWrapper(parser, getContentHandlerFactory(type));
-        try {
+        try (InputStream input = TikaInputStream.get(url, metadata)) {
             wrapper.parse(input, null, metadata, context);
-        } finally {
-            input.close();
         }
         JsonMetadataList.setPrettyPrinting(prettyPrint);
         Writer writer = getOutputWriter(output, encoding);
@@ -655,9 +653,10 @@ public class TikaCLI {
     private boolean testForBatch(String[] args) {
         if (args.length == 2 && ! args[0].startsWith("-")
                 && ! args[1].startsWith("-")) {
-            File inputCand = new File(args[0]);
-            File outputCand = new File(args[1]);
-            if (inputCand.isDirectory() && !outputCand.isFile()) {
+            Path inputCand = Paths.get(args[0]);
+            Path outputCand = Paths.get(args[1]);
+            if (Files.isDirectory(inputCand) &&
+                    !Files.isRegularFile(outputCand)) {
                 return true;
             }
         }
@@ -855,7 +854,7 @@ public class TikaCLI {
         for (File mf : dir.listFiles()) {
             if (mf.isFile()) {
                 BufferedReader r = new BufferedReader(new InputStreamReader(
-                        new FileInputStream(mf), IOUtils.UTF_8));
+                        new FileInputStream(mf), UTF_8));
                 String line;
                 while ((line = r.readLine()) != null) {
                     if (line.startsWith("!:mime") ||
@@ -969,7 +968,7 @@ public class TikaCLI {
         } else if (System.getProperty("os.name")
                 .toLowerCase(Locale.ROOT).startsWith("mac os x")) {
             // TIKA-324: Override the default encoding on Mac OS X
-            return new OutputStreamWriter(output, IOUtils.UTF_8);
+            return new OutputStreamWriter(output, UTF_8);
         } else {
             return new OutputStreamWriter(output, Charset.defaultCharset());
         }
@@ -1047,11 +1046,7 @@ public class TikaCLI {
             }
             System.out.println("Extracting '"+name+"' ("+contentType+") to " + outputFile);
 
-            FileOutputStream os = null;
-
-            try {
-                os = new FileOutputStream(outputFile);
-
+            try (FileOutputStream os = new FileOutputStream(outputFile)) {
                 if (inputStream instanceof TikaInputStream) {
                     TikaInputStream tin = (TikaInputStream) inputStream;
 
@@ -1077,10 +1072,6 @@ public class TikaCLI {
                 );
                 System.err.println(msg);
                 logger.warn(msg, e);
-            } finally {
-                if (os != null) {
-                    os.close();
-                }
             }
         }
 
@@ -1093,11 +1084,9 @@ public class TikaCLI {
                     copy((DirectoryEntry) entry, newDir);
                 } else {
                     // Copy entry
-                    InputStream contents = new DocumentInputStream((DocumentEntry) entry);
-                    try {
+                    try (InputStream contents =
+                            new DocumentInputStream((DocumentEntry) entry)) {
                         destDir.createDocument(entry.getName(), contents);
-                    } finally {
-                        contents.close();
                     }
                 }
             }

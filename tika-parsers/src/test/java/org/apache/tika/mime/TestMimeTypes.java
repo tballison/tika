@@ -17,6 +17,9 @@
 package org.apache.tika.mime;
 
 // Junit imports
+import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.nio.charset.StandardCharsets.UTF_16LE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
@@ -570,17 +573,17 @@ public class TestMimeTypes {
     @Test
     public void testXmlAndHtmlDetection() throws Exception {
         assertTypeByData("application/xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><records><record/></records>"
-                .getBytes("UTF-8"));
+                .getBytes(UTF_8));
         assertTypeByData("application/xml", "\uFEFF<?xml version=\"1.0\" encoding=\"UTF-16\"?><records><record/></records>"
-                .getBytes("UTF-16LE"));
+                .getBytes(UTF_16LE));
         assertTypeByData("application/xml", "\uFEFF<?xml version=\"1.0\" encoding=\"UTF-16\"?><records><record/></records>"
-                .getBytes("UTF-16BE"));
+                .getBytes(UTF_16BE));
         assertTypeByData("application/xml", "<!-- XML without processing instructions --><records><record/></records>"
-                .getBytes("UTF-8"));
+                .getBytes(UTF_8));
         assertTypeByData("text/html", "<html><body>HTML</body></html>"
-                .getBytes("UTF-8"));
+                .getBytes(UTF_8));
         assertTypeByData("text/html", "<!-- HTML comment --><html><body>HTML</body></html>"
-                .getBytes("UTF-8"));
+                .getBytes(UTF_8));
     }
 
     @Test
@@ -971,15 +974,12 @@ public class TestMimeTypes {
     }
 
     private void assertType(String expected, String filename) throws Exception {
-        InputStream stream = TestMimeTypes.class.getResourceAsStream(
-                "/test-documents/" + filename);
-        assertNotNull("Test file not found: " + filename, stream);
-        try {
+        try (InputStream stream = TestMimeTypes.class.getResourceAsStream(
+                "/test-documents/" + filename)) {
+            assertNotNull("Test file not found: " + filename, stream);
             Metadata metadata = new Metadata();
             metadata.set(Metadata.RESOURCE_NAME_KEY, filename);
             assertEquals(expected, repo.detect(stream, metadata).toString());
-        } finally {
-            stream.close();
         }
     }
 
@@ -992,26 +992,20 @@ public class TestMimeTypes {
 
     private void assertTypeByData(String expected, String filename)
             throws IOException {
-        InputStream stream = TestMimeTypes.class.getResourceAsStream(
-                "/test-documents/" + filename);
-        assertNotNull("Test file not found: " + filename, stream);
-        try {
+        try (InputStream stream = TestMimeTypes.class.getResourceAsStream(
+                "/test-documents/" + filename)) {
+            assertNotNull("Test file not found: " + filename, stream);
             Metadata metadata = new Metadata();
             assertEquals(expected, repo.detect(stream, metadata).toString());
-        } finally {
-            stream.close();
         }
     }
     
     private void assertTypeByData(String expected, byte[] data)
             throws IOException {
-       InputStream stream = new ByteArrayInputStream(data);
-       try {
-          Metadata metadata = new Metadata();
-          assertEquals(expected, repo.detect(stream, metadata).toString());
-       } finally {
-          stream.close();
-       }
+        try (InputStream stream = new ByteArrayInputStream(data)) {
+            Metadata metadata = new Metadata();
+            assertEquals(expected, repo.detect(stream, metadata).toString());
+        }
     }
 
     private void assertTypeDetection(String filename, String type)
@@ -1032,15 +1026,12 @@ public class TestMimeTypes {
     }
 
     private MediaType getTypeByNameAndData(String filename) throws IOException {
-       InputStream stream = TestMimeTypes.class.getResourceAsStream(
-             "/test-documents/" + filename);
-       assertNotNull("Test document not found: " + filename, stream);
-       try {
-          Metadata metadata = new Metadata();
-          metadata.set(Metadata.RESOURCE_NAME_KEY, filename);
-          return repo.detect(stream, metadata);
-       } finally {
-          stream.close();
-       }
+        try (InputStream stream = TestMimeTypes.class.getResourceAsStream(
+                "/test-documents/" + filename)) {
+            assertNotNull("Test document not found: " + filename, stream);
+            Metadata metadata = new Metadata();
+            metadata.set(Metadata.RESOURCE_NAME_KEY, filename);
+            return repo.detect(stream, metadata);
+        }
     }
 }

@@ -29,8 +29,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Property;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -163,9 +163,8 @@ public class ImageParser extends AbstractParser {
                 if (iterator.hasNext()) {
                     ImageReader reader = iterator.next();
                     try {
-                        ImageInputStream imageStream = ImageIO.createImageInputStream(
-                                new CloseShieldInputStream(stream));
-                        try {
+                        try (ImageInputStream imageStream = ImageIO.createImageInputStream(
+                                new CloseShieldInputStream(stream))) {
                             reader.setInput(imageStream);
 
                             metadata.set(Metadata.IMAGE_WIDTH, Integer.toString(reader.getWidth(0)));
@@ -174,8 +173,6 @@ public class ImageParser extends AbstractParser {
                             metadata.set("width", Integer.toString(reader.getWidth(0)));
 
                             loadMetadata(reader.getImageMetadata(0), metadata);
-                        } finally {
-                            imageStream.close();
                         }
                     } finally {
                         reader.dispose();

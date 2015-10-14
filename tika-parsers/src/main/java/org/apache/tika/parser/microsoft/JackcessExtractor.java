@@ -18,6 +18,8 @@
 package org.apache.tika.parser.microsoft;
 
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -40,7 +42,6 @@ import com.healthmarketscience.jackcess.query.Query;
 import com.healthmarketscience.jackcess.util.OleBlob;
 import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.OfficeOpenXMLExtended;
@@ -108,8 +109,9 @@ class JackcessExtractor extends AbstractPOIFSExtractor {
                 found.add(title.getName());
             }
             PropertyMap.Property author = summaryProperties.get(AUTHOR_PROP_KEY);
-            if (author != null) {
-                metadata.set(TikaCoreProperties.CREATOR, toString(author.getValue(), author.getType()));
+            if (author != null && author.getValue() != null) {
+                String authorString = toString(author.getValue(), author.getType());
+                SummaryExtractor.addMulti(metadata, TikaCoreProperties.CREATOR, authorString);
                 found.add(author.getName());
             }
             PropertyMap.Property company = summaryProperties.get(COMPANY_PROP_KEY);
@@ -198,7 +200,7 @@ class JackcessExtractor extends AbstractPOIFSExtractor {
                 Metadata m = new Metadata();
                 m.set(Metadata.CONTENT_TYPE, "text/html; charset=UTF-8");
                 try {
-                    htmlParser.parse(new ByteArrayInputStream(v.getBytes(IOUtils.UTF_8)),
+                    htmlParser.parse(new ByteArrayInputStream(v.getBytes(UTF_8)),
                             h,
                            m, EMPTY_PARSE_CONTEXT);
                     handler.characters(h.toString());

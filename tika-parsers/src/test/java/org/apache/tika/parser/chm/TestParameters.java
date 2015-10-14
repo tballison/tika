@@ -18,7 +18,8 @@ package org.apache.tika.parser.chm;
 
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.tika.io.IOUtils;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.tika.parser.chm.core.ChmCommons.EntryType;
 
 /**
@@ -43,11 +44,8 @@ public class TestParameters {
 
     private static byte[] readResource(String name) {
         try {
-            InputStream stream = TestParameters.class.getResourceAsStream(name);
-            try {
+            try (InputStream stream = TestParameters.class.getResourceAsStream(name)) {
                 return IOUtils.toByteArray(stream);
-            } finally {
-                stream.close();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

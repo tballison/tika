@@ -14,6 +14,7 @@
 
 package org.apache.tika.example;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
@@ -23,30 +24,25 @@ import java.io.PrintStream;
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 
-import com.google.common.base.Charsets;
-
-@SuppressWarnings("deprecation")
 public class SimpleTextExtractorTest {
-
     @Test
     public void testSimpleTextExtractor() throws Exception {
         String message =
-            "Hello, World! This is simple UTF-8 text content written"
-            + " in English to test autodetection of the character"
-            + " encoding of the input stream.";
+            "This is Tika - Hello, World! This is simple UTF-8 text"
+            + " content written in English to test autodetection of"
+            + " the character encoding of the input stream.";
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
         PrintStream out = System.out;
-        System.setOut(new PrintStream(buffer, true, Charsets.UTF_8.name()));
+        System.setOut(new PrintStream(buffer, true, UTF_8.name()));
 
         File file = new File("target", "test.txt");
-        FileUtils.writeStringToFile(file, message);
+        FileUtils.writeStringToFile(file, message, UTF_8);
         SimpleTextExtractor.main(new String[] { file.getPath() });
         file.delete();
 
         System.setOut(out);
 
-        assertEquals(message, buffer.toString(Charsets.UTF_8.name()).trim());
+        assertEquals(message, buffer.toString(UTF_8.name()).trim());
     }
-
 }

@@ -24,10 +24,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.config.ServiceLoader;
 import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
@@ -78,10 +78,8 @@ public class HtmlParser extends AbstractParser {
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
         // Automatically detect the character encoding
-        AutoDetectReader reader = new AutoDetectReader(
-                new CloseShieldInputStream(stream), metadata,
-                context.get(ServiceLoader.class, LOADER));
-        try {
+        try (AutoDetectReader reader = new AutoDetectReader(new CloseShieldInputStream(stream),
+                metadata,context.get(ServiceLoader.class, LOADER))) {
             Charset charset = reader.getCharset();
             String previous = metadata.get(Metadata.CONTENT_TYPE);
             MediaType contentType = null;
@@ -122,8 +120,6 @@ public class HtmlParser extends AbstractParser {
                     new HtmlHandler(mapper, handler, metadata)));
 
             parser.parse(reader.asInputSource());
-        } finally {
-            reader.close();
         }
     }
 

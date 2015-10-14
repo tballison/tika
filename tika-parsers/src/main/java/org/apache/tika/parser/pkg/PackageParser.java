@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.util.Date;
 import java.util.Set;
 
+import org.apache.commons.compress.PasswordRequiredException;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveException;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
@@ -38,11 +39,11 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException;
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException.Feature;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
 import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -188,14 +189,8 @@ public class PackageParser extends AbstractParser {
                 throw new EncryptedDocumentException(zfe);
             }
             // Otherwise fall through to raise the exception as normal
-        } catch (IOException ie) {
-            // Is this a password protection error?
-            // (COMPRESS-298 should give a nicer way when implemented, see TIKA-1525)
-            if ("Cannot read encrypted files without a password".equals(ie.getMessage())) {
-                throw new EncryptedDocumentException();
-            }
-            // Otherwise fall through to raise the exception as normal
-            throw ie;
+        } catch (PasswordRequiredException pre) {
+            throw new EncryptedDocumentException(pre);
         } finally {
             ais.close();
             tmp.close();

@@ -27,6 +27,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.DocumentEntry;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
@@ -35,7 +36,6 @@ import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.poi.poifs.filesystem.Ole10Native;
 import org.apache.poi.poifs.filesystem.Ole10NativeException;
 import org.apache.poi.util.IOUtils;
-import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.RTFMetadata;
@@ -126,11 +126,8 @@ class RTFObjDataParser {
                                        AtomicInteger unknownFilenameCount)
             throws IOException {
 
-        NPOIFSFileSystem fs = null;
         byte[] ret = null;
-        try {
-
-            fs = new NPOIFSFileSystem(is);
+        try (NPOIFSFileSystem fs = new NPOIFSFileSystem(is)) {
 
             DirectoryNode root = fs.getRoot();
 
@@ -166,15 +163,9 @@ class RTFObjDataParser {
                         contentsEntry = (DocumentEntry) root.getEntry("Contents");
                     }
 
-                    DocumentInputStream inp = null;
-                    try {
-                        inp = new DocumentInputStream(contentsEntry);
+                    try (DocumentInputStream inp = new DocumentInputStream(contentsEntry)) {
                         ret = new byte[contentsEntry.getSize()];
                         inp.readFully(ret);
-                    } finally {
-                        if (inp != null) {
-                            inp.close();
-                        }
                     }
                 } else {
 
@@ -185,10 +176,6 @@ class RTFObjDataParser {
                     metadata.set(Metadata.RESOURCE_NAME_KEY, "file_" + unknownFilenameCount.getAndIncrement() + "." + type.getExtension());
                     metadata.set(Metadata.CONTENT_TYPE, type.getType().toString());
                 }
-            }
-        } finally {
-            if (fs != null) {
-                fs.close();
             }
         }
         return ret;

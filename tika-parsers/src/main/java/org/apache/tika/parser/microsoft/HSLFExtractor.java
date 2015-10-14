@@ -18,23 +18,23 @@ package org.apache.tika.parser.microsoft;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 
-import org.apache.poi.hslf.HSLFSlideShow;
 import org.apache.poi.hslf.model.Comment;
 import org.apache.poi.hslf.model.HeadersFooters;
-import org.apache.poi.hslf.model.MasterSheet;
-import org.apache.poi.hslf.model.Notes;
 import org.apache.poi.hslf.model.OLEShape;
-import org.apache.poi.hslf.model.Picture;
-import org.apache.poi.hslf.model.Shape;
-import org.apache.poi.hslf.model.Slide;
-import org.apache.poi.hslf.model.Table;
-import org.apache.poi.hslf.model.TableCell;
-import org.apache.poi.hslf.model.TextRun;
-import org.apache.poi.hslf.model.TextShape;
-import org.apache.poi.hslf.usermodel.ObjectData;
-import org.apache.poi.hslf.usermodel.PictureData;
-import org.apache.poi.hslf.usermodel.SlideShow;
+import org.apache.poi.hslf.usermodel.HSLFMasterSheet;
+import org.apache.poi.hslf.usermodel.HSLFNotes;
+import org.apache.poi.hslf.usermodel.HSLFObjectData;
+import org.apache.poi.hslf.usermodel.HSLFPictureData;
+import org.apache.poi.hslf.usermodel.HSLFShape;
+import org.apache.poi.hslf.usermodel.HSLFSlide;
+import org.apache.poi.hslf.usermodel.HSLFSlideShow;
+import org.apache.poi.hslf.usermodel.HSLFTable;
+import org.apache.poi.hslf.usermodel.HSLFTableCell;
+import org.apache.poi.hslf.usermodel.HSLFTextParagraph;
+import org.apache.poi.hslf.usermodel.HSLFTextRun;
+import org.apache.poi.hslf.usermodel.HSLFTextShape;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.exception.TikaException;
@@ -59,13 +59,12 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             DirectoryNode root, XHTMLContentHandler xhtml)
             throws IOException, SAXException, TikaException {
         HSLFSlideShow ss = new HSLFSlideShow(root);
-        SlideShow _show = new SlideShow(ss);
-        Slide[] _slides = _show.getSlides();
+        List<HSLFSlide> _slides = ss.getSlides();
 
         xhtml.startElement("div", "class", "slideShow");
 
       /* Iterate over slides and extract text */
-        for (Slide slide : _slides) {
+        for (HSLFSlide slide : _slides) {
             xhtml.startElement("div", "class", "slide");
 
             // Slide header, if present
@@ -83,17 +82,17 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
 
             // Slide text
             {
-                xhtml.startElement("p", "class", "slide-content");
+                xhtml.startElement("div", "class", "slide-content");
 
-                textRunsToText(xhtml, slide.getTextRuns());
+                textRunsToText(xhtml, slide.getTextParagraphs());
 
-                xhtml.endElement("p");
+                xhtml.endElement("div");
             }
 
             // Table text
-            for (Shape shape : slide.getShapes()) {
-                if (shape instanceof Table) {
-                    extractTableText(xhtml, (Table) shape);
+            for (HSLFShape shape : slide.getShapes()) {
+                if (shape instanceof HSLFTable) {
+                    extractTableText(xhtml, (HSLFTable) shape);
                 }
             }
 
@@ -107,16 +106,27 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             }
 
             // Comments, if present
+            StringBuilder authorStringBuilder = new StringBuilder();
             for (Comment comment : slide.getComments()) {
+                authorStringBuilder.setLength(0);
                 xhtml.startElement("p", "class", "slide-comment");
-                if (comment.getAuthor() != null) {
-                    xhtml.startElement("b");
-                    xhtml.characters(comment.getAuthor());
-                    xhtml.endElement("b");
 
-                    if (comment.getText() != null) {
-                        xhtml.characters(" - ");
+                if (comment.getAuthor() != null) {
+                    authorStringBuilder.append(comment.getAuthor());
+                }
+                if (comment.getAuthorInitials() != null) {
+                    if (authorStringBuilder.length() > 0) {
+                        authorStringBuilder.append(" ");
                     }
+                    authorStringBuilder.append("("+comment.getAuthorInitials()+")");
+                }
+                if (authorStringBuilder.length() > 0) {
+                    if (comment.getText() != null) {
+                        authorStringBuilder.append(" - ");
+                    }
+                    xhtml.startElement("b");
+                    xhtml.characters(authorStringBuilder.toString());
+                    xhtml.endElement("b");
                 }
                 if (comment.getText() != null) {
                     xhtml.characters(comment.getText());
@@ -137,12 +147,12 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         xhtml.endElement("div");
 
       /* notes */
-        xhtml.startElement("div", "class", "slideNotes");
-        HashSet<Integer> seenNotes = new HashSet<Integer>();
-        HeadersFooters hf = _show.getNotesHeadersFooters();
+        xhtml.startElement("div", "class", "slide-notes");
+        HashSet<Integer> seenNotes = new HashSet<>();
+        HeadersFooters hf = ss.getNotesHeadersFooters();
 
-        for (Slide slide : _slides) {
-            Notes notes = slide.getNotesSheet();
+        for (HSLFSlide slide : _slides) {
+            HSLFNotes notes = slide.getNotes();
             if (notes == null) {
                 continue;
             }
@@ -160,7 +170,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             }
 
             // Notes text
-            textRunsToText(xhtml, notes.getTextRuns());
+            textRunsToText(xhtml, notes.getTextParagraphs());
 
             // Repeat the notes footer, if set
             if (hf != null && hf.isFooterVisible() && hf.getFooterText() != null) {
@@ -170,25 +180,25 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             }
         }
 
-        handleSlideEmbeddedPictures(_show, xhtml);
+        handleSlideEmbeddedPictures(ss, xhtml);
 
         xhtml.endElement("div");
     }
 
-    private void extractMaster(XHTMLContentHandler xhtml, MasterSheet master) throws SAXException {
+    private void extractMaster(XHTMLContentHandler xhtml, HSLFMasterSheet master) throws SAXException {
         if (master == null) {
             return;
         }
-        Shape[] shapes = master.getShapes();
-        if (shapes == null || shapes.length == 0) {
+        List<HSLFShape> shapes = master.getShapes();
+        if (shapes == null || shapes.isEmpty()) {
             return;
         }
 
         xhtml.startElement("div", "class", "slide-master-content");
-        for (Shape shape : shapes) {
-            if (shape != null && !MasterSheet.isPlaceholder(shape)) {
-                if (shape instanceof TextShape) {
-                    TextShape tsh = (TextShape) shape;
+        for (HSLFShape shape : shapes) {
+            if (shape != null && !HSLFMasterSheet.isPlaceholder(shape)) {
+                if (shape instanceof HSLFTextShape) {
+                	HSLFTextShape tsh = (HSLFTextShape) shape;
                     String text = tsh.getText();
                     if (text != null) {
                         xhtml.element("p", text);
@@ -199,12 +209,12 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         xhtml.endElement("div");
     }
 
-    private void extractTableText(XHTMLContentHandler xhtml, Table shape) throws SAXException {
+    private void extractTableText(XHTMLContentHandler xhtml, HSLFTable shape) throws SAXException {
         xhtml.startElement("table");
         for (int row = 0; row < shape.getNumberOfRows(); row++) {
             xhtml.startElement("tr");
             for (int col = 0; col < shape.getNumberOfColumns(); col++) {
-                TableCell cell = shape.getCell(row, col);
+                HSLFTableCell cell = shape.getCell(row, col);
                 //insert empty string for empty cell if cell is null
                 String txt = "";
                 if (cell != null) {
@@ -217,48 +227,59 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         xhtml.endElement("table");
     }
 
-    private void textRunsToText(XHTMLContentHandler xhtml, TextRun[] runs) throws SAXException {
-        if (runs == null) {
+    private void textRunsToText(XHTMLContentHandler xhtml, List<List<HSLFTextParagraph>> paragraphsList) throws SAXException {
+        if (paragraphsList == null) {
             return;
         }
 
-        for (TextRun run : runs) {
-            if (run != null) {
-                // Leaving in wisdom from TIKA-712 for easy revert.
-                // Avoid boiler-plate text on the master slide (0
-                // = TextHeaderAtom.TITLE_TYPE, 1 = TextHeaderAtom.BODY_TYPE):
-                //if (!isMaster || (run.getRunType() != 0 && run.getRunType() != 1)) {
-                String txt = run.getText();
-                if (txt != null) {
-                    xhtml.characters(txt);
-                    xhtml.startElement("br");
-                    xhtml.endElement("br");
-                }
+        for (List<HSLFTextParagraph> run : paragraphsList) {
+            // Leaving in wisdom from TIKA-712 for easy revert.
+            // Avoid boiler-plate text on the master slide (0
+            // = TextHeaderAtom.TITLE_TYPE, 1 = TextHeaderAtom.BODY_TYPE):
+            //if (!isMaster || (run.getRunType() != 0 && run.getRunType() != 1)) {
+
+        	for (HSLFTextParagraph htp : run) {
+        		xhtml.startElement("p");
+
+        		for (HSLFTextRun htr : htp.getTextRuns()) {
+        			String line = htr.getRawText();
+        			if (line != null) {
+        				boolean isfirst = true;
+        				for (String fragment : line.split("\\u000b")){
+        					if (!isfirst)  {
+        	                    xhtml.startElement("br");
+        	                    xhtml.endElement("br");
+        					}
+        					isfirst = false;
+        					xhtml.characters(fragment.trim());
+        				}
+        			}
+        		}
+                xhtml.endElement("p");
+
             }
+        	
         }
     }
 
-    private void handleSlideEmbeddedPictures(SlideShow slideshow, XHTMLContentHandler xhtml)
+    private void handleSlideEmbeddedPictures(HSLFSlideShow slideshow, XHTMLContentHandler xhtml)
             throws TikaException, SAXException, IOException {
-        for (PictureData pic : slideshow.getPictureData()) {
-            String mediaType = null;
+        for (HSLFPictureData pic : slideshow.getPictureData()) {
+            String mediaType;
 
             switch (pic.getType()) {
-                case Picture.EMF:
+                case EMF:
                     mediaType = "application/x-emf";
                     break;
-                case Picture.JPEG:
-                    mediaType = "image/jpeg";
-                    break;
-                case Picture.PNG:
-                    mediaType = "image/png";
-                    break;
-                case Picture.WMF:
+                case WMF:
                     mediaType = "application/x-msmetafile";
                     break;
-                case Picture.DIB:
+                case DIB:
                     mediaType = "image/bmp";
                     break;
+                default:
+            		mediaType = pic.getContentType();
+            		break;
             }
 
             handleEmbeddedResource(
@@ -267,9 +288,9 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
         }
     }
 
-    private void handleSlideEmbeddedResources(Slide slide, XHTMLContentHandler xhtml)
+    private void handleSlideEmbeddedResources(HSLFSlide slide, XHTMLContentHandler xhtml)
             throws TikaException, SAXException, IOException {
-        Shape[] shapes;
+        List<HSLFShape> shapes;
         try {
             shapes = slide.getShapes();
         } catch (NullPointerException e) {
@@ -278,10 +299,10 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
             return;
         }
 
-        for (Shape shape : shapes) {
+        for (HSLFShape shape : shapes) {
             if (shape instanceof OLEShape) {
                 OLEShape oleShape = (OLEShape) shape;
-                ObjectData data = null;
+                HSLFObjectData data = null;
                 try {
                     data = oleShape.getObjectData();
                 } catch (NullPointerException e) {
@@ -301,9 +322,7 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                     xhtml.startElement("div", attributes);
                     xhtml.endElement("div");
 
-                    TikaInputStream stream =
-                            TikaInputStream.get(data.getData());
-                    try {
+                    try (TikaInputStream stream = TikaInputStream.get(data.getData())) {
                         String mediaType = null;
                         if ("Excel.Chart.8".equals(oleShape.getProgID())) {
                             mediaType = "application/vnd.ms-excel";
@@ -311,8 +330,6 @@ public class HSLFExtractor extends AbstractPOIFSExtractor {
                         handleEmbeddedResource(
                                 stream, objID, objID,
                                 mediaType, xhtml, false);
-                    } finally {
-                        stream.close();
                     }
                 }
             }

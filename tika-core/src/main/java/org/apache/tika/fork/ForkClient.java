@@ -30,9 +30,10 @@ import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOExceptionWithCause;
 import org.apache.tika.io.IOUtils;
 import org.xml.sax.ContentHandler;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 class ForkClient {
 
@@ -198,7 +199,7 @@ class ForkClient {
                     return (Throwable) ForkObjectInputStream.readObject(
                             input, loader);
                 } catch (ClassNotFoundException e) {
-                    throw new IOExceptionWithCause(
+                    throw new IOException(
                             "Unable to deserialize an exception", e);
                 }
             } else {
@@ -257,12 +258,12 @@ class ForkClient {
      * @throws IOException if the bootstrap archive could not be created
      */
     private static void fillBootstrapJar(File file) throws IOException {
-        JarOutputStream jar = new JarOutputStream(new FileOutputStream(file));
-        try {
+        try (JarOutputStream jar =
+                new JarOutputStream(new FileOutputStream(file))) {
             String manifest =
-                "Main-Class: " + ForkServer.class.getName() + "\n";
+                    "Main-Class: " + ForkServer.class.getName() + "\n";
             jar.putNextEntry(new ZipEntry("META-INF/MANIFEST.MF"));
-            jar.write(manifest.getBytes(IOUtils.UTF_8));
+            jar.write(manifest.getBytes(UTF_8));
 
             Class<?>[] bootstrap = {
                     ForkServer.class, ForkObjectInputStream.class,
@@ -275,16 +276,11 @@ class ForkClient {
             ClassLoader loader = ForkServer.class.getClassLoader();
             for (Class<?> klass : bootstrap) {
                 String path = klass.getName().replace('.', '/') + ".class";
-                InputStream input = loader.getResourceAsStream(path);
-                try {
+                try (InputStream input = loader.getResourceAsStream(path)) {
                     jar.putNextEntry(new JarEntry(path));
                     IOUtils.copy(input, jar);
-                } finally {
-                    input.close();
                 }
             }
-        } finally {
-            jar.close();
         }
     }
 

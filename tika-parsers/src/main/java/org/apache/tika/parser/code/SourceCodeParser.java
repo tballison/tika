@@ -30,10 +30,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.config.ServiceLoader;
 import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.mime.MediaType;
@@ -83,9 +83,9 @@ public class SourceCodeParser implements Parser {
   public void parse(InputStream stream, ContentHandler handler, Metadata metadata, ParseContext context)
       throws IOException, SAXException, TikaException {
 
-    AutoDetectReader reader = new AutoDetectReader(new CloseShieldInputStream(stream), metadata, context.get(ServiceLoader.class, LOADER));
-
-    try {
+    try (AutoDetectReader reader = new AutoDetectReader(
+            new CloseShieldInputStream(stream), metadata,
+            context.get(ServiceLoader.class, LOADER))) {
       Charset charset = reader.getCharset();
       String mediaType = metadata.get(Metadata.CONTENT_TYPE);
       String name = metadata.get(Metadata.RESOURCE_NAME_KEY);
@@ -107,9 +107,9 @@ public class SourceCodeParser implements Parser {
         }
         metadata.set("LoC", String.valueOf(nbLines));
         Renderer renderer = getRenderer(type.toString());
-        
+
         String codeAsHtml = renderer.highlight(name, out.toString(), charset.name(), false);
-        
+
         Schema schema = context.get(Schema.class, HTML_SCHEMA);
 
         org.ccil.cowan.tagsoup.Parser parser = new org.ccil.cowan.tagsoup.Parser();
@@ -117,8 +117,6 @@ public class SourceCodeParser implements Parser {
         parser.setContentHandler(handler);
         parser.parse(new InputSource(new StringReader(codeAsHtml)));
       }
-    } finally {
-      reader.close();
     }
 
   }

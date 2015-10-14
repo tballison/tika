@@ -24,29 +24,22 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.BodyContentHandler;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 
 /**
  * Test case for parsing zlib compressed
- * 
- * Note - currently disabled, pending a fix for COMPRESS-316
  */
 public class ZlibParserTest extends AbstractPkgTest {
     @Test
-    @Ignore
     public void testZlibParsing() throws Exception {
         Parser parser = new AutoDetectParser(); // Should auto-detect!
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = ZipParserTest.class.getResourceAsStream(
-                "/test-documents/testTXT.zlib");
-        try {
+        try (InputStream stream = ZipParserTest.class.getResourceAsStream(
+                "/test-documents/testTXT.zlib")) {
             parser.parse(stream, handler, metadata, recursingContext);
-        } finally {
-            stream.close();
         }
 
         assertEquals("application/zlib", metadata.get(Metadata.CONTENT_TYPE));
@@ -60,19 +53,15 @@ public class ZlibParserTest extends AbstractPkgTest {
      *  fired for all the embedded entries.
      */
     @Test
-    @Ignore
     public void testEmbedded() throws Exception {
        Parser parser = new AutoDetectParser(); // Should auto-detect!
        ContentHandler handler = new BodyContentHandler();
        Metadata metadata = new Metadata();
 
-       InputStream stream = ZipParserTest.class.getResourceAsStream(
-               "/test-documents/testTXT.zlib");
-       try {
-           parser.parse(stream, handler, metadata, trackingContext);
-       } finally {
-           stream.close();
-       }
+        try (InputStream stream = ZipParserTest.class.getResourceAsStream(
+                "/test-documents/testTXT.zlib")) {
+            parser.parse(stream, handler, metadata, trackingContext);
+        }
        
        // Should have found a single text document inside
        assertEquals(1, tracker.filenames.size());

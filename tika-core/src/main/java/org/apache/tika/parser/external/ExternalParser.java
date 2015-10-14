@@ -44,6 +44,8 @@ import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * Parser that uses an external program (like catdoc or pdf2txt) to extract
  *  text content and metadata from a given document.
@@ -236,8 +238,7 @@ public class ExternalParser extends AbstractParser {
      */
     private void extractOutput(InputStream stream, XHTMLContentHandler xhtml)
             throws SAXException, IOException {
-        Reader reader = new InputStreamReader(stream, IOUtils.UTF_8);
-        try {
+        try (Reader reader = new InputStreamReader(stream, UTF_8)) {
             xhtml.startDocument();
             xhtml.startElement("p");
             char[] buffer = new char[1024];
@@ -246,8 +247,6 @@ public class ExternalParser extends AbstractParser {
             }
             xhtml.endElement("p");
             xhtml.endDocument();
-        } finally {
-            reader.close();
         }
     }
 
@@ -307,7 +306,7 @@ public class ExternalParser extends AbstractParser {
        Thread t = new Thread() {
           public void run() {
              BufferedReader reader;
-              reader = new BufferedReader(new InputStreamReader(stream, IOUtils.UTF_8));
+              reader = new BufferedReader(new InputStreamReader(stream, UTF_8));
              try {
                 String line;
                 while ( (line = reader.readLine()) != null ) {

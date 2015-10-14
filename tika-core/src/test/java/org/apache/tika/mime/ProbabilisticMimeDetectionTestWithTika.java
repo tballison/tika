@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,67 +16,52 @@
  */
 package org.apache.tika.mime;
 
+import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.nio.charset.StandardCharsets.UTF_16LE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.Charset;
 
 import org.apache.tika.Tika;
 import org.apache.tika.config.ServiceLoader;
-import org.apache.tika.config.TikaConfig;
 import org.apache.tika.detect.DefaultProbDetector;
-import org.apache.tika.detect.Detector;
-import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.MediaType;
-import org.apache.tika.mime.MediaTypeRegistry;
-import org.apache.tika.mime.MimeTypes;
-import org.apache.tika.mime.ProbabilisticMimeDetectionSelector;
 import org.apache.tika.mime.ProbabilisticMimeDetectionSelector.Builder;
 import org.junit.Before;
 import org.junit.Test;
 
 public class ProbabilisticMimeDetectionTestWithTika {
-    private static final Charset UTF8 = Charset.forName("UTF-8");
-    // private ProbabilisticMimeDetectionSelector proDetector;
-    private Tika tika;
+
+    private ProbabilisticMimeDetectionSelector proSelector;
     private MediaTypeRegistry registry;
+    private Tika tika;
 
     /** @inheritDoc */
     @Before
     public void setUp() {
-        try {
-            registry = MimeTypes.getDefaultMimeTypes().getMediaTypeRegistry();
-            tika = new Tika(new TikaConfig() {
-                @Override
-                protected Detector getDefaultDetector(MimeTypes types,
-                        ServiceLoader loader) {
-                    /*
-                     * here is an example with the use of the builder to
-                     * instantiate the object.
-                     */
-                    Builder builder = new ProbabilisticMimeDetectionSelector.Builder();
-                    ProbabilisticMimeDetectionSelector proDetector = new ProbabilisticMimeDetectionSelector(
-                            types, builder.priorMagicFileType(0.5f)
-                            .priorExtensionFileType(0.5f)
-                            .priorMetaFileType(0.5f));
-                    return new DefaultProbDetector(proDetector, loader);
-                }
-            });
-        } catch (TikaException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } finally {
-
-        }
-
+        MimeTypes types = MimeTypes.getDefaultMimeTypes();
+        ServiceLoader loader = new ServiceLoader();
+        registry = types.getMediaTypeRegistry();
+        
+        /*
+         * here is an example with the use of the builder to
+         * instantiate the object.
+         */
+        Builder builder = new ProbabilisticMimeDetectionSelector.Builder();
+        proSelector = new ProbabilisticMimeDetectionSelector(
+                types, builder.priorMagicFileType(0.5f)
+                .priorExtensionFileType(0.5f)
+                .priorMetaFileType(0.5f));
+        DefaultProbDetector detector = new DefaultProbDetector(proSelector, loader);
+        
+        // Use a default Tika, except for our different detector
+        tika = new Tika(detector);
     }
 
     @Test
@@ -114,14 +98,14 @@ public class ProbabilisticMimeDetectionTestWithTika {
     @Test
     public void testByteOrderMark() throws Exception {
         assertEquals(MediaType.TEXT_PLAIN.toString(), tika.detect(
-                new ByteArrayInputStream("\ufefftest".getBytes("UTF-16LE")),
+                new ByteArrayInputStream("\ufefftest".getBytes(UTF_16LE)),
                 new Metadata()));
         assertEquals(MediaType.TEXT_PLAIN.toString(), tika.detect(
-                new ByteArrayInputStream("\ufefftest".getBytes("UTF-16BE")),
+                new ByteArrayInputStream("\ufefftest".getBytes(UTF_16BE)),
                 new Metadata()));
 
         assertEquals(MediaType.TEXT_PLAIN.toString(), tika.detect(
-                new ByteArrayInputStream("\ufefftest".getBytes(UTF8)),
+                new ByteArrayInputStream("\ufefftest".getBytes(UTF_8)),
                 new Metadata()));
     }
 
@@ -202,11 +186,6 @@ public class ProbabilisticMimeDetectionTestWithTika {
         }
     }
 
-    private void assertNotNull(String string, InputStream in) {
-        // TODO Auto-generated method stub
-
-    }
-
     /**
      * Test for type detection of empty documents.
      * 
@@ -240,7 +219,7 @@ public class ProbabilisticMimeDetectionTestWithTika {
     @Test
     public void testNotXML() throws IOException {
         assertEquals(MediaType.TEXT_PLAIN.toString(), tika.detect(
-                new ByteArrayInputStream("<!-- test -->".getBytes(UTF8)),
+                new ByteArrayInputStream("<!-- test -->".getBytes(UTF_8)),
                 new Metadata()));
     }
 
@@ -263,7 +242,7 @@ public class ProbabilisticMimeDetectionTestWithTika {
      */
     @Test
     public void testMimeMagicClashSamePriority() throws IOException {
-        byte[] helloWorld = "Hello, World!".getBytes(UTF8);
+        byte[] helloWorld = "Hello, World!".getBytes(UTF_8);
         MediaType helloType = MediaType.parse("hello/world-file");
         MediaType helloXType = MediaType.parse("hello/x-world-hello");
         Metadata metadata;

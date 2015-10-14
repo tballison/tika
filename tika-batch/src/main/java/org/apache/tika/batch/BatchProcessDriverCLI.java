@@ -16,20 +16,22 @@ package org.apache.tika.batch;
  * limitations under the License.
  */
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import org.apache.tika.io.IOUtils;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -252,7 +254,7 @@ public class BatchProcessDriverCLI {
 
     private void start() throws Exception {
         ProcessBuilder builder = new ProcessBuilder(commandLine);
-        builder.directory(new File("."));
+        builder.directory(Paths.get(".").toFile());
         process = builder.start();
 
         errorWatcher = new StreamWatcher(process.getErrorStream());
@@ -287,7 +289,7 @@ public class BatchProcessDriverCLI {
         private BufferedReader reader;
 
         private InterruptWatcher(InputStream is) {
-            reader = new BufferedReader(new InputStreamReader(is, IOUtils.UTF_8));
+            reader = new BufferedReader(new InputStreamReader(is, UTF_8));
         }
 
         @Override
@@ -312,7 +314,7 @@ public class BatchProcessDriverCLI {
         private final Writer writer;
 
         private InterruptWriter(OutputStream os) {
-            this.writer = new OutputStreamWriter(os, IOUtils.UTF_8);
+            this.writer = new OutputStreamWriter(os, UTF_8);
         }
 
         @Override
@@ -339,8 +341,7 @@ public class BatchProcessDriverCLI {
         protected boolean running = true;
 
         private StreamGobbler(InputStream is) {
-            this.reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is),
-                    IOUtils.UTF_8));
+            this.reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is), UTF_8));
         }
 
         @Override

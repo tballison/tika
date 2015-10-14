@@ -20,8 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Set;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
@@ -69,13 +69,10 @@ public class Pkcs7Parser extends AbstractParser {
                 if (content == null) {
                     throw new TikaException("cannot parse detached pkcs7 signature (no signed data to parse)");
                 }
-                InputStream input = content.getContentStream();
-                try {
+                try (InputStream input = content.getContentStream()) {
                     Parser delegate =
                             context.get(Parser.class, EmptyParser.INSTANCE);
                     delegate.parse(input, handler, metadata, context);
-                } finally {
-                    input.close();
                 }
             } finally {
                 parser.close();

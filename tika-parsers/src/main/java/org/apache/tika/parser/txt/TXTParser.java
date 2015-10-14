@@ -22,10 +22,10 @@ import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.Set;
 
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.config.ServiceLoader;
 import org.apache.tika.detect.AutoDetectReader;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.CloseShieldInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
@@ -69,10 +69,9 @@ public class TXTParser extends AbstractParser {
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
         // Automatically detect the character encoding
-        AutoDetectReader reader = new AutoDetectReader(
+        try (AutoDetectReader reader = new AutoDetectReader(
                 new CloseShieldInputStream(stream), metadata,
-                context.get(ServiceLoader.class, LOADER));
-        try {
+                context.get(ServiceLoader.class, LOADER))) {
             Charset charset = reader.getCharset();
             MediaType type = new MediaType(MediaType.TEXT_PLAIN, charset);
             metadata.set(Metadata.CONTENT_TYPE, type.toString());
@@ -93,8 +92,6 @@ public class TXTParser extends AbstractParser {
             xhtml.endElement("p");
 
             xhtml.endDocument();
-        } finally {
-            reader.close();
         }
     }
 

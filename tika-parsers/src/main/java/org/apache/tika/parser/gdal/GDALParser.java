@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -43,6 +42,7 @@ import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.tika.parser.external.ExternalParser.INPUT_FILE_TOKEN;
 
 //Tika imports
@@ -384,14 +384,11 @@ public class GDALParser extends AbstractParser {
     private String extractOutput(InputStream stream) throws SAXException,
             IOException {
         StringBuilder sb = new StringBuilder();
-        Reader reader = new InputStreamReader(stream, IOUtils.UTF_8);
-        try {
+        try (Reader reader = new InputStreamReader(stream, UTF_8)) {
             char[] buffer = new char[1024];
             for (int n = reader.read(buffer); n != -1; n = reader.read(buffer)) {
                 sb.append(buffer, 0, n);
             }
-        } finally {
-            reader.close();
         }
         return sb.toString();
     }
@@ -399,9 +396,8 @@ public class GDALParser extends AbstractParser {
     private void processOutput(ContentHandler handler, Metadata metadata,
                                String output) throws SAXException, IOException {
         XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
-        InputStream stream = new ByteArrayInputStream(output.getBytes(IOUtils.UTF_8));
-        Reader reader = new InputStreamReader(stream, IOUtils.UTF_8);
-        try {
+        InputStream stream = new ByteArrayInputStream(output.getBytes(UTF_8));
+        try (Reader reader = new InputStreamReader(stream, UTF_8)) {
             xhtml.startDocument();
             xhtml.startElement("p");
             char[] buffer = new char[1024];
@@ -411,7 +407,6 @@ public class GDALParser extends AbstractParser {
             xhtml.endElement("p");
 
         } finally {
-            reader.close();
             xhtml.endDocument();
         }
 

@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.mail;
 
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -221,7 +222,7 @@ public class RFC822ParserTest extends TikaTest {
                     "really really really really really really long name ");
         }
         String name = inputBuilder.toString();
-        byte[] data = ("From: " + name + "\r\n\r\n").getBytes("US-ASCII");
+        byte[] data = ("From: " + name + "\r\n\r\n").getBytes(US_ASCII);
 
         Parser parser = new RFC822Parser();
         ContentHandler handler = new DefaultHandler();
@@ -361,15 +362,10 @@ public class RFC822ParserTest extends TikaTest {
     @Test
     public void testGetAttachmentsAsEmbeddedResources() throws Exception {
         TrackingHandler tracker = new TrackingHandler();
-        TikaInputStream tis = null;
         ContainerExtractor ex = new ParserContainerExtractor();
-        try {
-            tis = TikaInputStream.get(getStream("test-documents/testRFC822-multipart"));
+        try (TikaInputStream tis = TikaInputStream.get(getStream("test-documents/testRFC822-multipart"))) {
             assertEquals(true, ex.isSupported(tis));
             ex.extract(tis, ex, tracker);
-        } finally {
-            if (tis != null)
-                tis.close();
         }
 
         // Check we found all 3 parts

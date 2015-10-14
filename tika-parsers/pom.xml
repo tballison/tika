@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.10-SNAPSHOT</version>
+    <version>1.11-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -35,16 +35,16 @@
   <url>http://tika.apache.org/</url>
 
   <properties>
-    <poi.version>3.13-beta1</poi.version>
+    <poi.version>3.13</poi.version>
+    <!-- NOTE: sync codec version with POI -->
     <codec.version>1.9</codec.version>
-    <!-- NOTE: sync with POI -->
-    <compress.version>1.9</compress.version>
+    <!-- NOTE: sync tukaani version with commons-compress -->
     <tukaani.version>1.5</tukaani.version>
-    <!-- NOTE: sync with commons-compress -->
     <mime4j.version>0.7.2</mime4j.version>
     <vorbis.version>0.6</vorbis.version>
     <pdfbox.version>1.8.10</pdfbox.version>
     <netcdf-java.version>4.5.5</netcdf-java.version>
+    <cxf.version>3.0.3</cxf.version>
   </properties>
 
   <dependencies>
@@ -85,13 +85,7 @@
     <dependency>
       <groupId>com.healthmarketscience.jackcess</groupId>
       <artifactId>jackcess-encrypt</artifactId>
-      <version>2.1.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcprov-jdk15</artifactId>
-        </exclusion>
-      </exclusions>
+      <version>2.1.1</version>
     </dependency>
 
     <!-- Optional OSGi dependencies, used only when running within OSGi -->
@@ -120,7 +114,7 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
-      <version>${compress.version}</version>
+      <version>${commons.compress.version}</version>
     </dependency>
     <dependency>
       <groupId>org.tukaani</groupId>
@@ -183,8 +177,8 @@
     </dependency>
     <dependency>
       <groupId>org.ow2.asm</groupId>
-      <artifactId>asm-debug-all</artifactId>
-      <version>4.1</version>
+      <artifactId>asm</artifactId>
+      <version>5.0.4</version>
     </dependency>
     <dependency>
       <groupId>com.googlecode.mp4parser</groupId>
@@ -231,6 +225,12 @@
       <artifactId>junrar</artifactId>
       <version>0.7</version>
     </dependency>
+	<dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-rs-client</artifactId>
+      <version>${cxf.version}</version>
+    </dependency>
+	
 
     <!-- Provided dependencies -->
     <dependency>
@@ -249,7 +249,7 @@
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>2.4</version>
+      <version>${commons.io.version}</version>
     </dependency>
 
     <dependency>
@@ -269,6 +269,13 @@
         </exclusion>
       </exclusions>
     </dependency>
+    
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20140107</version>
+    </dependency>
+    
 
     <!-- Test dependencies -->
     <dependency>
@@ -313,11 +320,6 @@
       <groupId>edu.ucar</groupId>
       <artifactId>httpservices</artifactId>
       <version>${netcdf-java.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>11.0.2</version>
     </dependency>
     <!-- Apache Commons CSV -->
     <dependency>
@@ -382,6 +384,7 @@
           <excludes>
             <exclude>src/main/java/org/apache/tika/parser/txt/Charset*.java</exclude>
             <exclude>src/test/resources/test-documents/**</exclude>
+            <exclude>src/test/resources/META-INF/services/org.apache.tika.parser.Parser</exclude>
           </excludes>
         </configuration>
       </plugin>

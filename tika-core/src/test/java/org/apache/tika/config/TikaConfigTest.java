@@ -16,6 +16,8 @@
  */
 package org.apache.tika.config;
 
+import java.io.File;
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +38,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class TikaConfigTest {
-
+/**
+ * Tests for the Tika Config, which don't require real parsers /
+ *  detectors / etc.
+ * There's also {@link TikaParserConfigTest} and {@link TikaDetectorConfigTest}
+ *  over in the Tika Parsers project, which do further Tika Config
+ *  testing using real parsers and detectors.
+ */
+public class TikaConfigTest extends AbstractTikaConfigTest {
     /**
      * Make sure that a configuration file can't reference the
      * {@link AutoDetectParser} class a &lt;parser&gt; configuration element.
@@ -46,15 +54,41 @@ public class TikaConfigTest {
      */
     @Test
     public void withInvalidParser() throws Exception {
-        URL url = TikaConfigTest.class.getResource("TIKA-866-invalid.xml");
-        System.setProperty("tika.config", url.toExternalForm());
         try {
-            new TikaConfig();
+            getConfig("TIKA-866-invalid.xml");
             fail("AutoDetectParser allowed in a <parser> element");
-        } catch (TikaException expected) {
-        } finally {
-            System.clearProperty("tika.config");
-        }
+        } catch (TikaException expected) {}
+    }
+    
+    /**
+     * Make sure that with a service loader given, we can
+     * get different configurable behaviour on parser classes
+     * which can't be found.
+     */
+    @Test
+    public void testUnknownParser() throws Exception {
+        ServiceLoader ignoreLoader = new ServiceLoader(
+                getClass().getClassLoader(), LoadErrorHandler.IGNORE);
+        ServiceLoader warnLoader = new ServiceLoader(
+                getClass().getClassLoader(), LoadErrorHandler.WARN);
+        ServiceLoader throwLoader = new ServiceLoader(
+                getClass().getClassLoader(), LoadErrorHandler.THROW);
+        File configPath = new File(new URI(getConfigPath("TIKA-1700-unknown-parser.xml")));
+        
+        TikaConfig ignore = new TikaConfig(configPath, ignoreLoader);
+        assertNotNull(ignore);
+        assertNotNull(ignore.getParser());
+        assertEquals(1, ((CompositeParser)ignore.getParser()).getAllComponentParsers().size());
+        
+        TikaConfig warn = new TikaConfig(configPath, warnLoader);
+        assertNotNull(warn);
+        assertNotNull(warn.getParser());
+        assertEquals(1, ((CompositeParser)warn.getParser()).getAllComponentParsers().size());
+        
+        try {
+            new TikaConfig(configPath, throwLoader);
+            fail("Shouldn't get here, invalid parser class");
+        } catch (TikaException expected) {}
     }
 
     /**
@@ -66,14 +100,10 @@ public class TikaConfigTest {
      */
     @Test
     public void asCompositeParser() throws Exception {
-        URL url = TikaConfigTest.class.getResource("TIKA-866-composite.xml");
-        System.setProperty("tika.config", url.toExternalForm());
         try {
-            new TikaConfig();
+            getConfig("TIKA-866-composite.xml");
         } catch (TikaException e) {
             fail("Unexpected TikaException: " + e);
-        } finally {
-            System.clearProperty("tika.config");
         }
     }
 
@@ -85,14 +115,10 @@ public class TikaConfigTest {
      */
     @Test
     public void onlyValidParser() throws Exception {
-        URL url = TikaConfigTest.class.getResource("TIKA-866-valid.xml");
-        System.setProperty("tika.config", url.toExternalForm());
         try {
-            new TikaConfig();
+            getConfig("TIKA-866-valid.xml");
         } catch (TikaException e) {
             fail("Unexpected TikaException: " + e);
-        } finally {
-            System.clearProperty("tika.config");
         }
     }
 
@@ -142,10 +168,8 @@ public class TikaConfigTest {
      */
     @Test
     public void defaultParserWithExcludes() throws Exception {
-        URL url = TikaConfigTest.class.getResource("TIKA-1445-default-except.xml");
-        System.setProperty("tika.config", url.toExternalForm());
         try {
-            TikaConfig config = new TikaConfig();
+            TikaConfig config = getConfig("TIKA-1445-default-except.xml");
             
             CompositeParser cp = (CompositeParser)config.getParser();
             List<Parser> parsers = cp.getAllComponentParsers();
@@ -173,8 +197,6 @@ public class TikaConfigTest {
             assertEquals("fail/world", p.getSupportedTypes(null).iterator().next().toString());
         } catch (TikaException e) {
             fail("Unexpected TikaException: " + e);
-        } finally {
-            System.clearProperty("tika.config");
         }
     }
     
@@ -184,10 +206,8 @@ public class TikaConfigTest {
      */
     @Test
     public void parserWithChildParsers() throws Exception {
-        URL url = TikaConfigTest.class.getResource("TIKA-1653-norepeat.xml");
-        System.setProperty("tika.config", url.toExternalForm());
         try {
-            TikaConfig config = new TikaConfig();
+            TikaConfig config = getConfig("TIKA-1653-norepeat.xml");
             
             CompositeParser cp = (CompositeParser)config.getParser();
             List<Parser> parsers = cp.getAllComponentParsers();
@@ -208,8 +228,19 @@ public class TikaConfigTest {
             assertEquals("hello/world", p.getSupportedTypes(null).iterator().next().toString());
         } catch (TikaException e) {
             fail("Unexpected TikaException: " + e);
-        } finally {
-            System.clearProperty("tika.config");
         }
+    }
+    
+    @Test
+    public void testDynamicServiceLoaderFromConfig() throws Exception {
+        URL url = TikaConfigTest.class.getResource("TIKA-1700-dynamic.xml");
+        TikaConfig config = new TikaConfig(url);
+        
+        DummyParser parser = (DummyParser)config.getParser();
+
+        ServiceLoader loader = parser.getLoader();
+        boolean dynamicValue = loader.isDynamic();
+        
+        assertTrue("Dynamic Service Loading Should be true", dynamicValue);
     }
 }

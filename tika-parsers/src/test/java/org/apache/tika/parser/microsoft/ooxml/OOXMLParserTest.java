@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.microsoft.ooxml;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -33,7 +34,6 @@ import java.util.Map;
 
 import org.apache.tika.TikaTest;
 import org.apache.tika.exception.EncryptedDocumentException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
@@ -67,8 +67,7 @@ public class OOXMLParserTest extends TikaTest {
         ParseContext context = new ParseContext();
         context.set(Locale.class, Locale.US);
 
-        InputStream input = getTestDocument("testEXCEL.xlsx");
-        try {
+        try (InputStream input = getTestDocument("testEXCEL.xlsx")) {
             parser.parse(input, handler, metadata, context);
 
             assertEquals(
@@ -86,8 +85,6 @@ public class OOXMLParserTest extends TikaTest {
             assertContains("196", content);
             assertNotContained("196.0", content);
             assertEquals("false", metadata.get(TikaMetadataKeys.PROTECTED));
-        } finally {
-            input.close();
         }
     }
 
@@ -98,8 +95,7 @@ public class OOXMLParserTest extends TikaTest {
         ParseContext context = new ParseContext();
         context.set(Locale.class, Locale.US);
 
-        InputStream input = getTestDocument("testEXCEL-formats.xlsx");
-        try {
+        try (InputStream input = getTestDocument("testEXCEL-formats.xlsx")) {
             parser.parse(input, handler, metadata, context);
 
             assertEquals(
@@ -161,8 +157,6 @@ public class OOXMLParserTest extends TikaTest {
              // Custom Number ("At" h:mm AM/PM "on" dddd mmmm d"," yyyy)
              assertContains("At 4:20 AM on Thursday May 17, 2007", content);
              **************************************************************************/
-        } finally {
-            input.close();
         }
     }
 
@@ -174,8 +168,7 @@ public class OOXMLParserTest extends TikaTest {
         ParseContext context = new ParseContext();
         context.set(Locale.class, Locale.US);
 
-        InputStream input = getTestDocument("testEXCEL.strict.xlsx");
-        try {
+        try (InputStream input = getTestDocument("testEXCEL.strict.xlsx")) {
             parser.parse(input, handler, metadata, context);
 
             assertEquals(
@@ -193,8 +186,6 @@ public class OOXMLParserTest extends TikaTest {
             assertContains("cb=sum", content);
             assertNotContained("13.0", content);
             assertEquals("false", metadata.get(TikaMetadataKeys.PROTECTED));
-        } finally {
-            input.close();
         }
     }
 
@@ -227,8 +218,7 @@ public class OOXMLParserTest extends TikaTest {
             ContentHandler handler = new BodyContentHandler();
             ParseContext context = new ParseContext();
 
-            InputStream input = getTestDocument(filename);
-            try {
+            try (InputStream input = getTestDocument(filename)) {
                 parser.parse(input, handler, metadata, context);
 
                 assertEquals(
@@ -265,8 +255,6 @@ public class OOXMLParserTest extends TikaTest {
                             content.contains("Mystery")
                     );
                 }
-            } finally {
-                input.close();
             }
         }
     }
@@ -315,11 +303,8 @@ public class OOXMLParserTest extends TikaTest {
             };
             ParseContext context = new ParseContext();
 
-            InputStream input = getTestDocument(filename);
-            try {
+            try (InputStream input = getTestDocument(filename)) {
                 parser.parse(input, handler, metadata, context);
-            } finally {
-                input.close();
             }
         }
     }
@@ -346,8 +331,7 @@ public class OOXMLParserTest extends TikaTest {
             ContentHandler handler = new BodyContentHandler();
             ParseContext context = new ParseContext();
 
-            InputStream input = getTestDocument(filename);
-            try {
+            try (InputStream input = getTestDocument(filename)) {
                 parser.parse(input, handler, metadata, context);
 
                 // Should get the metadata
@@ -357,8 +341,6 @@ public class OOXMLParserTest extends TikaTest {
                         metadata.get(Metadata.CONTENT_TYPE));
 
                 // But that's about it
-            } finally {
-                input.close();
             }
         }
     }
@@ -374,8 +356,7 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        InputStream input = getTestDocument("testWORD.docx");
-        try {
+        try (InputStream input = getTestDocument("testWORD.docx")) {
             parser.parse(input, handler, metadata, context);
             assertEquals(
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -384,8 +365,6 @@ public class OOXMLParserTest extends TikaTest {
             assertEquals("Keith Bennett", metadata.get(TikaCoreProperties.CREATOR));
             assertEquals("Keith Bennett", metadata.get(Metadata.AUTHOR));
             assertTrue(handler.toString().contains("Sample Word Document"));
-        } finally {
-            input.close();
         }
     }
 
@@ -400,15 +379,12 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        InputStream input = getTestDocument("footnotes.docx");
-        try {
+        try (InputStream input = getTestDocument("footnotes.docx")) {
             parser.parse(input, handler, metadata, context);
             assertEquals(
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     metadata.get(Metadata.CONTENT_TYPE));
             assertTrue(handler.toString().contains("snoska"));
-        } finally {
-            input.close();
         }
     }
 
@@ -496,8 +472,7 @@ public class OOXMLParserTest extends TikaTest {
         handler.setResult(new StreamResult(sw));
 
         // Try with a document containing various tables and formattings
-        InputStream input = getTestDocument("headerPic.docx");
-        try {
+        try (InputStream input = getTestDocument("headerPic.docx")) {
             parser.parse(input, handler, metadata, context);
             String xml = sw.toString();
             assertEquals(
@@ -505,8 +480,6 @@ public class OOXMLParserTest extends TikaTest {
                     metadata.get(Metadata.CONTENT_TYPE));
             // Check that custom headings came through
             assertTrue(xml.contains("<img"));
-        } finally {
-            input.close();
         }
     }
 
@@ -516,15 +489,14 @@ public class OOXMLParserTest extends TikaTest {
      */
     @Test
     public void testProtectedExcelSheets() throws Exception {
-        InputStream input = OOXMLParserTest.class
-                .getResourceAsStream("/test-documents/protectedSheets.xlsx");
 
         Parser parser = new AutoDetectParser();
         Metadata metadata = new Metadata();
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        try {
+        try (InputStream input = OOXMLParserTest.class
+                .getResourceAsStream("/test-documents/protectedSheets.xlsx")) {
             parser.parse(input, handler, metadata, context);
 
             assertEquals(
@@ -532,8 +504,6 @@ public class OOXMLParserTest extends TikaTest {
                     metadata.get(Metadata.CONTENT_TYPE));
 
             assertEquals("true", metadata.get(TikaMetadataKeys.PROTECTED));
-        } finally {
-            input.close();
         }
     }
 
@@ -549,8 +519,7 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        InputStream input = getTestDocument("protectedFile.xlsx");
-        try {
+        try (InputStream input = getTestDocument("protectedFile.xlsx")) {
             parser.parse(input, handler, metadata, context);
 
             assertEquals(
@@ -561,8 +530,6 @@ public class OOXMLParserTest extends TikaTest {
 
             String content = handler.toString();
             assertContains("Office", content);
-        } finally {
-            input.close();
         }
     }
 
@@ -577,12 +544,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        InputStream input = getTestDocument("NullHeader.docx");
-        try {
+        try (InputStream input = getTestDocument("NullHeader.docx")) {
             parser.parse(input, handler, metadata, context);
             assertEquals("Should have found some text", false, handler.toString().isEmpty());
-        } finally {
-            input.close();
         }
     }
 
@@ -591,12 +555,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testWORD_various.docx");
-        try {
+        try (InputStream stream = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_various.docx")) {
             new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();
@@ -660,74 +621,71 @@ public class OOXMLParserTest extends TikaTest {
 
     @Test
     public void testVariousPPTX() throws Exception {
-        ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
-
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testPPT_various.pptx");
-        try {
-            new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
-        }
-
-        String content = handler.toString();
-        //content = content.replaceAll("\\s+"," ");
-        assertContains("Footnote appears here", content);
-        assertContains("This is a footnote.", content);
-        assertContains("This is the header text.", content);
-        assertContains("This is the footer text.", content);
-        assertContains("Here is a text box", content);
-        assertContains("Bold", content);
-        assertContains("italic", content);
-        assertContains("underline", content);
-        assertContains("superscript", content);
-        assertContains("subscript", content);
-        assertContains("Here is a citation:", content);
-        assertContains("Figure 1 This is a caption for Figure 1", content);
-        assertContains("(Kramer)", content);
-        assertContains("Row 1 Col 1 Row 1 Col 2 Row 1 Col 3 Row 2 Col 1 Row 2 Col 2 Row 2 Col 3", content.replaceAll("\\s+"," "));
-        assertContains("Row 1 column 1 Row 2 column 1 Row 1 column 2 Row 2 column 2", content.replaceAll("\\s+"," "));
-        assertContains("This is a hyperlink", content);
-        assertContains("Here is a list:", content);
+        String xml = getXML("testPPT_various.pptx", metadata).xml;
+        assertContains("<p>Footnote appears here", xml);
+        assertContains("<p>[1] This is a footnote.", xml);
+        assertContains("<p>This is the header text.</p>", xml);
+        assertContains("<p>This is the footer text.</p>", xml);
+        assertContains("<p>Here is a text box</p>", xml);
+        assertContains("<p>Bold", xml);
+        assertContains("italic", xml);
+        assertContains("underline", xml);
+        assertContains("superscript", xml);
+        assertContains("subscript", xml);
+        assertContains("<p>Here is a citation:", xml);
+        assertContains("Figure 1 This is a caption for Figure 1", xml);
+        assertContains("(Kramer)", xml);
+        assertContains("<table><tr>\t<td>Row 1 Col 1</td>", xml);
+        assertContains("<td>Row 2 Col 2</td>\t<td>Row 2 Col 3</td></tr>", xml);
+        assertContains("<p>Row 1 column 1</p>", xml);
+        assertContains("<p>Row 2 column 2</p>", xml);
+        assertContains("<p>This is a hyperlink", xml);
+        assertContains("<p>Here is a list:", xml);
         for(int row=1;row<=3;row++) {
             //assertContains("·\tBullet " + row, content);
             //assertContains("\u00b7\tBullet " + row, content);
-            assertContains("Bullet " + row, content);
+            assertContains("<p>Bullet " + row, xml);
         }
-        assertContains("Here is a numbered list:", content);
+        assertContains("Here is a numbered list:", xml);
         for(int row=1;row<=3;row++) {
             //assertContains(row + ")\tNumber bullet " + row, content);
             //assertContains(row + ") Number bullet " + row, content);
             // TODO: OOXMLExtractor fails to number the bullets:
-            assertContains("Number bullet " + row, content);
+            assertContains("<p>Number bullet " + row, xml);
         }
 
         for(int row=1;row<=2;row++) {
             for(int col=1;col<=3;col++) {
-                assertContains("Row " + row + " Col " + col, content);
+                assertContains("Row " + row + " Col " + col, xml);
             }
         }
 
-        assertContains("Keyword1 Keyword2", content);
+        assertContains("Keyword1 Keyword2", xml);
         assertEquals("Keyword1 Keyword2",
-                     metadata.get(Metadata.KEYWORDS));
+                metadata.get(Metadata.KEYWORDS));
 
-        assertContains("Subject is here", content);
+        assertContains("Subject is here", xml);
         // TODO: Remove subject in Tika 2.0
         assertEquals("Subject is here",
                      metadata.get(Metadata.SUBJECT));
         assertEquals("Subject is here",
-                     metadata.get(OfficeOpenXMLCore.SUBJECT));
+                metadata.get(OfficeOpenXMLCore.SUBJECT));
 
-        assertContains("Suddenly some Japanese text:", content);
+        assertContains("Suddenly some Japanese text:", xml);
         // Special version of (GHQ)
-        assertContains("\uff08\uff27\uff28\uff31\uff09", content);
+        assertContains("\uff08\uff27\uff28\uff31\uff09", xml);
         // 6 other characters
-        assertContains("\u30be\u30eb\u30b2\u3068\u5c3e\u5d0e\u3001\u6de1\u3005\u3068\u6700\u671f", content);
+        assertContains("\u30be\u30eb\u30b2\u3068\u5c3e\u5d0e\u3001\u6de1\u3005\u3068\u6700\u671f", xml);
 
-        assertContains("And then some Gothic text:", content);
-        assertContains("\uD800\uDF32\uD800\uDF3f\uD800\uDF44\uD800\uDF39\uD800\uDF43\uD800\uDF3A", content);
+        assertContains("And then some Gothic text:", xml);
+        assertContains("\uD800\uDF32\uD800\uDF3f\uD800\uDF44\uD800\uDF39\uD800\uDF43\uD800\uDF3A", xml);
+    }
+
+    @Test
+    public void testCommentPPTX() throws Exception {
+        XMLResult r = getXML("testPPT_comment.pptx");
+        assertContains("<p class=\"slide-comment\"><b>Allison, Timothy B. (ATB)", r.xml);
     }
 
     @Test
@@ -735,12 +693,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testPPT_masterFooter.pptx");
-        try {
+        try (InputStream stream = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testPPT_masterFooter.pptx")) {
             new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();
@@ -756,12 +711,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testPPT_masterText.pptx");
-        try {
+        try (InputStream stream = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testPPT_masterText.pptx")) {
             new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();
@@ -773,12 +725,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testPPT_masterText2.pptx");
-        try {
+        try (InputStream stream = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testPPT_masterText2.pptx")) {
             new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();
@@ -790,12 +739,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testWordArt.pptx");
-        try {
+        try (InputStream stream = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testWordArt.pptx")) {
             new AutoDetectParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
         String content = handler.toString();
         assertContains("Here is some red word Art", content);
@@ -806,17 +752,14 @@ public class OOXMLParserTest extends TikaTest {
      */
     @Test
     public void testExcelCustomProperties() throws Exception {
-        InputStream input = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testEXCEL_custom_props.xlsx");
         Metadata metadata = new Metadata();
 
-        try {
+        try (InputStream input = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testEXCEL_custom_props.xlsx")) {
             ContentHandler handler = new BodyContentHandler(-1);
             ParseContext context = new ParseContext();
             context.set(Locale.class, Locale.US);
             new OOXMLParser().parse(input, handler, metadata, context);
-        } finally {
-            input.close();
         }
 
         assertEquals(
@@ -840,17 +783,14 @@ public class OOXMLParserTest extends TikaTest {
 
     @Test
     public void testWordCustomProperties() throws Exception {
-        InputStream input = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testWORD_custom_props.docx");
         Metadata metadata = new Metadata();
 
-        try {
+        try (InputStream input = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_custom_props.docx")) {
             ContentHandler handler = new BodyContentHandler(-1);
             ParseContext context = new ParseContext();
             context.set(Locale.class, Locale.US);
             new OOXMLParser().parse(input, handler, metadata, context);
-        } finally {
-            input.close();
         }
 
         assertEquals(
@@ -884,17 +824,14 @@ public class OOXMLParserTest extends TikaTest {
 
     @Test
     public void testPowerPointCustomProperties() throws Exception {
-        InputStream input = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testPPT_custom_props.pptx");
         Metadata metadata = new Metadata();
 
-        try {
+        try (InputStream input = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testPPT_custom_props.pptx")) {
             ContentHandler handler = new BodyContentHandler(-1);
             ParseContext context = new ParseContext();
             context.set(Locale.class, Locale.US);
             new OOXMLParser().parse(input, handler, metadata, context);
-        } finally {
-            input.close();
         }
 
         assertEquals(
@@ -920,8 +857,6 @@ public class OOXMLParserTest extends TikaTest {
     // TIKA-989:
     @Test
     public void testEmbeddedPDF() throws Exception {
-        InputStream input = OOXMLParserTest.class.getResourceAsStream(
-                "/test-documents/testWORD_embedded_pdf.docx");
         Metadata metadata = new Metadata();
         StringWriter sw = new StringWriter();
         SAXTransformerFactory factory = (SAXTransformerFactory)
@@ -931,10 +866,9 @@ public class OOXMLParserTest extends TikaTest {
         handler.getTransformer().setOutputProperty(OutputKeys.INDENT, "no");
         handler.setResult(new StreamResult(sw));
 
-        try {
+        try (InputStream input = OOXMLParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_embedded_pdf.docx")) {
             new OOXMLParser().parse(input, handler, metadata, new ParseContext());
-        } finally {
-            input.close();
         }
         String xml = sw.toString();
         int i = xml.indexOf("Here is the pdf file:");
@@ -986,12 +920,9 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = WordParserTest.class.getResourceAsStream(
-                "/test-documents/testWORD_no_format.docx");
-        try {
+        try (InputStream stream = WordParserTest.class.getResourceAsStream(
+                "/test-documents/testWORD_no_format.docx")) {
             new OOXMLParser().parse(stream, handler, metadata, new ParseContext());
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();
@@ -1027,8 +958,7 @@ public class OOXMLParserTest extends TikaTest {
         ContentHandler handler = new BodyContentHandler();
         ParseContext context = new ParseContext();
 
-        InputStream input = getTestDocument("testWORD_missing_text.docx");
-        try {
+        try (InputStream input = getTestDocument("testWORD_missing_text.docx")) {
             parser.parse(input, handler, metadata, context);
             assertEquals(
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1036,8 +966,6 @@ public class OOXMLParserTest extends TikaTest {
             assertContains("BigCompany", handler.toString());
             assertContains("Seasoned", handler.toString());
             assertContains("Rich_text_in_cell", handler.toString());
-        } finally {
-            input.close();
         }
     }
 
@@ -1069,13 +997,13 @@ public class OOXMLParserTest extends TikaTest {
 
             //grab stderr
             ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-            System.setErr(new PrintStream(errContent, true, IOUtils.UTF_8.name()));
+            System.setErr(new PrintStream(errContent, true, UTF_8.name()));
             parser.parse(input, handler, metadata, context);
 
             //return stderr
             System.setErr(origErr);
 
-            String err = errContent.toString(IOUtils.UTF_8.name());
+            String err = errContent.toString(UTF_8.name());
             assertTrue(err.length() == 0);
             input.close();
         }
@@ -1118,9 +1046,8 @@ public class OOXMLParserTest extends TikaTest {
     @Test
     public void testPPTXThumbnail() throws Exception {
         String xml = getXML("testPPTX_Thumbnail.pptx").xml;
-        int a = xml.indexOf("<body><p>This file contains an embedded thumbnail</p>");
+        int a = xml.indexOf("<body><div class=\"slide-content\"><p>This file contains an embedded thumbnail");
         int b = xml.indexOf("<div class=\"embedded\" id=\"/docProps/thumbnail.jpeg\" />");
-
         assertTrue(a != -1);
         assertTrue(b != -1);
         assertTrue(a < b);
@@ -1148,30 +1075,22 @@ public class OOXMLParserTest extends TikaTest {
         passwordContext.set(org.apache.tika.parser.PasswordProvider.class, passwordProvider);
 
         for (Map.Entry<String, String> e : tests.entrySet()) {
-            InputStream is = null;
-            try {
-                is = getTestDocument(e.getKey());
+            try (InputStream is = getTestDocument(e.getKey())) {
                 ContentHandler handler = new BodyContentHandler();
                 parser.parse(is, handler, m, passwordContext);
                 assertContains(e.getValue(), handler.toString());
-            } finally {
-                is.close();
             }
         }
 
         ParseContext context = new ParseContext();
         //now try with no password
         for (Map.Entry<String, String> e : tests.entrySet()) {
-            InputStream is = null;
             boolean exc = false;
-            try {
-                is = getTestDocument(e.getKey());
+            try (InputStream is = getTestDocument(e.getKey())) {
                 ContentHandler handler = new BodyContentHandler();
                 parser.parse(is, handler, m, context);
             } catch (EncryptedDocumentException ex) {
                 exc = true;
-            } finally {
-                is.close();
             }
             assertTrue(exc);
         }
@@ -1271,6 +1190,19 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("Footer - Corporate Spreadsheet", content);
         assertContains("Footer - For Internal Use Only", content);
         assertContains("Footer - Author: John Smith", content);
+    }
+
+    @Test
+    public void testMultiAuthorsManagers() throws Exception {
+        XMLResult r = getXML("testWORD_multi_authors.docx");
+        String[] authors = r.metadata.getValues(TikaCoreProperties.CREATOR);
+        assertEquals(3, authors.length);
+        assertEquals("author2", authors[1]);
+
+        String[] managers = r.metadata.getValues(OfficeOpenXMLExtended.MANAGER);
+        assertEquals(2, managers.length);
+        assertEquals("manager1", managers[0]);
+        assertEquals("manager2", managers[1]);
     }
 }
 

@@ -16,8 +16,10 @@
  */
 package org.apache.tika.bundle;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.ops4j.pax.exam.CoreOptions.bundle;
 import static org.ops4j.pax.exam.CoreOptions.junitBundles;
 import static org.ops4j.pax.exam.CoreOptions.options;
@@ -34,6 +36,9 @@ import java.io.Writer;
 import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.jar.Attributes;
+import java.util.jar.JarInputStream;
+import java.util.jar.Manifest;
 
 import org.apache.tika.Tika;
 import org.apache.tika.detect.DefaultDetector;
@@ -101,6 +106,25 @@ public class BundleIT {
 
 
     @Test
+    public void testManifestNoJUnit() throws Exception {
+        File TARGET = new File("target");
+        File base = new File(TARGET, "test-bundles");
+        File tikaBundle = new File(base, "tika-bundle.jar");
+
+        JarInputStream jarIs = new JarInputStream(new FileInputStream(tikaBundle));
+        Manifest mf = jarIs.getManifest();
+
+        Attributes main = mf.getMainAttributes();
+
+        String importPackage = main.getValue("Import-Package");
+
+        boolean containsJunit = importPackage.contains("junit");
+
+        assertFalse("The bundle should not import junit", containsJunit);
+    }
+
+
+    @Test
     public void testBundleDetection() throws Exception {
         Metadata metadataTXT = new Metadata();
         metadataTXT.set(Metadata.RESOURCE_NAME_KEY, "test.txt");
@@ -118,7 +142,7 @@ public class BundleIT {
     public void testForkParser() throws Exception {
         ForkParser parser = new ForkParser(Activator.class.getClassLoader(), defaultParser);
         String data = "<!DOCTYPE html>\n<html><body><p>test <span>content</span></p></body></html>";
-        InputStream stream = new ByteArrayInputStream(data.getBytes("UTF-8"));
+        InputStream stream = new ByteArrayInputStream(data.getBytes(UTF_8));
         Writer writer = new StringWriter();
         ContentHandler contentHandler = new BodyContentHandler(writer);
         Metadata metadata = new Metadata();
@@ -223,12 +247,9 @@ public class BundleIT {
         ParseContext context = new ParseContext();
         context.set(Parser.class, parser);
 
-        InputStream stream
-                = new FileInputStream("src/test/resources/test-documents.zip");
-        try {
+        try (InputStream stream =
+                new FileInputStream("src/test/resources/test-documents.zip")) {
             parser.parse(stream, handler, new Metadata(), context);
-        } finally {
-            stream.close();
         }
 
         String content = handler.toString();

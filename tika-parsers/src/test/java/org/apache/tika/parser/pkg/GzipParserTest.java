@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.pkg;
 
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.junit.Assert.assertEquals;
 
 import java.io.InputStream;
@@ -38,12 +39,9 @@ public class GzipParserTest extends AbstractPkgTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = GzipParserTest.class.getResourceAsStream(
-                "/test-documents/test-documents.tgz");
-        try {
+        try (InputStream stream = GzipParserTest.class.getResourceAsStream(
+                "/test-documents/test-documents.tgz")) {
             parser.parse(stream, handler, metadata, recursingContext);
-        } finally {
-            stream.close();
         }
 
         assertEquals("application/gzip", metadata.get(Metadata.CONTENT_TYPE));
@@ -78,13 +76,10 @@ public class GzipParserTest extends AbstractPkgTest {
        ContentHandler handler = new BodyContentHandler();
        Metadata metadata = new Metadata();
 
-       InputStream stream = ZipParserTest.class.getResourceAsStream(
-               "/test-documents/test-documents.tgz");
-       try {
-           parser.parse(stream, handler, metadata, trackingContext);
-       } finally {
-           stream.close();
-       }
+        try (InputStream stream = ZipParserTest.class.getResourceAsStream(
+                "/test-documents/test-documents.tgz")) {
+            parser.parse(stream, handler, metadata, trackingContext);
+        }
        
        // Should find a single entry, for the (compressed) tar file
        assertEquals(1, tracker.filenames.size());
@@ -96,7 +91,7 @@ public class GzipParserTest extends AbstractPkgTest {
        assertEquals(null, tracker.modifiedAts.get(0));
 
        // Tar file starts with the directory name
-       assertEquals("test-documents/", new String(tracker.lastSeenStart, 0, 15, "ASCII"));
+       assertEquals("test-documents/", new String(tracker.lastSeenStart, 0, 15, US_ASCII));
     }
     
     @Test
@@ -105,12 +100,9 @@ public class GzipParserTest extends AbstractPkgTest {
         ContentHandler handler = new BodyContentHandler();
         Metadata metadata = new Metadata();
 
-        InputStream stream = GzipParserTest.class.getResourceAsStream(
-                "/test-documents/testSVG.svgz");
-        try {
+        try (InputStream stream = GzipParserTest.class.getResourceAsStream(
+                "/test-documents/testSVG.svgz")) {
             parser.parse(stream, handler, metadata, recursingContext);
-        } finally {
-            stream.close();
         }
 
         assertEquals("application/gzip", metadata.get(Metadata.CONTENT_TYPE));

@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.poi.poifs.filesystem.DirectoryEntry;
 import org.apache.poi.poifs.filesystem.DirectoryNode;
 import org.apache.poi.poifs.filesystem.DocumentInputStream;
@@ -33,7 +34,6 @@ import org.apache.poi.poifs.filesystem.DocumentNode;
 import org.apache.poi.poifs.filesystem.Entry;
 import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.detect.Detector;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
@@ -125,6 +125,10 @@ public class POIFSContainerDetector implements Detector {
      */
     public static final MediaType SLDWORKS = application("sldworks");
     /**
+     * Hangul Word Processor (Korean)
+     */
+    public static final MediaType HWP = application("x-hwp-v5");
+    /**
      * Serial version UID
      */
     private static final long serialVersionUID = -3028021741663605293L;
@@ -196,6 +200,9 @@ public class POIFSContainerDetector implements Detector {
                 } else {
                     return processCompObjFormatType(root);
                 }
+            } else if (names.contains("\u0005HwpSummaryInformation")) {
+                // Hangul Word Processor v5+ (previous aren't OLE2-based)
+                return HWP;
             } else if (names.contains("WksSSWorkBook")) {
                 // This check has to be before names.contains("Workbook")
                 // Works 7.0 spreadsheet files contain both

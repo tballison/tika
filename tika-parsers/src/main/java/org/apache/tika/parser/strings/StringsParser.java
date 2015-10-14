@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
@@ -40,6 +39,8 @@ import org.apache.tika.parser.external.ExternalParser;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Parser that uses the "strings" (or strings-alternative) command to find the
@@ -263,12 +264,9 @@ public class StringsParser extends AbstractParser {
 			throws SAXException, IOException {
 
 		char[] buffer = new char[1024];
-		BufferedReader reader = null;
 		int totalBytes = 0;
 
-		try {
-			reader = new BufferedReader(new InputStreamReader(stream, IOUtils.UTF_8));
-
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, UTF_8))) {
 			int n = 0;
 			while ((n = reader.read(buffer)) != -1) {
 				if (n > 0) {
@@ -277,8 +275,6 @@ public class StringsParser extends AbstractParser {
 				totalBytes += n;
 			}
 
-		} finally {
-			reader.close();
 		}
 
 		return totalBytes;
@@ -316,18 +312,13 @@ public class StringsParser extends AbstractParser {
 
 		InputStream out = process.getInputStream();
 
-		BufferedReader reader = null;
 		String fileOutput = null;
 
-		try {
-			reader = new BufferedReader(new InputStreamReader(out, IOUtils.UTF_8));
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(out, UTF_8))) {
 			fileOutput = reader.readLine();
-
 		} catch (IOException ioe) {
 			// file output not available!
 			fileOutput = "";
-		} finally {
-			reader.close();
 		}
 
 		return fileOutput;

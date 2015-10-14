@@ -29,7 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.apache.tika.io.IOUtils;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Internal utility class that Tika uses to look up service providers.
@@ -142,6 +143,16 @@ public class ServiceLoader {
     	this(getContextClassLoader(), Boolean.getBoolean("org.apache.tika.service.error.warn") 
     			? LoadErrorHandler.WARN:LoadErrorHandler.IGNORE, true);
     }
+    
+    /**
+     * Returns if the service loader is static or dynamic
+     * 
+     * @return dynamic or static loading
+     * @since Apache Tika 1.10
+     */
+    public boolean isDynamic() {
+        return dynamic;
+    }
 
     /**
      * Returns the load error handler used by this loader.
@@ -173,6 +184,10 @@ public class ServiceLoader {
     /**
      * Loads and returns the named service class that's expected to implement
      * the given interface.
+     * 
+     * Note that this class does not use the {@link LoadErrorHandler}, a
+     *  {@link ClassNotFoundException} is always returned for unknown
+     *  classes or classes of the wrong type
      *
      * @param iface service interface
      * @param name service class name
@@ -328,10 +343,9 @@ public class ServiceLoader {
 
     private void collectServiceClassNames(URL resource, Collection<String> names)
             throws IOException {
-        InputStream stream = resource.openStream();
-        try {
+        try (InputStream stream = resource.openStream()) {
             BufferedReader reader =
-                new BufferedReader(new InputStreamReader(stream, IOUtils.UTF_8));
+                    new BufferedReader(new InputStreamReader(stream, UTF_8));
             String line = reader.readLine();
             while (line != null) {
                 line = COMMENT.matcher(line).replaceFirst("");
@@ -341,8 +355,6 @@ public class ServiceLoader {
                 }
                 line = reader.readLine();
             }
-        } finally {
-            stream.close();
         }
     }
 

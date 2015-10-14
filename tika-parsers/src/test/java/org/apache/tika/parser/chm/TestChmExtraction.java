@@ -16,6 +16,7 @@
  */
 package org.apache.tika.parser.chm;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -84,12 +85,8 @@ public class TestChmExtraction {
     @Test
     public void testExtractChmEntries() throws TikaException, IOException{
         for (String fileName : files) {
-            InputStream stream =
-                    TestChmExtraction.class.getResourceAsStream(fileName);
-            try {
+            try (InputStream stream = TestChmExtraction.class.getResourceAsStream(fileName)) {
                 testExtractChmEntry(stream);
-            } finally {
-                stream.close();
             }
         }
     }
@@ -150,7 +147,7 @@ public class TestChmExtraction {
                 }
 
                 //validate html
-                String html = new String(data, "ISO-8859-1");
+                String html = new String(data, ISO_8859_1);
                 if (! htmlPairP.matcher(html).find()) {
                     System.err.println(lowName + " is invalid.");
                     System.err.println(html);
