@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.InputStream;
 import java.util.Locale;
 
@@ -491,6 +492,31 @@ public class WordParserTest extends TikaTest {
         assertEquals(2, managers.length);
         assertEquals("manager1", managers[0]);
         assertEquals("manager2", managers[1]);
+    }
+
+    @Test
+    public void testRevisionAuthor() throws Exception {
+        Metadata m = getXML("testControlCharacters.doc").metadata;
+        assertEquals("Aurelio Spina", m.get(TikaCoreProperties.REVISION_AUTHOR));
+        assertEquals(1, m.getValues(TikaCoreProperties.REVISION_AUTHOR).length);
+    }
+
+    @Test
+    public void findCommenters() throws Exception {
+        File testDocs = new File(this.getClass().getResource("/test-documents").toURI());
+
+        for (File f : testDocs.listFiles()) {
+            if (f.getName().endsWith(".doc")) {
+                System.out.println(f.getName());
+                try {
+                    //getXML(f.getName());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        //testException1, testException2, 016723.doc
+        System.out.println(getXML("testException2.doc").xml);
     }
 }
 

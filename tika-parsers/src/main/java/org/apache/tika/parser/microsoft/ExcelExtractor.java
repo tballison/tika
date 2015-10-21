@@ -415,6 +415,7 @@ public class ExcelExtractor extends AbstractPOIFSExtractor {
 
                 case LabelRecord.sid: // strings stored directly in the cell
                     LabelRecord label = (LabelRecord) record;
+                    System.out.println("lable record:"+label.getValue());
                     addTextCell(record, label.getValue());
                     break;
 

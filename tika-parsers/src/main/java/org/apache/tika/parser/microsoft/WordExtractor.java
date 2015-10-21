@@ -16,6 +16,8 @@
  */
 package org.apache.tika.parser.microsoft;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,6 +34,9 @@ import org.apache.poi.hwpf.OldWordFileFormatException;
 import org.apache.poi.hwpf.extractor.Word6Extractor;
 import org.apache.poi.hwpf.model.FieldsDocumentPart;
 import org.apache.poi.hwpf.model.PicturesTable;
+import org.apache.poi.hwpf.model.RevisionMarkAuthorTable;
+import org.apache.poi.hwpf.model.SavedByEntry;
+import org.apache.poi.hwpf.model.SavedByTable;
 import org.apache.poi.hwpf.model.StyleDescription;
 import org.apache.poi.hwpf.usermodel.CharacterRun;
 import org.apache.poi.hwpf.usermodel.Field;
@@ -48,12 +53,12 @@ import org.apache.poi.poifs.filesystem.Entry;
 import org.apache.poi.poifs.filesystem.NPOIFSFileSystem;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class WordExtractor extends AbstractPOIFSExtractor {
 
@@ -79,8 +84,11 @@ public class WordExtractor extends AbstractPOIFSExtractor {
     private boolean curBold;
     private boolean curItalic;
 
-    public WordExtractor(ParseContext context) {
+    private Metadata metadata;
+
+    public WordExtractor(ParseContext context, Metadata metadata) {
         super(context);
+        this.metadata = metadata;
     }
 
     private static int countParagraphs(Range... ranges) {
@@ -149,7 +157,24 @@ public class WordExtractor extends AbstractPOIFSExtractor {
         org.apache.poi.hwpf.extractor.WordExtractor wordExtractor =
                 new org.apache.poi.hwpf.extractor.WordExtractor(document);
         HeaderStories headerFooter = new HeaderStories(document);
-
+        RevisionMarkAuthorTable table = document.getRevisionMarkAuthorTable();
+        if (table != null) {
+            for (String s : table.getEntries()) {
+                if (s != null && ! s.equals("Unknown") && ! s.equals("")) {
+                    metadata.add(TikaCoreProperties.REVISION_AUTHOR, s);
+                }
+                System.out.println("MARK AUTHOR: " + s);
+            }
+        }
+        SavedByTable savedByTable = document.getSavedByTable();
+        if (savedByTable != null) {
+            System.out.println("SAVED BY TABLE!!!!");
+            for (SavedByEntry e : savedByTable.getEntries()) {
+                if (e != null) {
+                    System.out.println(e.getUserName() + " : "+e.getSaveLocation());
+                }
+            }
+        }
         // Grab the list of pictures. As far as we can tell,
         //  the pictures should be in order, and may be directly
         //  placed or referenced from an anchor

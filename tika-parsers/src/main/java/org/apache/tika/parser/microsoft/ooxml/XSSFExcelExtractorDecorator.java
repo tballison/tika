@@ -128,7 +128,9 @@ public class XSSFExcelExtractorDecorator extends AbstractOOXMLExtractor {
 
             SheetTextAsHTML sheetExtractor = new SheetTextAsHTML(xhtml);
             CommentsTable comments = iter.getSheetComments();
-            addCommenters(comments.getCTComments());
+            if (comments != null) {
+                addCommenters(comments.getCTComments());
+            }
             // Start, and output the sheet name
             xhtml.startElement("div");
             xhtml.element("h1", iter.getSheetName());
