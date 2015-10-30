@@ -394,6 +394,10 @@ public class TestMimeTypes {
         assertTypeByName("image/jpeg", "x.jif");
         assertTypeByName("image/jpeg", "x.jfif");
         assertTypeByName("image/jpeg", "x.jfi");
+        
+        assertType("image/jp2", "testJPEG.jp2");
+        assertTypeByData("image/jp2", "testJPEG.jp2");
+        assertTypeByName("image/jp2", "x.jp2");
     }
 
     @Test
@@ -958,6 +962,12 @@ public class TestMimeTypes {
         assertTypeByData("text/x-matlab", "testMATLAB_barcast.m");
     }
 
+    @Test
+    public void testWebVTT() throws Exception {
+        assertType("text/vtt", "testWebVTT.vtt");
+        assertTypeByData("text/vtt", "testWebVTT.vtt");
+    }
+    
     private void assertText(byte[] prefix) throws IOException {
         assertMagic("text/plain", prefix);
     }

@@ -16,13 +16,18 @@
  */
 package org.apache.tika.config;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.tika.ResourceLoggingClassLoader;
+import org.apache.tika.config.DummyExecutor;
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.config.TikaConfigTest;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
@@ -73,7 +78,7 @@ public class TikaConfigTest extends AbstractTikaConfigTest {
                 getClass().getClassLoader(), LoadErrorHandler.WARN);
         ServiceLoader throwLoader = new ServiceLoader(
                 getClass().getClassLoader(), LoadErrorHandler.THROW);
-        File configPath = new File(new URI(getConfigPath("TIKA-1700-unknown-parser.xml")));
+        Path configPath = Paths.get(new URI(getConfigPath("TIKA-1700-unknown-parser.xml")));
         
         TikaConfig ignore = new TikaConfig(configPath, ignoreLoader);
         assertNotNull(ignore);
@@ -242,5 +247,18 @@ public class TikaConfigTest extends AbstractTikaConfigTest {
         boolean dynamicValue = loader.isDynamic();
         
         assertTrue("Dynamic Service Loading Should be true", dynamicValue);
+    }
+    
+    @Test
+    public void testTikaExecutorServiceFromConfig() throws Exception {
+        URL url = TikaConfigTest.class.getResource("TIKA-1762-executors.xml");
+        
+        TikaConfig config = new TikaConfig(url);
+        
+        ThreadPoolExecutor executorService = (ThreadPoolExecutor)config.getExecutorService();
+        
+        assertTrue("Should use Dummy Executor", (executorService instanceof DummyExecutor));
+        assertEquals("Should have configured Core Threads", 3, executorService.getCorePoolSize());
+        assertEquals("Should have configured Max Threads", 10, executorService.getMaximumPoolSize());
     }
 }

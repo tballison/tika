@@ -17,24 +17,29 @@
 package org.apache.tika.config;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import javax.imageio.spi.ServiceRegistry;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.tika.concurrent.ConfigurableThreadPoolExecutor;
+import org.apache.tika.concurrent.SimpleThreadPoolExecutor;
 import org.apache.tika.detect.CompositeDetector;
 import org.apache.tika.detect.DefaultDetector;
 import org.apache.tika.detect.Detector;
@@ -79,16 +84,31 @@ public class TikaConfig {
     private static Translator getDefaultTranslator(ServiceLoader loader) {
         return new DefaultTranslator(loader);
     }
+
+    private static ConfigurableThreadPoolExecutor getDefaultExecutorService() {
+        return new SimpleThreadPoolExecutor();
+    }
+
     private final ServiceLoader serviceLoader;
     private final CompositeParser parser;
     private final CompositeDetector detector;
     private final Translator translator;
 
     private final MimeTypes mimeTypes;
+    private final ExecutorService executorService;
 
     public TikaConfig(String file)
             throws TikaException, IOException, SAXException {
-        this(new File(file));
+        this(Paths.get(file));
+    }
+
+    public TikaConfig(Path path)
+            throws TikaException, IOException, SAXException {
+        this(path, new ServiceLoader());
+    }
+    public TikaConfig(Path path, ServiceLoader loader)
+            throws TikaException, IOException, SAXException {
+        this(getBuilder().parse(path.toFile()), loader);
     }
 
     public TikaConfig(File file)
@@ -139,11 +159,13 @@ public class TikaConfig {
         ParserXmlLoader parserLoader = new ParserXmlLoader();
         DetectorXmlLoader detectorLoader = new DetectorXmlLoader();
         TranslatorXmlLoader translatorLoader = new TranslatorXmlLoader();
+        ExecutorServiceXmlLoader executorLoader = new ExecutorServiceXmlLoader();
         
         this.mimeTypes = typesFromDomElement(element);
         this.detector = detectorLoader.loadOverall(element, mimeTypes, loader);
         this.parser = parserLoader.loadOverall(element, mimeTypes, loader);
         this.translator = translatorLoader.loadOverall(element, mimeTypes, loader);
+        this.executorService = executorLoader.loadOverall(element, mimeTypes, loader);
         this.serviceLoader = loader;
     }
 
@@ -166,6 +188,7 @@ public class TikaConfig {
         this.detector = getDefaultDetector(mimeTypes, serviceLoader);
         this.parser = getDefaultParser(mimeTypes, serviceLoader);
         this.translator = getDefaultTranslator(serviceLoader);
+        this.executorService = getDefaultExecutorService();
     }
 
     /**
@@ -198,45 +221,49 @@ public class TikaConfig {
             this.parser = getDefaultParser(mimeTypes, serviceLoader);
             this.detector = getDefaultDetector(mimeTypes, serviceLoader);
             this.translator = getDefaultTranslator(serviceLoader);
+            this.executorService = getDefaultExecutorService();
         } else {
-            // Locate the given configuration file
-            InputStream stream = null;
-            File file = new File(config);
-            if (file.isFile()) {
-                stream = new FileInputStream(file);
-            }
-            if (stream == null) {
-                try {
-                    stream = new URL(config).openStream();
-                } catch (IOException ignore) {
-                }
-            }
-            if (stream == null) {
-                stream = serviceLoader.getResourceAsStream(config);
-            }
-            if (stream == null) {
-                throw new TikaException(
-                        "Specified Tika configuration not found: " + config);
-            }
-
-            try {
+            try (InputStream stream = getConfigInputStream(config, serviceLoader)) {
                 Element element = getBuilder().parse(stream).getDocumentElement();
                 ParserXmlLoader parserLoader = new ParserXmlLoader();
                 DetectorXmlLoader detectorLoader = new DetectorXmlLoader();
                 TranslatorXmlLoader translatorLoader = new TranslatorXmlLoader();
+                ExecutorServiceXmlLoader executorLoader = new ExecutorServiceXmlLoader();
                 
                 this.mimeTypes = typesFromDomElement(element);
                 this.parser = parserLoader.loadOverall(element, mimeTypes, serviceLoader);
                 this.detector = detectorLoader.loadOverall(element, mimeTypes, serviceLoader);
                 this.translator = translatorLoader.loadOverall(element, mimeTypes, serviceLoader);
+                this.executorService = executorLoader.loadOverall(element, mimeTypes, serviceLoader);
             } catch (SAXException e) {
                 throw new TikaException(
                         "Specified Tika configuration has syntax errors: "
                                 + config, e);
-            } finally {
-                stream.close();
             }
         }
+    }
+
+    private static InputStream getConfigInputStream(String config, ServiceLoader serviceLoader)
+            throws TikaException, IOException {
+        InputStream stream = null;
+        try {
+            stream = new URL(config).openStream();
+        } catch (IOException ignore) {
+        }
+        if (stream == null) {
+            stream = serviceLoader.getResourceAsStream(config);
+        }
+        if (stream == null) {
+            Path file = Paths.get(config);
+            if (Files.isRegularFile(file)) {
+                stream = Files.newInputStream(file);
+            }
+        }
+        if (stream == null) {
+            throw new TikaException(
+                    "Specified Tika configuration not found: " + config);
+        }
+        return stream;
     }
 
     private static String getText(Node node) {
@@ -286,6 +313,10 @@ public class TikaConfig {
      */
     public Translator getTranslator() {
         return translator;
+    }
+    
+    public ExecutorService getExecutorService() {
+        return executorService;
     }
 
     public MimeTypes getMimeRepository(){
@@ -398,7 +429,7 @@ public class TikaConfig {
                     String mime = getText(cElement);
                     MediaType type = MediaType.parse(mime);
                     if (type != null) {
-                        if (types == null) types = new HashSet<MediaType>();
+                        if (types == null) types = new HashSet<>();
                         types.add(type);
                     } else {
                         throw new TikaException(
@@ -413,8 +444,8 @@ public class TikaConfig {
     
     private static ServiceLoader serviceLoaderFromDomElement(Element element, ClassLoader loader) {
         Element serviceLoaderElement = getChild(element, "service-loader");
-        ServiceLoader serviceLoader = null;
-        if(serviceLoaderElement != null) {
+        ServiceLoader serviceLoader;
+        if (serviceLoaderElement != null) {
             boolean dynamic = Boolean.parseBoolean(serviceLoaderElement.getAttribute("dynamic"));
             LoadErrorHandler loadErrorHandler = LoadErrorHandler.IGNORE;
             String loadErrorHandleConfig = serviceLoaderElement.getAttribute("loadErrorHandler");
@@ -709,7 +740,7 @@ public class TikaConfig {
                 throws InvocationTargetException, IllegalAccessException,
                 InstantiationException {
             Detector detector = null;
-            Constructor<? extends Detector> c = null;
+            Constructor<? extends Detector> c;
             MediaTypeRegistry registry = mimeTypes.getMediaTypeRegistry();
             
             // Try the possible default and composite detector constructors
@@ -787,5 +818,78 @@ public class TikaConfig {
         Translator decorate(Translator created, Element element) {
             return created; // No decoration of Translators
         }        
+    }
+    
+    private static class ExecutorServiceXmlLoader extends XmlLoader<ConfigurableThreadPoolExecutor,ConfigurableThreadPoolExecutor> {
+        @Override
+        ConfigurableThreadPoolExecutor createComposite(
+                Class<? extends ConfigurableThreadPoolExecutor> compositeClass,
+                List<ConfigurableThreadPoolExecutor> children,
+                Set<Class<? extends ConfigurableThreadPoolExecutor>> excludeChildren,
+                MimeTypes mimeTypes, ServiceLoader loader)
+                throws InvocationTargetException, IllegalAccessException,
+                InstantiationException {
+            throw new InstantiationException("Only one executor service supported");
+        }
+        
+        @Override
+        ConfigurableThreadPoolExecutor createComposite(List<ConfigurableThreadPoolExecutor> loaded,
+                MimeTypes mimeTypes, ServiceLoader loader) {
+            return loaded.get(0);
+        }
+        
+        @Override
+        ConfigurableThreadPoolExecutor createDefault(MimeTypes mimeTypes, ServiceLoader loader) {
+            return getDefaultExecutorService();
+        }
+        
+        @Override
+        ConfigurableThreadPoolExecutor decorate(ConfigurableThreadPoolExecutor created, Element element)
+                throws IOException, TikaException {
+            Element coreThreadElement = getChild(element, "core-threads");
+            if(coreThreadElement != null)
+            {
+                created.setCorePoolSize(Integer.parseInt(getText(coreThreadElement)));
+            }
+            Element maxThreadElement = getChild(element, "max-threads");
+            if(maxThreadElement != null)
+            {
+                created.setMaximumPoolSize(Integer.parseInt(getText(maxThreadElement)));
+            }
+            return created;
+        }
+        
+        @Override
+        Class<? extends ConfigurableThreadPoolExecutor> getLoaderClass() {
+            return ConfigurableThreadPoolExecutor.class;
+        }
+        
+        @Override
+        ConfigurableThreadPoolExecutor loadOne(Element element, MimeTypes mimeTypes,
+                ServiceLoader loader) throws TikaException, IOException {
+            return super.loadOne(element, mimeTypes, loader);
+        }
+
+        @Override
+        boolean supportsComposite() {return false;}
+
+        @Override
+        String getParentTagName() {return null;}
+
+        @Override
+        String getLoaderTagName() {return "executor-service";}
+
+        @Override
+        boolean isComposite(ConfigurableThreadPoolExecutor loaded) {return false;}
+
+        @Override
+        boolean isComposite(Class<? extends ConfigurableThreadPoolExecutor> loadedClass) {return false;}
+
+        @Override
+        ConfigurableThreadPoolExecutor preLoadOne(
+                Class<? extends ConfigurableThreadPoolExecutor> loadedClass, String classname,
+                MimeTypes mimeTypes) throws TikaException {
+            return null;
+        }
     }
 }
