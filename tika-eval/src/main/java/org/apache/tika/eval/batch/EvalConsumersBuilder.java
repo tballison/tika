@@ -14,7 +14,6 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
-import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.util.ClassLoaderUtil;
@@ -37,7 +36,6 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
 
         File dbDir = getFile(localAttrs, "dbDir");
         File langModelDir = getNonNullFile(localAttrs, "langModelDir");
-        AbstractProfiler.initLangDetectorFactory(langModelDir, 31415962L);
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
         //parameterize which db util to use

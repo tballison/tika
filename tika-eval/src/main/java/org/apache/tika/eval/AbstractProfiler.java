@@ -35,10 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.cybozu.labs.langdetect.Detector;
-import com.cybozu.labs.langdetect.DetectorFactory;
-import com.cybozu.labs.langdetect.LangDetectException;
-import com.cybozu.labs.langdetect.Language;
+import com.optimaize.langdetect.DetectedLanguage;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
@@ -50,7 +47,6 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.util.PriorityQueue;
-import org.apache.tika.batch.BatchNoRestartError;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
@@ -161,12 +157,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             Pattern.compile("org\\.apache\\.tika.exception\\.EncryptedDocumentException");
 
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
+    final LanguageIDWrapper langIder;
     protected IDBWriter writer;
 
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue,
                             IDBWriter writer) {
         super(fileQueue);
         this.writer = writer;
+        try {
+            langIder = LanguageIDWrapper.build();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -343,23 +345,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return metadataList;
     }
 
-    /**
-     * Initialize cybozu's DetectorFactory
-     *
-     * @param langModelDir directory that contains the language models
-     * @param seed         any seed to assure consistent langid across runs
-     */
-    public static void initLangDetectorFactory(File langModelDir, Long seed) {
-        try {
-            DetectorFactory.loadProfile(langModelDir);
-            if (seed != null) {
-                DetectorFactory.setSeed(seed);
-            }
-        } catch (LangDetectException e) {
-            throw new BatchNoRestartError(e);
-        }
-    }
-
     String getOriginalFileExtension(String fName) {
         if (fName == null) {
             return "";
@@ -461,30 +446,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if (content.length() > MAX_LEN_FOR_LANG_ID) {
             s = content.substring(0, MAX_LEN_FOR_LANG_ID);
         }
-        Detector detector = null;
-        try {
-            detector = DetectorFactory.create();
-        } catch (LangDetectException e) {
-            throw new BatchNoRestartError(e);
+        List<DetectedLanguage> probabilities = langIder.getProbabilities(s);
+        if (probabilities.size() > 0) {
+            data.put(Cols.LANG_ID_1, probabilities.get(0).getLocale().getLanguage());
+            data.put(Cols.LANG_ID_PROB_1,
+            Double.toString(probabilities.get(0).getProbability()));
+        }
+        if (probabilities.size() > 1) {
+            data.put(Cols.LANG_ID_2, probabilities.get(1).getLocale().getLanguage());
+            data.put(Cols.LANG_ID_PROB_2,
+            Double.toString(probabilities.get(1).getProbability()));
         }
 
-        detector.append(s);
-        try {
-            List<Language> probabilities = detector.getProbabilities();
-            if (probabilities.size() > 0) {
-                data.put(Cols.LANG_ID_1, probabilities.get(0).lang);
-                data.put(Cols.LANG_ID_PROB_1,
-                        Double.toString(probabilities.get(0).prob));
-            }
-            if (probabilities.size() > 1) {
-                data.put(Cols.LANG_ID_2, probabilities.get(1).lang);
-                data.put(Cols.LANG_ID_PROB_2,
-                        Double.toString(probabilities.get(1).prob));
-            }
-
-        } catch (LangDetectException e) {
-            //TODO: log
-        }
     }
 
     void getFileTypes(Metadata metadata, Map<Cols, String> output) {
