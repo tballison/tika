@@ -20,6 +20,7 @@ package org.apache.tika.batch.testutils;
 import static junit.framework.TestCase.fail;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class BatchProcessTestExecutor {
         this.processClass = processClass;
     }
 
-    public StreamStrings execute() {
+    public StreamStrings execute() throws Exception {
         Process p = null;
         try {
             ProcessBuilder b = getNewBatchRunnerProcess(processClass, configPath, args);
@@ -78,8 +79,8 @@ public class BatchProcessTestExecutor {
         return exitValue;
     }
 
-    public ProcessBuilder getNewBatchRunnerProcess(String processClass, String testConfig, Map<String, String> args) {
-        List<String> argList = new ArrayList<String>();
+    public ProcessBuilder getNewBatchRunnerProcess(String processClass, String testConfig, Map<String, String> args) throws Exception {
+        List<String> argList = new ArrayList<>();
         for (Map.Entry<String, String> e : args.entrySet()) {
             argList.add("-"+e.getKey());
             argList.add(e.getValue());
@@ -89,12 +90,12 @@ public class BatchProcessTestExecutor {
         return new ProcessBuilder(fullCommandLine);
     }
 
-    private String[] commandLine(String processClass, String testConfig, String[] args) {
-        List<String> commandLine = new ArrayList<String>();
+    private String[] commandLine(String processClass, String testConfig, String[] args) throws Exception {
+        List<String> commandLine = new ArrayList<>();
         commandLine.add("java");
         commandLine.add("-Dlog4j.configuration=file:"+
                 this.getClass().getResource("/log4j_process.properties").getFile());
-        commandLine.add("-Xmx128m");
+        commandLine.add("-Xmx512m");
         commandLine.add("-cp");
         String cp = System.getProperty("java.class.path");
         //need to test for " " on *nix, can't just add double quotes
@@ -105,7 +106,7 @@ public class BatchProcessTestExecutor {
         commandLine.add(cp);
         commandLine.add(processClass);//"org.apache.tika.batch.fs.FSBatchProcessCLI");
 
-        String configFile = this.getClass().getResource(testConfig).getFile();
+        String configFile = Paths.get(this.getClass().getResource(testConfig).toURI()).toAbsolutePath().toString();
         commandLine.add("-bc");
 
         commandLine.add(configFile);

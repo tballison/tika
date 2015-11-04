@@ -14,6 +14,7 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.eval.LanguageIDWrapper;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.util.ClassLoaderUtil;
@@ -35,7 +36,17 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
         File dbDir = getFile(localAttrs, "dbDir");
-        File langModelDir = getNonNullFile(localAttrs, "langModelDir");
+        File langModelDir = getFile(localAttrs, "langModelDir");
+
+        try {
+            if (langModelDir == null) {
+                LanguageIDWrapper.loadBuiltInModels();
+            } else {
+                LanguageIDWrapper.loadModels(langModelDir);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
         //parameterize which db util to use

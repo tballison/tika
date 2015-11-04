@@ -20,12 +20,11 @@ package org.apache.tika.eval;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -59,10 +58,10 @@ public class ProfilerBatchTest {
     @BeforeClass
     public static void setUp() throws Exception {
 
-        File inputRoot = new File(new ComparerBatchTest().getClass().getResource("/test-dirs/extractA").toURI());
-        dbDir = Files.createTempDirectory(inputRoot.toPath(), "tika-test-db-dir-");
-        Map<String, String> args = new HashMap<String, String>();
-        Path dbFile = FileSystems.getDefault().getPath(dbDir.toString(), "profiler_test");
+        Path inputRoot = Paths.get(new ComparerBatchTest().getClass().getResource("/test-dirs/extractA").toURI());
+        dbDir = Files.createTempDirectory(inputRoot, "tika-test-db-dir-");
+        Map<String, String> args = new HashMap<>();
+        Path dbFile = dbDir.resolve("profiler_test");
         args.put("-dbDir", dbFile.toString());
 
         //for debugging, you can use this to select only one file pair to load
@@ -78,6 +77,7 @@ public class ProfilerBatchTest {
     }
     @AfterClass
     public static void tearDown() throws IOException {
+
         try{
             conn.close();
         } catch (SQLException e) {

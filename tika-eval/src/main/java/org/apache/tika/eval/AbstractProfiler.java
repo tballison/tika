@@ -25,8 +25,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,7 @@ import com.optimaize.langdetect.DetectedLanguage;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
@@ -164,11 +168,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                             IDBWriter writer) {
         super(fileQueue);
         this.writer = writer;
-        try {
-            langIder = LanguageIDWrapper.build();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        langIder = new LanguageIDWrapper();
     }
 
 
@@ -309,6 +309,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
 
         langid(m, data);
+        unicodeBlocks(m, data);
         try {
             writer.writeRow(contentsTable, data);
         } catch (IOException e) {
@@ -436,6 +437,53 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return c;
     }
 
+
+    void unicodeBlocks(Metadata metadata, Map<Cols, String> data) {
+        String content = getContent(metadata, MAX_LEN_FOR_LANG_ID);
+        if (content.length() < 200) {
+            return;
+        }
+        String s = content;
+        if (content.length() > MAX_LEN_FOR_LANG_ID) {
+            s = content.substring(0, MAX_LEN_FOR_LANG_ID);
+        }
+        Map<Character.UnicodeBlock, Integer> m = new HashMap<>();
+        Reader r = new StringReader(s);
+        try {
+            int c = r.read();
+            while (c != -1) {
+                Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+                Integer i = m.get(block);
+                if (i == null) {
+                    i = 0;
+                }
+                i++;
+                m.put(block, i);
+            }
+        } catch (IOException e) {
+            //swallow
+        }
+
+        List<Pair<String, Integer>> pairs = new ArrayList<>();
+        for (Map.Entry<Character.UnicodeBlock, Integer> e : m.entrySet()) {
+            pairs.add(Pair.of(e.getKey().toString(), e.getValue()));
+        }
+        Collections.sort(pairs, new Comparator<Pair<String, Integer>>() {
+            @Override
+            public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {
+                return o1.getValue().compareTo(o2.getValue());
+            }
+        });
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < 20 && i < pairs.size(); i++) {
+            if (i > 0) {
+                sb.append(" | ");
+            }
+            sb.append(pairs.get(i).getKey()+": "+pairs.get(i).getValue());
+        }
+        data.put(Cols.UNICODE_CHAR_BLOCKS, sb.toString());
+    }
 
     void langid(Metadata metadata, Map<Cols, String> data) {
         String content = getContent(metadata, MAX_LEN_FOR_LANG_ID);

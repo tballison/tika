@@ -37,6 +37,7 @@ public enum Cols {
     TOKEN_LENGTH_SUM,
     TOKEN_LENGTH_MEAN,
     TOKEN_LENGTH_STD_DEV,
+    UNICODE_CHAR_BLOCKS,
 
     //content comparisons
     TOP_10_UNIQUE_TOKEN_DIFFS_A,
@@ -65,6 +66,6 @@ public enum Cols {
     MIME_STRING,//string representation of mime type
 
     DIR_NAME_A,//for comparisons in REF_PAIR_NAMES
-    DIR_NAME_B,
+    DIR_NAME_B
     }
 
