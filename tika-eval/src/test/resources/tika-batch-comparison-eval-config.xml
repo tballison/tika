@@ -66,13 +66,14 @@
 
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.FileComparerBuilder"
-               rootDirA="src/test/resources/test-dirs/extractA"
-               rootDirB="src/test/resources/test-dirs/extractB"
+               extractDirA="src/test/resources/test-dirs/extractA"
+               extractDirB="src/test/resources/test-dirs/extractB"
                inputDir="src/test/resources/test-dirs/raw_input"
                dbAppend="false"
                langModelDir="src/test/resources/langmodels"
                minJsonFileSizeBytes="-1"
                maxJsonFileSizeBytes="2000000"
+               commonWords="src/test/resources/common_words_short.txt"
             />
 
 

@@ -62,7 +62,8 @@
                consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
                errorLogFile="src/test/resources/test-dirs/batch-logs/batch-process-fatal.xml"
                extractDir="src/test/resources/test-dirs/extractA"
-               langModelDir="src/test/resources/langmodels"/>
+               langModelDir="src/test/resources/langmodels"
+               commonWords="src/test/resources/common_words_short.txt"/>
 
 
     <!-- reporter and interrupter are optional -->

@@ -16,12 +16,16 @@
  */
 package org.apache.tika.eval;
 
-import static org.apache.tika.eval.AbstractProfiler.*;
+import static org.apache.tika.eval.AbstractProfiler.EXCEPTION_TYPE;
+import static org.apache.tika.eval.AbstractProfiler.EXTRACT_ERROR_TYPE;
+import static org.apache.tika.eval.AbstractProfiler.getContent;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -169,13 +173,17 @@ public class SimpleComparerTest extends TikaTest {
     }
 
 
+    @Test
     public void testDebug() throws Exception {
+        Path commonWords = Paths.get(getResourceAsFile("/common_words_short.txt").toURI());
+        AbstractProfiler.loadCommonWords(commonWords);
         EvalFilePaths fpsA = new EvalFilePaths();
         EvalFilePaths fpsB = new EvalFilePaths();
         fpsA.sourceFileName = "file1.pdf.json";
         fpsB.sourceFileName = "file1.pdf.json";
         fpsA.extractFile = getResourceAsFile("/test-dirs/extractA/file1.pdf.json");
         fpsB.extractFile = getResourceAsFile("/test-dirs/extractB/file1.pdf.json");
+        comparer.compareFiles(fpsA, fpsB);
         for (TableInfo t : new TableInfo[]{
                 FileComparer.COMPARISON_CONTAINERS,
                 FileComparer.ERROR_TABLE_A,

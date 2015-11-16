@@ -18,8 +18,8 @@
 package org.apache.tika.eval.db;
 
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -39,8 +39,8 @@ public abstract class DBUtil {
     public static Logger logger = Logger.getLogger(DBUtil.class);
     public abstract String getJDBCDriverClass();
     public abstract boolean dropTableIfExists(Connection conn, String tableName) throws SQLException;
-    private final File dbFile;
-    public DBUtil(File dbFile) {
+    private final Path dbFile;
+    public DBUtil(Path dbFile) {
         this.dbFile = dbFile;
     }
 
@@ -70,7 +70,7 @@ public abstract class DBUtil {
         return conn;
     }
 
-    abstract public String getConnectionString(File dbFile);
+    abstract public String getConnectionString(Path dbFile);
 
     /**
      *

@@ -18,6 +18,8 @@ package org.apache.tika.parser.pdf;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
@@ -87,6 +89,9 @@ public class PDFParser extends AbstractParser {
      * @deprecated Supply a {@link PasswordProvider} on the {@link ParseContext} instead
      */
     public static final String PASSWORD = "org.apache.tika.parser.pdf.password";
+    public static final Property XMP_EXCEPTION = Property.internalText(
+            TikaCoreProperties.TIKA_META_PREFIX+Metadata.NAMESPACE_PREFIX_DELIMITER+
+                    "xmp_exception");
     private static final MediaType MEDIA_TYPE = MediaType.application("pdf");
     /**
      * Serial version UID
@@ -227,7 +232,10 @@ public class PDFParser extends AbstractParser {
                 dcSchema = xmp.getDublinCoreSchema();
             }
         } catch (IOException e) {
-            //swallow
+            StringWriter sw = new StringWriter();
+            PrintWriter w = new PrintWriter(sw);
+            e.printStackTrace(w);
+            addMetadata(metadata, XMP_EXCEPTION, sw.toString());
         }
         PDDocumentInformation info = document.getDocumentInformation();
         metadata.set(PagedText.N_PAGES, document.getNumberOfPages());

@@ -17,10 +17,33 @@
 
 package org.apache.tika.eval;
 
+import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.fs.FSBatchTestBase;
+import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
+import org.apache.tika.batch.testutils.StreamStrings;
+import org.apache.tika.eval.db.Cols;
+import org.apache.tika.eval.db.H2Util;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class ComparerBatchTest extends FSBatchTestBase {
 
@@ -29,11 +52,11 @@ public class ComparerBatchTest extends FSBatchTestBase {
     private static Path dbDir;
     private static Connection conn;
 
-    /*
-    private final static String compJoinCont = FileComparer.COMPARISONS_TABLE+" cmp " +
+    private final static String compJoinCont = "";
+    /*FileComparer.COMPARISONS_TABLE+" cmp " +
             "join "+FileComparer.CONTAINERS_TABLE + " cnt "+
             "on cmp."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID+
-            " = cnt."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID;
+            " = cnt."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID;*/
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -52,7 +75,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
         System.out.println(streamStrings.getErrString());
         System.out.println(streamStrings.getOutString());
-        H2Util dbUtil = new H2Util(dbFile.toFile());
+        H2Util dbUtil = new H2Util(dbFile);
         conn = dbUtil.getConnection();
     }
 
@@ -67,27 +90,28 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
     @Test
     public void testSimpleDBWriteAndRead() throws Exception {
-        Set<String> set = new HashSet<String>();
+        Set<String> set = new HashSet<>();
         //filenames
-        List<String> list = getColStrings(fp, contTable, "");
-        assertEquals(8, list.size());
+        List<String> list = getColStrings(Cols.FILE_NAME.name(),
+                FileComparer.PROFILES_A.getName(), "");
+        assertEquals(7, list.size());
         assertTrue(list.contains("file1.pdf"));
 
         //container ids in comparisons table
-        list = getColStrings(AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID.name(),
-                compTable,"");
-        assertEquals(9, list.size());
+        list = getColStrings(Cols.CONTAINER_ID.name(),
+                FileComparer.COMPARISON_CONTAINERS.getName(),"");
+        assertEquals(10, list.size());
         set.clear(); set.addAll(list);
-        assertEquals(7, set.size());
-
+        assertEquals(10, set.size());
+/*
         //ids in comparisons table
         list = getColStrings(AbstractProfiler.HEADERS.ID.name(),
                 compTable,"");
         assertEquals(9, list.size());
         set.clear(); set.addAll(list);
-        assertEquals(9, set.size());
+        assertEquals(9, set.size());*/
     }
-
+/*
     @Test
     public void testFile1PDFRow() throws Exception {
         String where = fp+"='file1.pdf'";
@@ -295,6 +319,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         st.close();
 
     }
+    */
     private void debugShowColumns(String table) throws Exception {
         Statement st = conn.createStatement();
         String sql = "select * from "+table;
@@ -350,12 +375,12 @@ public class ComparerBatchTest extends FSBatchTestBase {
     //return the string representations of the column values for one column
     //as a list of strings
     private List<String> getColStrings(String colName) throws Exception {
-        return getColStrings(colName, FileComparer.COMPARISONS_TABLE, null);
+        return getColStrings(colName, FileComparer.CONTENT_COMPARISONS.getName(), null);
     }
 
     private List<String> getColStrings(String colName, String table, String where) throws Exception {
         String sql = getSql(colName, table, where);
-        List<String> results = new ArrayList<String>();
+        List<String> results = new ArrayList<>();
         Statement st = null;
         try {
             st = conn.createStatement();
@@ -380,5 +405,5 @@ public class ComparerBatchTest extends FSBatchTestBase {
         }
         return sb.toString();
     }
-*/
+
 }

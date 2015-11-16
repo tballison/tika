@@ -1,8 +1,9 @@
 package org.apache.tika.eval.batch;
 
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
+import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.LanguageIDWrapper;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
@@ -35,8 +37,8 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
 
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
-        File dbDir = getFile(localAttrs, "dbDir");
-        File langModelDir = getFile(localAttrs, "langModelDir");
+        Path dbDir = getPath(localAttrs, "dbDir");
+        Path langModelDir = getPath(localAttrs, "langModelDir");
 
         try {
             if (langModelDir == null) {
@@ -47,6 +49,14 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        Path commonWords = getNonNullPath(localAttrs, "commonWords");
+        try {
+            AbstractProfiler.loadCommonWords(commonWords);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
         //parameterize which db util to use
@@ -84,21 +94,21 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         return manager;
     }
 
-
-    protected File getNonNullFile(Map<String, String> attrs, String key) {
-        File f = getFile(attrs, key);
-        if (f == null) {
+    private Path getNonNullPath(Map<String, String> attrs, String key) {
+        Path p = getPath(attrs, key);
+        if (p == null) {
             throw new RuntimeException("Must specify a file for this attribute: "+key);
         }
-        return f;
+        return p;
     }
 
-    protected File getFile(Map<String, String> attrs, String key) {
+
+    protected Path getPath(Map<String, String> attrs, String key) {
         String filePath = attrs.get(key);
         if (filePath == null) {
             return null;
         }
-        return new File(filePath);
+        return Paths.get(filePath);
     }
 
 

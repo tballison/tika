@@ -16,10 +16,11 @@ package org.apache.tika.eval.reports;
  * limitations under the License.
  */
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -57,7 +58,7 @@ public class FileComparerResultDumper {
     String millis_B_table = "millis_B";
 
 
-    private void execute(File dbFile, File outputDir) throws IOException, SQLException, SAXException {
+    private void execute(Path dbFile, Path outputDir) throws IOException, SQLException, SAXException {
         H2Util util = new H2Util(dbFile);
 
         System.out.println(util.getJDBCDriverClass());
@@ -102,10 +103,10 @@ public class FileComparerResultDumper {
         st.execute(sql);
     }
 
-    private void dumpMetadata(String dirNameA, String dirNameB, File outputDir, Statement st)
+    private void dumpMetadata(String dirNameA, String dirNameB, Path outputDir, Statement st)
             throws SQLException, IOException, SAXException {
-        File metadataDir = new File(outputDir, "metadata");
-        metadataDir.mkdirs();
+        Path metadataDir = outputDir.resolve("metadata");
+        Files.createDirectories(metadataDir);
         String sql = "SELECT DETECTED_FILE_EXTENSION_B, count(1) as COUNT "+
                 " from comparisons "+
                 "where JSON_EX_A is null and JSON_EX_B is null and "+
@@ -274,10 +275,11 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpTimes(String dirNameA, String dirNameB, File outputDir, Statement st) throws SQLException,
+    private void dumpTimes(String dirNameA, String dirNameB, Path outputDir, Statement st) throws SQLException,
             IOException, SAXException {
-        File timesDir = new File(outputDir, "time");
-        timesDir.mkdirs();
+        Path timesDir = outputDir.resolve("time");
+        Files.createDirectories(timesDir);
+
 
         String sql = "SELECT comparisons.FILE_EXTENSION, "+
                 "sum(ifnull(ELAPSED_TIME_MILLIS_A, 0)) as \"Elapsed Milliseconds A\", " +
@@ -328,10 +330,11 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpLangs(String dirNameA, String dirNameB, File outputDir, Statement st) throws SQLException,
+    private void dumpLangs(String dirNameA, String dirNameB, Path outputDir, Statement st) throws SQLException,
             IOException, SAXException {
-        File langsDir = new File(outputDir, "detected_langs");
-        langsDir.mkdirs();
+        Path langsDir = outputDir.resolve("detected_langs");
+        Files.createDirectories(langsDir);
+
 
         String sql = "select LANG_ID1_A, count(1) as COUNT "+
                 "from comparisons "+
@@ -417,10 +420,10 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpStackTraces(String dirNameA, String dirNameB, File outputDir, Statement st) throws SQLException,
+    private void dumpStackTraces(String dirNameA, String dirNameB, Path outputDir, Statement st) throws SQLException,
             IOException, SAXException {
-        File exceptionsDir = new File(outputDir, "exceptions");
-        exceptionsDir.mkdirs();
+        Path exceptionsDir = outputDir.resolve("exceptions");
+        Files.createDirectories(exceptionsDir);
 
         String sql = "select SORT_STACK_TRACE_A, count(1) as COUNT "+
                 "from comparisons "+
@@ -488,10 +491,11 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpDiffContents(String dirNameA, String dirNameB, File outputDir, Statement st)
+    private void dumpDiffContents(String dirNameA, String dirNameB, Path outputDir, Statement st)
             throws SQLException, IOException, SAXException {
-        File contentDir = new File(outputDir, "content");
-        contentDir.mkdirs();
+        Path contentDir = outputDir.resolve("content");
+        Files.createDirectories(contentDir);
+
 
         String sql = "select FILE_EXTENSION, count(1) as COUNT "+
                 "from comparisons "+
@@ -527,9 +531,9 @@ public class FileComparerResultDumper {
                 sql, st);
     }
 
-    private void dumpMimes(String dirNameA, String dirNameB, File outputDir, Statement st) throws SQLException, IOException, SAXException {
-        File mimesDir = new File(outputDir, "mimes");
-        mimesDir.mkdirs();
+    private void dumpMimes(String dirNameA, String dirNameB, Path outputDir, Statement st) throws SQLException, IOException, SAXException {
+        Path mimesDir = outputDir.resolve("mimes");
+        Files.createDirectories(mimesDir);
 
         //first a/b alone
         String sql = "select DETECTED_CONTENT_TYPE_A, count(1) as COUNT " +
@@ -612,9 +616,10 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpAttachments(String dirNameA, String dirNameB, File outputDir, Statement st) throws SQLException, IOException, SAXException {
-        File exceptionsDir = new File(outputDir, "attachments");
-        exceptionsDir.mkdirs();
+    private void dumpAttachments(String dirNameA, String dirNameB, Path outputDir, Statement st) throws SQLException, IOException, SAXException {
+        Path exceptionsDir = outputDir.resolve("attachments");
+        Files.createDirectories(exceptionsDir);
+
 
         String sql = "SELECT comparisons.FILE_EXTENSION, sum(ifnull(NUM_ATTACHMENTS_A, 0)) "+
             "as \"Number of attachments total\", " +
@@ -711,10 +716,10 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpExceptions(String dirNameA, String dirNameB, File outputDir, Statement st)
+    private void dumpExceptions(String dirNameA, String dirNameB, Path outputDir, Statement st)
             throws SQLException, IOException, SAXException {
-        File exceptionsDir = new File(outputDir, "exceptions");
-        exceptionsDir.mkdirs();
+        Path exceptionsDir = outputDir.resolve("exceptions");
+        Files.createDirectories(exceptionsDir);
 
         //dump a and b alone
         //json first
@@ -861,7 +866,7 @@ public class FileComparerResultDumper {
 
     }
 
-    private void dumpExceptionComparisonTable(String dirNameA, String dirNameB, File exceptionsDir, Statement st)
+    private void dumpExceptionComparisonTable(String dirNameA, String dirNameB, Path exceptionsDir, Statement st)
             throws SQLException, IOException, SAXException {
 
         String sql = "select "+extensions_total_table+".FILE_EXTENSION as \"File Extension\", " +
@@ -900,12 +905,10 @@ public class FileComparerResultDumper {
         return ret;
     }
 
-    private void dumpTable(File outputDir, String fileName, String header, String sql,
+    private void dumpTable(Path outputDir, String fileName, String header, String sql,
                            Statement st) throws IOException, SQLException, SAXException {
         ResultSet rs = st.executeQuery(sql);
-        OutputStream fos = null;
-        try {
-            fos = new FileOutputStream(new File(outputDir, fileName));
+        try (OutputStream fos = Files.newOutputStream(outputDir.resolve(fileName))) {
             ContentHandler wrapped = new ToHTMLContentHandler();
             XHTMLContentHandler handler = new XHTMLContentHandler(wrapped, new Metadata());
             handler.startDocument();
@@ -954,12 +957,8 @@ public class FileComparerResultDumper {
                 handler = buildNoResultsHandler(header, sql);
             }
             IOUtils.write(handler.toString(), fos, IOUtils.UTF_8.name());
-
+            fos.flush();
         } finally {
-            if (fos != null) {
-                fos.flush();
-                IOUtils.closeQuietly(fos);
-            }
             rs.close();
         }
     }
@@ -988,14 +987,14 @@ public class FileComparerResultDumper {
     }
 
     public static void main(String[] args) throws IOException, SQLException, SAXException {
-        File dbFile = new File(args[0]);
-        File outputDir = new File(args[1]);
+        Path dbFile = Paths.get(args[0]);
+        Path outputDir = Paths.get(args[1]);
 
 
-        if (! outputDir.isDirectory()) {
-            outputDir.mkdirs();
+        if (!Files.isDirectory(outputDir)) {
+            Files.createDirectories(outputDir);
         }
-        if (!outputDir.isDirectory()) {
+        if (!Files.isDirectory(outputDir)) {
             throw new RuntimeException("Couldn't make output directory!");
         }
         FileComparerResultDumper dumper = new FileComparerResultDumper();

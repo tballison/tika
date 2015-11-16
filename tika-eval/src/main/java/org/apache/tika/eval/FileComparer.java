@@ -140,15 +140,15 @@ public class FileComparer extends AbstractProfiler {
         }
 
         if (minJsonLength > -1) {
-            if (fpsA.extractFile.length() < minJsonLength
-                    && fpsB.extractFile.length() < minJsonLength) {
+            if (fpsA.extractFile != null && fpsA.extractFile.length() < minJsonLength
+                    && fpsB.extractFile != null && fpsB.extractFile.length() < minJsonLength) {
                 return false;
             }
         }
 
         if (maxJsonLength > -1) {
-            if (fpsA.extractFile.length() > maxJsonLength ||
-                    fpsA.extractFile.length() > maxJsonLength) {
+            if ((fpsA.extractFile != null && fpsA.extractFile.length() > maxJsonLength) ||
+                    (fpsB.extractFile != null && fpsB.extractFile.length() > maxJsonLength)) {
                 return false;
             }
         }
@@ -165,7 +165,7 @@ public class FileComparer extends AbstractProfiler {
     }
 
     //protected for testing, should find better way so that this can be private!
-    protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException, IOException {
+    protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException {
         List<Metadata> metadataListA = getMetadata(fpsA.extractFile);
         List<Metadata> metadataListB = getMetadata(fpsB.extractFile);
 

@@ -26,6 +26,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -53,7 +55,7 @@ public class XMLErrorLogUpdater {
         XMLErrorLogUpdater writer = new XMLErrorLogUpdater();
         File xmlLogFileA = new File(args[0]);
         File xmlLogFileB = new File(args[1]);
-        File dbFile = new File(args[2]);
+        Path dbFile = Paths.get(args[2]);
         DBUtil dbUtil = new H2Util(dbFile);
         Connection connection = dbUtil.getConnection();
         writer.update(connection, FileComparer.ERROR_TABLE_A, xmlLogFileA);

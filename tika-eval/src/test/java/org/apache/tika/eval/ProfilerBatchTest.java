@@ -72,7 +72,7 @@ public class ProfilerBatchTest {
         StreamStrings streamStrings = ex.execute();
         System.out.println(streamStrings.getErrString());
         System.out.println(streamStrings.getOutString());
-        H2Util dbUtil = new H2Util(dbFile.toFile());
+        H2Util dbUtil = new H2Util(dbFile);
         conn = dbUtil.getConnection();
     }
     @AfterClass
@@ -99,7 +99,7 @@ public class ProfilerBatchTest {
     public void testSimpleDBWriteAndRead() throws Exception {
 
         Statement st = null;
-        List<String> fNameList = new ArrayList<String>();
+        List<String> fNameList = new ArrayList<>();
         try {
             String sql = "select * from "+SingleFileProfiler.CONTAINER_TABLE.getName();
             st = conn.createStatement();

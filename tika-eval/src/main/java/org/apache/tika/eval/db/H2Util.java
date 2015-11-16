@@ -16,7 +16,7 @@
  */
 package org.apache.tika.eval.db;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -29,7 +29,7 @@ import org.apache.tika.io.FilenameUtils;
 
 public class H2Util extends DBUtil {
 
-    public H2Util(File dbFile) {
+    public H2Util(Path dbFile) {
         super(dbFile);
     }
 
@@ -48,8 +48,8 @@ public class H2Util extends DBUtil {
     }
 
     @Override
-    public String getConnectionString(File dbFile) {
-        return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(dbFile.getAbsolutePath());
+    public String getConnectionString(Path dbFile) {
+        return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(dbFile.toAbsolutePath().toString());
     }
 
     @Override

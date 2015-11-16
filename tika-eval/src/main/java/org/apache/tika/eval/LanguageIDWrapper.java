@@ -1,7 +1,7 @@
 package org.apache.tika.eval;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import com.google.common.base.Optional;
@@ -30,9 +30,9 @@ public class LanguageIDWrapper {
         textObjectFactory = CommonTextObjectFactories.forDetectingOnLargeText();
     }
 
-    public static void loadModels(File path) throws IOException {
+    public static void loadModels(Path path) throws IOException {
 
-        languageProfiles = new LanguageProfileReader().readAll(path);
+        languageProfiles = new LanguageProfileReader().readAll(path.toFile());
         detector = LanguageDetectorBuilder.create(NgramExtractors.standard())
                 .withProfiles(languageProfiles)
                 .build();

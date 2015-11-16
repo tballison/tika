@@ -19,7 +19,6 @@ package org.apache.tika.eval.reports;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -179,7 +178,7 @@ public class ResultsReporter {
     }
 
     public static void main(String[] args) throws Exception {
-        File dbFile = new File(args[0]);
+        Path dbFile = Paths.get(args[0]);
         DBUtil dbUtil = new H2Util(dbFile);
         ResultsReporter r = ResultsReporter.build(Paths.get(args[1]));
         try (Connection c = dbUtil.getConnection()) {

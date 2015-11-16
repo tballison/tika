@@ -17,7 +17,6 @@
 
 package org.apache.tika.eval.reports;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,7 +38,7 @@ public class ResultsReporterTest {
         configFile = Paths.get(this.getClass().getResource("/reports.xml").toURI());
         tmpDir = Files.createTempDirectory("tika-eval-report-test-");
 
-        connection = new H2Util(new File(tmpDir.toFile(), dbName)).getConnection();
+        connection = new H2Util(tmpDir.resolve(dbName)).getConnection();
         String sql = "CREATE TABLE test_table (ID LONG PRIMARY KEY, STRING VARCHAR(32))";
         Statement st = connection.createStatement();
         st.execute(sql);

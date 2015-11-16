@@ -26,13 +26,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -106,6 +111,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public static final String TRUE = Boolean.toString(true);
     public static final String FALSE = Boolean.toString(false);
 
+    private static final Set<String> COMMON_WORDS = new HashSet<>();
+
     protected static final AtomicInteger CONTAINER_ID = new AtomicInteger();
     protected static final AtomicInteger ID = new AtomicInteger();
 
@@ -163,6 +170,30 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     private TikaConfig config = TikaConfig.getDefaultConfig();//TODO: allow configuration
     final LanguageIDWrapper langIder;
     protected IDBWriter writer;
+
+    public static void loadCommonWords(Path p) throws IOException {
+        try (BufferedReader reader = Files.newBufferedReader(p, StandardCharsets.UTF_16LE)) {
+            Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
+            String line = reader.readLine();
+            while (line != null) {
+                TokenStream ts = analyzer.tokenStream("f", line);
+                ts.reset();
+                CharTermAttribute charTermAttribute = ts.getAttribute(CharTermAttribute.class);
+                String term = null;
+                int i = 0;
+                while (ts.incrementToken()) {
+                    if (i++ == 0) {
+                        term = charTermAttribute.toString();
+                    }
+                }
+                ts.close();
+                if (term != null) {
+                    COMMON_WORDS.add(term);
+                }
+                line = reader.readLine();
+            }
+        }
+    }
 
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue,
                             IDBWriter writer) {
@@ -277,12 +308,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return;
         }
 
-        Map<Cols, String> data = new HashMap<Cols, String>();
+        Map<Cols, String> data = new HashMap<>();
         data.put(Cols.ID, fileId);
         data.put(Cols.CONTENT_LENGTH, Integer.toString(content.length()));
         try {
             countTokens(m, counter);
             handleWordCounts(data, counter);
+            countCommonWords(data, counter);
         } catch (IOException e) {
             //should log
             e.printStackTrace();
@@ -305,9 +337,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         data.put(Cols.TOKEN_LENGTH_STD_DEV,
                 Double.toString(summStats.getStandardDeviation()));
-
-
-
         langid(m, data);
         unicodeBlocks(m, data);
         try {
@@ -315,6 +344,19 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void countCommonWords(Map<Cols, String> data, TokenCounter counter) {
+        if (counter == null) {
+            return;
+        }
+        int c = 0;
+        for (String t : counter.getTokens()) {
+            if (COMMON_WORDS.contains(t)) {
+                c += counter.getCount(t);
+            }
+        }
+        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(c));
     }
 
     List<Metadata> getMetadata(File thisFile) {
@@ -447,31 +489,37 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if (content.length() > MAX_LEN_FOR_LANG_ID) {
             s = content.substring(0, MAX_LEN_FOR_LANG_ID);
         }
-        Map<Character.UnicodeBlock, Integer> m = new HashMap<>();
+        Map<String, Integer> m = new HashMap<>();
         Reader r = new StringReader(s);
         try {
             int c = r.read();
             while (c != -1) {
                 Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
-                Integer i = m.get(block);
+                String blockString = (block == null) ? "NULL" : block.toString();
+                Integer i = m.get(blockString);
                 if (i == null) {
                     i = 0;
                 }
                 i++;
-                m.put(block, i);
+                if (block == null) {
+                    blockString = "NULL";
+                }
+                m.put(blockString, i);
+                c = r.read();
             }
         } catch (IOException e) {
+            e.printStackTrace();
             //swallow
         }
 
         List<Pair<String, Integer>> pairs = new ArrayList<>();
-        for (Map.Entry<Character.UnicodeBlock, Integer> e : m.entrySet()) {
-            pairs.add(Pair.of(e.getKey().toString(), e.getValue()));
+        for (Map.Entry<String, Integer> e : m.entrySet()) {
+            pairs.add(Pair.of(e.getKey(), e.getValue()));
         }
         Collections.sort(pairs, new Comparator<Pair<String, Integer>>() {
             @Override
             public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {
-                return o1.getValue().compareTo(o2.getValue());
+                return o2.getValue().compareTo(o1.getValue());
             }
         });
         StringBuilder sb = new StringBuilder();
@@ -564,7 +612,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             return;
         }
         Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
-        TokenCounter tokens;
         String content = getContent(metadata, MAX_STRING_LENGTH);
         addTokens(content, analyzer, counter);
         return;
