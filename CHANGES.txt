@@ -1,6 +1,17 @@
-Release 1.11 - 10/18/2015
+Release 1.12 - Current Development
+
+  * Allow XHTMLContentHandler to pass attributes of html element 
+    via Markus Jelsma (TIKA-1782).
 
   * Fix regression with spacing in PPT via Andreas Beeker (TIKA-1777).
+
+  * Tika Facade parse methods for Path and File added which take a
+    Metadata object, to mirror the existing InputStream one (GitHub-60)
+
+  * GeoParser fix for loading the NER model from a jar file (TIKA-1791)
+
+
+Release 1.11 - 10/18/2015
 
   * Java7 API support for allowing java.nio.file.Path as method arguments
     was added to Tika and to ParsingReader, TikaFileTypeDetector, and to
