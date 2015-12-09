@@ -16,26 +16,33 @@
  */
 package org.apache.tika.parser.html;
 
+import javax.xml.XMLConstants;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
-import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.config.ServiceLoader;
-import org.apache.tika.detect.AutoDetectReader;
+import org.apache.tika.detect.CompositeEncodingDetector;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
-import org.ccil.cowan.tagsoup.HTMLSchema;
-import org.ccil.cowan.tagsoup.Schema;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Attribute;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
+import org.jsoup.select.NodeTraversor;
+import org.jsoup.select.NodeVisitor;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * HTML parser. Uses TagSoup to turn the input document to HTML SAX events,
@@ -63,11 +70,6 @@ public class HtmlParser extends AbstractParser {
     private static final ServiceLoader LOADER =
             new ServiceLoader(HtmlParser.class.getClassLoader());
 
-    /**
-     * HTML schema singleton used to amortise the heavy instantiation time.
-     */
-    private static final Schema HTML_SCHEMA = new HTMLSchema();
-
 
     public Set<MediaType> getSupportedTypes(ParseContext context) {
         return SUPPORTED_TYPES;
@@ -77,118 +79,103 @@ public class HtmlParser extends AbstractParser {
             InputStream stream, ContentHandler handler,
             Metadata metadata, ParseContext context)
             throws IOException, SAXException, TikaException {
-        // Automatically detect the character encoding
-        try (AutoDetectReader reader = new AutoDetectReader(new CloseShieldInputStream(stream),
-                metadata,context.get(ServiceLoader.class, LOADER))) {
-            Charset charset = reader.getCharset();
-            String previous = metadata.get(Metadata.CONTENT_TYPE);
-            MediaType contentType = null;
-            if (previous == null || previous.startsWith("text/html")) {
-                contentType = new MediaType(MediaType.TEXT_HTML, charset);
-            } else if (previous.startsWith("application/xhtml+xml")) {
-                contentType = new MediaType(XHTML, charset);
-            } else if (previous.startsWith("application/vnd.wap.xhtml+xml")) {
-                contentType = new MediaType(WAP_XHTML, charset);
-            } else if (previous.startsWith("application/x-asp")) {
-                contentType = new MediaType(X_ASP, charset);
+        Charset charset = CompositeEncodingDetector.detectCharset(stream, metadata, LOADER);
+        String previous = metadata.get(Metadata.CONTENT_TYPE);
+        MediaType contentType = null;
+        if (previous == null || previous.startsWith("text/html")) {
+            contentType = new MediaType(MediaType.TEXT_HTML, charset);
+        } else if (previous.startsWith("application/xhtml+xml")) {
+            contentType = new MediaType(XHTML, charset);
+        } else if (previous.startsWith("application/vnd.wap.xhtml+xml")) {
+            contentType = new MediaType(WAP_XHTML, charset);
+        } else if (previous.startsWith("application/x-asp")) {
+            contentType = new MediaType(X_ASP, charset);
+        }
+        if (contentType != null) {
+            metadata.set(Metadata.CONTENT_TYPE, contentType.toString());
+        }
+        // deprecated, see TIKA-431
+        metadata.set(Metadata.CONTENT_ENCODING, charset.name());
+
+        // Get the HTML mapper from the parse context
+        HtmlMapper mapper =
+                context.get(HtmlMapper.class, new DefaultHtmlMapper());
+
+        Document document = Jsoup.parse(stream, charset.name(), "");
+        document.quirksMode(Document.QuirksMode.quirks);
+        ContentHandler xhtml = new XHTMLDowngradeHandler(
+                new HtmlHandler(mapper, handler, metadata));
+        xhtml.startDocument();
+        NodeTraversor nodeTraversor = new NodeTraversor(new TikaNodeVisitor(xhtml));
+        try {
+            nodeTraversor.traverse(document.head());
+            nodeTraversor.traverse(document.body());
+        } catch (RuntimeSAXException e) {
+            throw e.getWrapped();
+        } finally {
+            xhtml.endDocument();
+        }
+    }
+
+    private class TikaNodeVisitor implements NodeVisitor {
+        ContentHandler handler;
+
+        private TikaNodeVisitor(ContentHandler handler) {
+            this.handler = handler;
+        }
+
+        @Override
+        public void head(Node node, int i) {
+            if (node instanceof TextNode) {
+                String txt = ((TextNode) node).getWholeText();
+                if (txt != null) {
+                    char[] chars = txt.toCharArray();
+                    try {
+                        if (chars.length > 0) {
+                            handler.characters(chars, 0, chars.length);
+                        }
+                    } catch (SAXException e) {
+                        throw new RuntimeSAXException(e);
+                    }
+                }
+                return;
             }
-            if (contentType != null) {
-                metadata.set(Metadata.CONTENT_TYPE, contentType.toString());
+            AttributesImpl attributes = new AttributesImpl();
+            Iterator<Attribute> jsoupAttrs = node.attributes().iterator();
+            while (jsoupAttrs.hasNext()) {
+                Attribute jsoupAttr = jsoupAttrs.next();
+                attributes.addAttribute("", jsoupAttr.getKey(), jsoupAttr.getKey(), "", jsoupAttr.getValue());
             }
-            // deprecated, see TIKA-431
-            metadata.set(Metadata.CONTENT_ENCODING, charset.name());
+            try {
+                handler.startElement(XMLConstants.NULL_NS_URI, node.nodeName(), node.nodeName(), attributes);
+            } catch (SAXException e) {
+                throw new RuntimeException(e);
+            }
+        }
 
-            // Get the HTML mapper from the parse context
-            HtmlMapper mapper =
-                    context.get(HtmlMapper.class, new HtmlParserMapper());
+        @Override
+        public void tail(Node node, int i) {
+            if (node instanceof TextNode) {
+                return;
+            }
+            try {
+                handler.endElement(XMLConstants.NULL_NS_URI, node.nodeName(), node.nodeName());
+            } catch (SAXException e) {
+                throw new RuntimeSAXException(e);
+            }
 
-            // Parse the HTML document
-            org.ccil.cowan.tagsoup.Parser parser =
-                    new org.ccil.cowan.tagsoup.Parser();
-
-            // Use schema from context or default
-            Schema schema = context.get(Schema.class, HTML_SCHEMA);
-
-            // TIKA-528: Reuse share schema to avoid heavy instantiation
-            parser.setProperty(
-                    org.ccil.cowan.tagsoup.Parser.schemaProperty, schema);
-            // TIKA-599: Shared schema is thread-safe only if bogons are ignored
-            parser.setFeature(
-                    org.ccil.cowan.tagsoup.Parser.ignoreBogonsFeature, true);
-
-            parser.setContentHandler(new XHTMLDowngradeHandler(
-                    new HtmlHandler(mapper, handler, metadata)));
-
-            parser.parse(reader.asInputSource());
         }
     }
 
-    /**
-     * Maps "safe" HTML element names to semantic XHTML equivalents. If the
-     * given element is unknown or deemed unsafe for inclusion in the parse
-     * output, then this method returns <code>null</code> and the element
-     * will be ignored but the content inside it is still processed. See
-     * the {@link #isDiscardElement(String)} method for a way to discard
-     * the entire contents of an element.
-     * <p/>
-     * Subclasses can override this method to customize the default mapping.
-     *
-     * @param name HTML element name (upper case)
-     * @return XHTML element name (lower case), or
-     * <code>null</code> if the element is unsafe
-     * @since Apache Tika 0.5
-     * @deprecated Use the {@link HtmlMapper} mechanism to customize
-     * the HTML mapping. This method will be removed in Tika 1.0.
-     */
-    protected String mapSafeElement(String name) {
-        return DefaultHtmlMapper.INSTANCE.mapSafeElement(name);
-    }
+    private class RuntimeSAXException extends RuntimeException {
+        private SAXException wrapped;
 
-    /**
-     * Checks whether all content within the given HTML element should be
-     * discarded instead of including it in the parse output. Subclasses
-     * can override this method to customize the set of discarded elements.
-     *
-     * @param name HTML element name (upper case)
-     * @return <code>true</code> if content inside the named element
-     * should be ignored, <code>false</code> otherwise
-     * @since Apache Tika 0.5
-     * @deprecated Use the {@link HtmlMapper} mechanism to customize
-     * the HTML mapping. This method will be removed in Tika 1.0.
-     */
-    protected boolean isDiscardElement(String name) {
-        return DefaultHtmlMapper.INSTANCE.isDiscardElement(name);
-    }
-
-    /**
-     * @deprecated Use the {@link HtmlMapper} mechanism to customize
-     * the HTML mapping. This method will be removed in Tika 1.0.
-     */
-    public String mapSafeAttribute(String elementName, String attributeName) {
-        return DefaultHtmlMapper.INSTANCE.mapSafeAttribute(elementName, attributeName);
-    }
-
-    /**
-     * Adapter class that maintains backwards compatibility with the
-     * protected HtmlParser methods. Making HtmlParser implement HtmlMapper
-     * directly would require those methods to be public, which would break
-     * backwards compatibility with subclasses.
-     *
-     * @deprecated Use the {@link HtmlMapper} mechanism to customize
-     * the HTML mapping. This class will be removed in Tika 1.0.
-     */
-    private class HtmlParserMapper implements HtmlMapper {
-        public String mapSafeElement(String name) {
-            return HtmlParser.this.mapSafeElement(name);
+        private RuntimeSAXException(SAXException e) {
+            this.wrapped = e;
         }
 
-        public boolean isDiscardElement(String name) {
-            return HtmlParser.this.isDiscardElement(name);
-        }
-
-        public String mapSafeAttribute(String elementName, String attributeName) {
-            return HtmlParser.this.mapSafeAttribute(elementName, attributeName);
+        SAXException getWrapped() {
+            return wrapped;
         }
     }
-
 }
