@@ -19,7 +19,6 @@ package org.apache.tika.parser.html;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.tika.TikaTest.assertContains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -39,6 +38,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.tika.Tika;
+import org.apache.tika.TikaTest;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Geographic;
 import org.apache.tika.metadata.Metadata;
@@ -48,6 +48,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.LinkContentHandler;
 import org.apache.tika.sax.TeeContentHandler;
+import org.apache.tika.sax.ToXMLContentHandler;
 import org.ccil.cowan.tagsoup.HTMLSchema;
 import org.ccil.cowan.tagsoup.Schema;
 import org.junit.Ignore;
@@ -58,7 +59,7 @@ import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-public class HtmlParserTest {
+public class HtmlParserTest extends TikaTest {
 
     @Test
     public void testParseAscii() throws Exception {
@@ -1114,5 +1115,21 @@ public class HtmlParserTest {
         assertEquals("text/html; charset=iso-NUMBER_SEVEN", metadata.get(TikaCoreProperties.CONTENT_TYPE_HINT));
         assertEquals("application/xhtml+xml; charset=ISO-8859-1", metadata.get(Metadata.CONTENT_TYPE));
 
+    }
+
+    //TIKA-381
+    @Test
+    public void testNewlineInHREF() throws Exception {
+
+        String test = "<html><body><a href=\"http://goog\n" +
+                "le.com\">link</a>body</body></html>";
+        Metadata metadata = new Metadata();
+        ContentHandler handler = new ToXMLContentHandler("UTF-8");
+            new HtmlParser().parse(
+                    new ByteArrayInputStream(test.getBytes(UTF_8)),
+                    handler, metadata, new ParseContext());
+        String content = handler.toString();
+        //should this be cleaned up by the XHTMLDowngradeHandler or the DefaultHTMLMapper to "google.com"?
+        assertContains("goog\nle.com", content);
     }
 }
