@@ -575,39 +575,39 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("Here is a citation:", content);
         assertContains("Figure 1 This is a caption for Figure 1", content);
         assertContains("(Kramer)", content);
-        assertContains("Row 1 Col 1 Row 1 Col 2 Row 1 Col 3 Row 2 Col 1 Row 2 Col 2 Row 2 Col 3", content.replaceAll("\\s+"," "));
-        assertContains("Row 1 column 1 Row 2 column 1 Row 1 column 2 Row 2 column 2", content.replaceAll("\\s+"," "));
+        assertContains("Row 1 Col 1 Row 1 Col 2 Row 1 Col 3 Row 2 Col 1 Row 2 Col 2 Row 2 Col 3", content.replaceAll("\\s+", " "));
+        assertContains("Row 1 column 1 Row 2 column 1 Row 1 column 2 Row 2 column 2", content.replaceAll("\\s+", " "));
         assertContains("This is a hyperlink", content);
         assertContains("Here is a list:", content);
-        for(int row=1;row<=3;row++) {
+        for (int row = 1; row <= 3; row++) {
             //assertContains("·\tBullet " + row, content);
             //assertContains("\u00b7\tBullet " + row, content);
             assertContains("Bullet " + row, content);
         }
         assertContains("Here is a numbered list:", content);
-        for(int row=1;row<=3;row++) {
+        for (int row = 1; row <= 3; row++) {
             //assertContains(row + ")\tNumber bullet " + row, content);
             //assertContains(row + ") Number bullet " + row, content);
             // TODO: OOXMLExtractor fails to number the bullets:
             assertContains("Number bullet " + row, content);
         }
 
-        for(int row=1;row<=2;row++) {
-            for(int col=1;col<=3;col++) {
+        for (int row = 1; row <= 2; row++) {
+            for (int col = 1; col <= 3; col++) {
                 assertContains("Row " + row + " Col " + col, content);
             }
         }
 
         assertContains("Keyword1 Keyword2", content);
         assertEquals("Keyword1 Keyword2",
-                     metadata.get(Metadata.KEYWORDS));
+                metadata.get(Metadata.KEYWORDS));
 
         assertContains("Subject is here", content);
         // TODO: Remove subject in Tika 2.0
         assertEquals("Subject is here",
-                     metadata.get(Metadata.SUBJECT));
+                metadata.get(Metadata.SUBJECT));
         assertEquals("Subject is here",
-                     metadata.get(OfficeOpenXMLCore.SUBJECT));
+                metadata.get(OfficeOpenXMLCore.SUBJECT));
 
         assertContains("Suddenly some Japanese text:", content);
         // Special version of (GHQ)
@@ -639,21 +639,21 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("<p>Row 2 column 2</p>", xml);
         assertContains("<p>This is a hyperlink", xml);
         assertContains("<p>Here is a list:", xml);
-        for(int row=1;row<=3;row++) {
+        for (int row = 1; row <= 3; row++) {
             //assertContains("·\tBullet " + row, content);
             //assertContains("\u00b7\tBullet " + row, content);
             assertContains("<p>Bullet " + row, xml);
         }
         assertContains("Here is a numbered list:", xml);
-        for(int row=1;row<=3;row++) {
+        for (int row = 1; row <= 3; row++) {
             //assertContains(row + ")\tNumber bullet " + row, content);
             //assertContains(row + ") Number bullet " + row, content);
             // TODO: OOXMLExtractor fails to number the bullets:
             assertContains("<p>Number bullet " + row, xml);
         }
 
-        for(int row=1;row<=2;row++) {
-            for(int col=1;col<=3;col++) {
+        for (int row = 1; row <= 2; row++) {
+            for (int col = 1; col <= 3; col++) {
                 assertContains("Row " + row + " Col " + col, xml);
             }
         }
@@ -665,7 +665,7 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("Subject is here", xml);
         // TODO: Remove subject in Tika 2.0
         assertEquals("Subject is here",
-                     metadata.get(Metadata.SUBJECT));
+                metadata.get(Metadata.SUBJECT));
         assertEquals("Subject is here",
                 metadata.get(OfficeOpenXMLCore.SUBJECT));
 
@@ -1200,6 +1200,15 @@ public class OOXMLParserTest extends TikaTest {
         assertEquals(2, managers.length);
         assertEquals("manager1", managers[0]);
         assertEquals("manager2", managers[1]);
+    }
+
+    @Test
+    public void testVisioOOXML() throws Exception {
+        XMLResult r = getXML("testVISIOMultiShapes.vsdx");
+        System.out.println(r.xml);
+/*        assertContains("This is a test", r.xml);
+        assertEquals("Pascal Essiembre", r.metadata.get(TikaCoreProperties.CREATOR));
+        assertEquals("Norconex Inc.", r.metadata.get(TikaCoreProperties.PUBLISHER));*/
     }
 }
 
