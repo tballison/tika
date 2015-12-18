@@ -97,7 +97,13 @@ public class ResultsReporter {
         NodeList children = n.getChildNodes();
         Report r = new Report();
         NamedNodeMap attrs = n.getAttributes();
-        r.charset = Charset.forName(attrs.getNamedItem("encoding").getNodeValue());
+        Node encodingNode = attrs.getNamedItem("encoding");
+        if (encodingNode != null) {
+            String encodingString = encodingNode.getNodeValue();
+            if (encodingString != null) {
+                r.charset = Charset.forName(attrs.getNamedItem("encoding").getNodeValue());
+            }
+        }
         r.includeSql = Boolean.parseBoolean(attrs.getNamedItem("includeSql").getNodeValue());
         r.reportDirectory = attrs.getNamedItem("reportDirectory").getNodeValue();
         r.reportFilename = attrs.getNamedItem("reportFilename").getNodeValue();
@@ -152,6 +158,8 @@ public class ResultsReporter {
             return Report.FORMAT.CSV;
         } else if (format.toLowerCase(Locale.ENGLISH).equals("html")) {
             return Report.FORMAT.HTML;
+        } else if (format.toLowerCase(Locale.ENGLISH).equals("xlsx")) {
+            return Report.FORMAT.XLSX;
         }
 
         throw new IllegalArgumentException("Format must be 'csv' or 'html'. I don't "+

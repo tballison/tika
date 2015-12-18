@@ -61,9 +61,9 @@ public class ComparerBatchTest extends FSBatchTestBase {
     @BeforeClass
     public static void setUp() throws Exception {
 
-        File inputRoot = new File(new ComparerBatchTest().getClass().getResource("/test-documents").toURI());
+        File inputRoot = new File(new ComparerBatchTest().getClass().getResource("/test-dirs").toURI());
         dbDir = Files.createTempDirectory(inputRoot.toPath(), "tika-test-db-dir-");
-        Map<String, String> args = new HashMap<String, String>();
+        Map<String, String> args = new HashMap<>();
         Path dbFile = FileSystems.getDefault().getPath(dbDir.toString(), "comparisons_test");
         args.put("-dbDir", dbFile.toString());
 

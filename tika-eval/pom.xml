@@ -8,6 +8,8 @@
         <cli.version>1.2</cli.version> <!--sync version with tika-server or move to parent? -->
         <lucene.version>5.3.1</lucene.version>
         <cxf.version>3.0.2</cxf.version>
+        <poi.version>3.13</poi.version>
+
     </properties>
 
     <parent>
@@ -63,6 +65,12 @@
             <version>${cli.version}</version>
         </dependency>
         <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.4</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
             <version>${lucene.version}</version>
@@ -108,7 +116,26 @@
             <scope>test</scope>
         </dependency>
 
-
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-schemas</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-batch</artifactId>
