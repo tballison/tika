@@ -107,7 +107,7 @@ public class Report {
         Row xssfRow = sheet.createRow(rowCount++);
         for (int i = 1; i <= meta.getColumnCount(); i++) {
             Cell cell = xssfRow.createCell(i-1);
-            cell.setCellValue(meta.getColumnName(i));
+            cell.setCellValue(meta.getColumnLabel(i));
         }
 
         while (rs.next()) {
