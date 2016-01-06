@@ -1,5 +1,15 @@
 Release 1.12 - Current Development
 
+  * Upgrade rome to 1.5.1 && Downgrade Rome dependency to 0.9 to avoid 
+    nasty NPE (TIKA-1820, TIKA-1516)
+
+  * The NamedEntityParser was enhanced to generate text content
+    in addition to metadata (TIKA-1815, TIKA-1816).
+
+  * A significant speed-up is made to the GeoTopicParser by
+    using the new REST server capabilities from Lucene Geo
+    Gazetteer (TIKA-1803).
+
   * A parser to compute motion properties in Videos, e.g., 
     Histogram of Oriented Gradients and Histogram of Optical Flows
     using the Pooled Time Series algorithm, was added (TIKA-1798).
