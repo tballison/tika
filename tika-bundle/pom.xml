@@ -267,6 +267,7 @@
               org.xmlpull.v1;resolution:=optional,
               schemasMicrosoftComOfficePowerpoint;resolution:=optional,
               schemasMicrosoftComOfficeWord;resolution:=optional,
+              com.microsoft.schemas;resolution:=optional,
               sun.misc;resolution:=optional,
               ucar.units;resolution:=optional,
               ucar.httpservices;resolution:=optional,
