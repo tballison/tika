@@ -18,13 +18,9 @@ package org.apache.tika.parser.microsoft;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
 
-import org.apache.poi.hslf.extractor.PowerPointExtractor;
 import org.apache.tika.TikaTest;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
@@ -242,32 +238,4 @@ public class PowerPointParserTest extends TikaTest {
         XMLResult r = getXML("testPPT_comment.ppt");
         assertContains("<p class=\"slide-comment\"><b>Allison, Timothy B. (ATB)", r.xml);
     }
-
-    @Test
-    public void testSequential() throws Exception {
-        File dir = new File("C:\\data\\badppts");
-        String[] fileNames = new String[]{
-                "008495.ppt",
-                "008558.ppt"
-        };
-        for (String fName : fileNames) {
-            InputStream is = null;
-            try {
-                is = new FileInputStream(new File(dir, fName));
-                PowerPointExtractor ex = new PowerPointExtractor(is);
-                System.out.println("FNAME:" + fName + " : " + ex.getText());
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-    }
-
 }

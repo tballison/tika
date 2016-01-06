@@ -1202,14 +1202,6 @@ public class OOXMLParserTest extends TikaTest {
         assertEquals("manager2", managers[1]);
     }
 
-    @Test
-    public void testVisioOOXML() throws Exception {
-        XMLResult r = getXML("testVISIOMultiShapes.vsdx");
-        System.out.println(r.xml);
-/*        assertContains("This is a test", r.xml);
-        assertEquals("Pascal Essiembre", r.metadata.get(TikaCoreProperties.CREATOR));
-        assertEquals("Norconex Inc.", r.metadata.get(TikaCoreProperties.PUBLISHER));*/
-    }
 }
 
 
