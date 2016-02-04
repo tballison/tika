@@ -22,7 +22,6 @@ import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -88,11 +87,6 @@ public abstract class TikaTest {
     }
     public static <T> void assertContains(T needle, Collection<? extends T> haystack) {
         assertTrue(needle + " not found in:\n" + haystack, haystack.contains(needle));
-    }
-
-    public static void assertContains(File f, String encoding, String needle) throws Exception {
-        String haystack = getStringFromFile(f, encoding);
-        assertContains(needle, haystack);
     }
 
     public static void assertNotContained(String needle, String haystack) {
@@ -163,14 +157,6 @@ public abstract class TikaTest {
     public String getText(InputStream is, Parser parser) throws Exception{
         return getText(is, parser, new ParseContext(), new Metadata());
     }
-
-    public static String getStringFromFile(File targFile, String encoding) throws Exception {
-        InputStream is = new FileInputStream(targFile);
-        String string = IOUtils.toString(is, encoding);
-        IOUtils.closeQuietly(is);
-        return string;
-    }
-
 
     /**
      * Keeps track of media types and file names recursively.

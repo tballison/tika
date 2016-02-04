@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import javax.ws.rs.core.Response;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -175,6 +176,18 @@ public class TikaResourceTest extends CXFTestBase {
         assertContains("<meta name=\"X-TIKA:digest:MD5\" content=\"59f626e09a8c16ab6dbc2800c685f772\"/>",
                 responseMsg);
 
+    }
+
+    //TIKA-1845
+    @Test
+    public void testWMFInRTF() throws Exception {
+        Response response = WebClient.create(endPoint + TIKA_PATH)
+                .type("application/rtf")
+                .accept("text/plain")
+                .put(ClassLoader.getSystemResourceAsStream("testRTF_npeFromWMFInTikaServer.rtf"));
+        String responseMsg = getStringFromInputStream((InputStream) response
+                .getEntity());
+        assertTrue(responseMsg.contains("Example text"));
     }
 
 }

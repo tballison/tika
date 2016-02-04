@@ -110,22 +110,4 @@ public class FilenameUtils {
         }
         return cand;
     }
-
-    public static String getExtension(final String path) {
-        //TODO: copy paste from commons
-        if (path == null) {
-            return "";
-        }
-        int i = path.lastIndexOf(".");
-        if (i > -1) {
-            return path.substring(i + 1);
-        }
-        return "";
-    }
-
-    public static String separatorsToUnix(final String path) {
-        //TODO: copy paste from commons
-        String ret = path.replaceAll("\\\\", "//");
-        return ret;
-    }
 }

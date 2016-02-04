@@ -143,7 +143,7 @@ public class BatchProcessDriverCLI {
                     loopsAfterRestartMessageReceived <= waitNumLoopsAfterRestartmessage) {
                 loopsAfterRestartMessageReceived++;
                 logger.warn("Must restart, still not exited; loops after restart: " +
-                        loopsAfterRestartMessageReceived);
+                            loopsAfterRestartMessageReceived);
                 continue;
             }
             if (loopsAfterRestartMessageReceived > waitNumLoopsAfterRestartmessage) {
@@ -229,8 +229,6 @@ public class BatchProcessDriverCLI {
                 " receivedRestartMessage="+receivedRestartMsg+")");
         stop();
         start();
-        loopsAfterRestartMessageReceived = 0;
-
         numRestarts++;
         loopsAfterRestartMessageReceived = 0;
         return true;
