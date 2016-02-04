@@ -8,14 +8,14 @@
         <cli.version>1.2</cli.version> <!--sync version with tika-server or move to parent? -->
         <lucene.version>5.3.1</lucene.version>
         <cxf.version>3.0.2</cxf.version>
-        <poi.version>3.13</poi.version>
+        <poi.version>3.14-beta1</poi.version>
 
     </properties>
 
     <parent>
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parent</artifactId>
-        <version>1.12-SNAPSHOT</version>
+        <version>1.13-SNAPSHOT</version>
         <relativePath>../tika-parent/pom.xml</relativePath>
     </parent>
 

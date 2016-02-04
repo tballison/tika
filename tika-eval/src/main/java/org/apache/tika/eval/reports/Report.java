@@ -31,15 +31,20 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.io.ByteOrderMark;
+import org.apache.log4j.Logger;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -48,12 +53,14 @@ import org.apache.tika.io.IOUtils;
 
 public class Report {
 
+    static final Logger logger = Logger.getLogger(Report.class);
     enum FORMAT {
         CSV,
         HTML,
         XLSX
     }
 
+    final String NULL_VALUE = "";//TODO: make this configurable!!!
     Map<String, ColFormatter> colFormats = new HashMap<>();
     String sql;
     String reportFilename;
@@ -100,30 +107,83 @@ public class Report {
     private void dumpReportToWorkbook(Statement st, SXSSFWorkbook wb) throws IOException, SQLException {
         ResultSet rs = st.executeQuery(sql);
 
-        ResultSetMetaData m = rs.getMetaData();
         Sheet sheet = wb.createSheet("tika-eval Report");
         int rowCount = 0;
         ResultSetMetaData meta = rs.getMetaData();
+        Set<String> colNames = new HashSet<>();
+
         Row xssfRow = sheet.createRow(rowCount++);
+        //write headers and cache them to check against styles
         for (int i = 1; i <= meta.getColumnCount(); i++) {
             Cell cell = xssfRow.createCell(i-1);
             cell.setCellValue(meta.getColumnLabel(i));
+            colNames.add(meta.getColumnLabel(i));
         }
+        Map<String, CellStyle> styles = new HashMap<>();
+        for (Map.Entry<String, ColFormatter> e : colFormats.entrySet()) {
+            if (! colNames.contains(e.getKey())) {
+                logger.warn("Format for non-existing column label: "+e.getKey() + " in "+reportName);
+                continue;
+            }
+            CellStyle style = wb.createCellStyle();
+            style.setDataFormat(wb.getCreationHelper()
+                    .createDataFormat().getFormat(e.getValue().getFormatString()));
+            styles.put(e.getKey(), style);
+        }
+
 
         while (rs.next()) {
             xssfRow = sheet.createRow(rowCount++);
-            for (int i = 1; i <= m.getColumnCount(); i++) {
-                ColFormatter formatter = colFormats.get(m.getColumnName(i));
-                String val;
-                if (formatter == null) {
-                    val = rs.getString(i);
-                } else {
-                    val = formatter.getString(i, rs);
-                    System.out.println("FORMATTED_VAL: "+val);
-                }
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                CellStyle style = styles.get(meta.getColumnLabel(i));
                 Cell cell = xssfRow.createCell(i-1);
-                cell.setCellValue(val);
+                writeCell(meta, rs, i, cell, style);
             }
+        }
+    }
+
+    private void writeCell(ResultSetMetaData meta, ResultSet rs, int i,
+                           Cell cell, CellStyle style) throws SQLException {
+
+        switch(meta.getColumnType(i)) {
+            //fall through on numerics
+            case Types.BIGINT:
+            case Types.SMALLINT:
+            case Types.INTEGER:
+            case Types.DOUBLE:
+            case Types.FLOAT:
+            case Types.DECIMAL:
+            case Types.NUMERIC:
+                double dval = rs.getDouble(i);
+                if (rs.wasNull()) {
+                    cell.setCellValue(NULL_VALUE);
+                } else {
+                    cell.setCellValue(rs.getDouble(i));
+                }
+                break;
+            //fall through strings
+            case Types.CHAR:
+            case Types.VARCHAR:
+            case Types.LONGNVARCHAR:
+                String val = rs.getString(i);
+                if (rs.wasNull()) {
+                    cell.setCellValue(NULL_VALUE);
+                } else {
+                    cell.setCellValue(val);
+                }
+                break;
+            default:
+                String defaultVal = rs.getString(i);
+                if (rs.wasNull()) {
+                    cell.setCellValue(NULL_VALUE);
+                } else {
+                    cell.setCellValue(defaultVal);
+                }
+                logger.warn("Couldn't find type for: " + meta.getColumnType(i) +
+                        ". Defaulting to String");
+        }
+        if (style != null) {
+            cell.setCellStyle(style);
         }
     }
 

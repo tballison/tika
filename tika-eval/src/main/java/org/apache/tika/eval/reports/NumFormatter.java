@@ -31,6 +31,9 @@ class NumFormatter implements ColFormatter {
     NumFormatter(String formatString) {
         this.formatString = formatString;
     }
+
+
+
     @Override
     public String getString(int i, ResultSet rs) throws SQLException {
         int type = rs.getMetaData().getColumnType(i);
@@ -50,5 +53,10 @@ class NumFormatter implements ColFormatter {
             default :
                 throw new IllegalArgumentException("Number formatter can't handle SQL type:"+type);
         }
+    }
+
+    @Override
+    public String getFormatString() {
+        return formatString;
     }
 }

@@ -23,4 +23,5 @@ import java.sql.SQLException;
 interface ColFormatter {
 
     String getString(int i, ResultSet rs) throws SQLException;
+    String getFormatString();
 }
