@@ -1,4 +1,32 @@
-Release 1.12 - Current Development
+Release 1.13 - ???
+
+  * Upgrade to POI 3.14-beta1 (TIKA-1799).
+
+  * Upgrade to PDFBox 1.8.11 (TIKA-1830).
+
+Release 1.12 - 01/24/2016
+
+  * Support for iFrames and element link extraction is provided in
+    the link Content Handler (TIKA-1835).
+
+  * Slide notes are now linked to the slide XHTML in the PPT output
+    (TIKA-1840).
+
+  * JSON tests in Tika server were updated to remove impossible casts
+    (Github-73).
+
+  * Fix bug in GeoTopicParser where NER is reused instead of instantiated
+    with each request (TIKA-1834).
+
+  * Upgrade rome to 1.5.1 && Downgrade Rome dependency to 0.9 to avoid 
+    nasty NPE (TIKA-1820, TIKA-1516)
+
+  * The NamedEntityParser was enhanced to generate text content
+    in addition to metadata (TIKA-1815, TIKA-1816).
+
+  * A significant speed-up is made to the GeoTopicParser by
+    using the new REST server capabilities from Lucene Geo
+    Gazetteer (TIKA-1803).
 
   * A parser to compute motion properties in Videos, e.g., 
     Histogram of Oriented Gradients and Histogram of Optical Flows

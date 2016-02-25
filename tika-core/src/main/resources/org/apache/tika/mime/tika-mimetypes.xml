@@ -524,11 +524,29 @@
   <mime-type type="application/pkcs7-signature">
     <glob pattern="*.p7s"/>
     <magic priority="50">
+      <!-- PEM encoded -->
       <match value="-----BEGIN PKCS7" type="string" offset="0"/>
-      <match value="0x3082FFFF06092a864886f70d0107FFa0" type="string"
-              mask="0xFFFF0000FFFFFFFFFFFFFFFFFFFF00FF" offset="0"/>
-      <match value="0x308006092a864886f70d0107FFa0" type="string"
-              mask="0xFFFFFFFFFFFFFFFFFFFFFFFF00FF" offset="0"/>
+      <!-- DER encoded, sequence+length, object=pkcs7-signedData -->
+      <match value="0x3080" offset="0">
+         <match value="0x06092a864886f70d0107FFa0" type="string"
+                 mask="0xFFFFFFFFFFFFFFFFFFFF00FF" offset="2"/>
+      </match>
+      <match value="0x3081" offset="0">
+         <match value="0x06092a864886f70d0107FFa0" type="string"
+                 mask="0xFFFFFFFFFFFFFFFFFFFF00FF" offset="3"/>
+      </match>
+      <match value="0x3082" offset="0">
+         <match value="0x06092a864886f70d0107FFa0" type="string"
+                 mask="0xFFFFFFFFFFFFFFFFFFFF00FF" offset="4"/>
+      </match>
+      <match value="0x3083" offset="0">
+         <match value="0x06092a864886f70d0107FFa0" type="string"
+                 mask="0xFFFFFFFFFFFFFFFFFFFF00FF" offset="5"/>
+      </match>
+      <match value="0x3084" offset="0">
+         <match value="0x06092a864886f70d0107FFa0" type="string"
+                 mask="0xFFFFFFFFFFFFFFFFFFFF00FF" offset="6"/>
+      </match>
     </magic>
   </mime-type>
 
@@ -4795,12 +4813,41 @@
     </magic>
   </mime-type>
 
+  <mime-type type="image/vnd.dxb">
+    <acronym>DXB</acronym>
+    <_comment>AutoCAD DXF simplified Binary</_comment>
+    <tika:link>http://en.wikipedia.org/wiki/AutoCAD_DXF</tika:link>
+    <magic priority="50">
+      <match value="AutoCAD DXB 1.0\r\n0x1A00" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.dxb"/>
+  </mime-type>
+
   <mime-type type="image/vnd.dxf">
     <acronym>DXF</acronym>
     <_comment>AutoCAD DXF</_comment>
     <tika:link>http://en.wikipedia.org/wiki/AutoCAD_DXF</tika:link>
+    <!-- DXF can be the text or binary representation -->
     <glob pattern="*.dxf"/>
   </mime-type>
+  <mime-type type="image/vnd.dxf;format=binary">
+    <sub-class-of type="image/vnd.dxf"/>
+    <_comment>AutoCAD DXF in Binary form</_comment>
+    <magic priority="50">
+      <match value="AutoCAD Binary DXF\r\n0x1A00" type="string" offset="0"/>
+    </magic>
+  </mime-type>
+  <mime-type type="image/vnd.dxf;format=ascii">
+    <sub-class-of type="image/vnd.dxf"/>
+    <_comment>AutoCAD DXF in ASCII Text form</_comment>
+    <magic priority="50">
+      <!-- Variable number of spaces before the code groups -->
+      <match value="0\r\nSECTION\r\n" offset="0:3">
+        <match value="2\r\nHEADER\r\n" offset="12:18"/>
+      </match>
+    </magic>
+  </mime-type>
+
   <mime-type type="image/vnd.fastbidsheet">
     <glob pattern="*.fbs"/>
   </mime-type>
@@ -5203,8 +5250,38 @@
   </mime-type>
 
   <mime-type type="model/vnd.dwf">
+    <acronym>DWF</acronym>
+    <_comment>AutoCAD Design Web Format</_comment>
+    <alias type="drawing/x-dwf"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="(DWF V">
+         <match type="string" offset="8" value=".">
+            <match type="string" offset="11" value=")" />
+         </match>
+      </match>
+    </magic>
     <glob pattern="*.dwf"/>
   </mime-type>
+  <mime-type type="model/vnd.dwf;version=6">
+    <!-- Zip file with DWF header on the front -->
+    <magic priority="60">
+      <match type="string" offset="0" value="(DWF V06.">
+         <match type="string" offset="11" value=")PK" />
+      </match>
+    </magic>
+    <sub-class-of type="model/vnd.dwf"/>
+  </mime-type>
+  <mime-type type="model/vnd.dwf;version=5">
+    <magic priority="60">
+      <match type="string" offset="0" value="(DWF V00.55)"/>
+    </magic>
+  </mime-type>
+  <mime-type type="model/vnd.dwf;version=2">
+    <magic priority="60">
+      <match type="string" offset="0" value="(DWF V00.22)"/>
+    </magic>
+  </mime-type>
+
   <mime-type type="model/vnd.dwfx+xps">
     <_comment>AutoCAD Design Web Format</_comment>
     <glob pattern="*.dwfx"/>
@@ -5355,12 +5432,6 @@
       <match value="&lt;head" type="string" offset="0:64"/>
       <match value="&lt;TITLE" type="string" offset="0:64"/>
       <match value="&lt;title" type="string" offset="0:64"/>
-      <!-- note on the offset value here: this can only be as big as
-           MimeTypes#getMinLength(). If you set the offset value to larger
-           than that size, the magic will only be compared to up to
-           MimeTypes#getMinLength() bytes.
-       -->
-      <match value="&lt;html" type="string" offset="0:8192"/>
       <match value="&lt;HTML" type="string" offset="0:64"/>
       <match value="&lt;BODY" type="string" offset="0"/>
       <match value="&lt;body" type="string" offset="0"/>
@@ -5372,6 +5443,17 @@
       <match value="&lt;H1" type="string" offset="0"/>
       <match value="&lt;!doctype HTML" type="string" offset="0"/>
       <match value="&lt;!DOCTYPE html" type="string" offset="0"/>
+      <match value="&lt;html" type="string" offset="0:128"/>
+    </magic>
+    <magic priority="20">
+      <!-- Lower priority match for <html anywhere near the top of the file -->
+      <!-- note on the offset value here: this can only be as big as
+           MimeTypes#getMinLength(). If you set the offset value to larger
+           than that size, the magic will only be compared to up to
+           MimeTypes#getMinLength() bytes. It should also only start after
+           the higher priority "start of file" one above
+       -->
+      <match value="&lt;html" type="string" offset="128:8192"/>
     </magic>
     <glob pattern="*.html"/>
     <glob pattern="*.htm"/>
