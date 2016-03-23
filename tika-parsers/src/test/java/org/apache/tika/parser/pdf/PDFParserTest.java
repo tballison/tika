@@ -16,18 +16,17 @@
  */
 package org.apache.tika.parser.pdf;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,7 +36,6 @@ import org.apache.log4j.Logger;
 import org.apache.tika.TikaTest;
 import org.apache.tika.exception.AccessPermissionException;
 import org.apache.tika.exception.EncryptedDocumentException;
-import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.ContainerExtractor;
 import org.apache.tika.extractor.DocumentSelector;
 import org.apache.tika.extractor.ParserContainerExtractor;
@@ -45,6 +43,7 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.OfficeOpenXMLCore;
 import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.metadata.XMPMM;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
@@ -252,36 +251,6 @@ public class PDFParserTest extends TikaTest {
         assertTrue("encryption exception", ex);
         assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
         assertEquals("true", metadata.get("pdf:encrypted"));
-        //pdf:encrypted, X-Parsed-By and Content-Type
-        assertEquals("very little metadata should be parsed", 3, metadata.names().length);
-        assertEquals(0, content.length());
-
-        //now test wrong password with non sequential parser
-        handler = new BodyContentHandler();
-        metadata = new Metadata();
-        context = new ParseContext();
-        context.set(PasswordProvider.class, new PasswordProvider() {
-            public String getPassword(Metadata metadata) {
-                return "WRONG!!!!";
-            }
-        });
-        PDFParserConfig config = new PDFParserConfig();
-        config.setUseNonSequentialParser(true);
-        context.set(PDFParserConfig.class, config);
-
-        ;
-        ex = false;
-        try (InputStream stream = PDFParserTest.class.getResourceAsStream(
-                "/test-documents/testPDF_protected.pdf")) {
-            parser.parse(stream, handler, metadata, context);
-        } catch (EncryptedDocumentException e) {
-            ex = true;
-        }
-        content = handler.toString();
-        assertTrue("encryption exception", ex);
-        assertEquals("application/pdf", metadata.get(Metadata.CONTENT_TYPE));
-        assertEquals("true", metadata.get("pdf:encrypted"));
-
         //pdf:encrypted, X-Parsed-By and Content-Type
         assertEquals("very little metadata should be parsed", 3, metadata.names().length);
         assertEquals(0, content.length());
@@ -608,85 +577,6 @@ public class PDFParserTest extends TikaTest {
         assertEquals(TYPE_PDF, tracker.mediaTypes.get(1));
         assertEquals(TYPE_DOCX, tracker.mediaTypes.get(2));
     }
-
-    /**
-     * tests for equality between traditional sequential parser
-     * and newer nonsequential parser.
-     * <p/>
-     * TODO: more testing
-     */
-    @Test
-    public void testSequentialParser() throws Exception {
-
-        Parser sequentialParser = new AutoDetectParser();
-        Parser nonSequentialParser = new AutoDetectParser();
-
-        ParseContext seqContext = new ParseContext();
-        PDFParserConfig seqConfig = new PDFParserConfig();
-        seqConfig.setUseNonSequentialParser(false);
-        seqContext.set(PDFParserConfig.class, seqConfig);
-
-        ParseContext nonSeqContext = new ParseContext();
-        PDFParserConfig nonSeqConfig = new PDFParserConfig();
-        nonSeqConfig.setUseNonSequentialParser(true);
-        nonSeqContext.set(PDFParserConfig.class, nonSeqConfig);
-
-        File testDocs = new File(this.getClass().getResource("/test-documents").toURI());
-        int pdfs = 0;
-        //empty as of PDFBox 1.8.11
-        //leave this in for the 1.8.x series in case something new happens
-        Set<String> knownMetadataDiffs = new HashSet<String>();
-
-        //empty for now
-        Set<String> knownContentDiffs = new HashSet<String>();
-
-        for (File f : testDocs.listFiles()) {
-            if (!f.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
-                continue;
-            }
-
-            String sequentialContent = null;
-            Metadata sequentialMetadata = new Metadata();
-            try {
-                sequentialContent = getText(new FileInputStream(f),
-                        sequentialParser, seqContext, sequentialMetadata);
-            } catch (EncryptedDocumentException e) {
-                //silently skip a file that requires a user password
-                continue;
-            } catch (Exception e) {
-                throw new TikaException("Sequential Parser failed on test file " + f, e);
-            }
-
-            pdfs++;
-
-            String nonSequentialContent = null;
-            Metadata nonSequentialMetadata = new Metadata();
-            try {
-                nonSequentialContent = getText(new FileInputStream(f),
-                        nonSequentialParser, nonSeqContext, nonSequentialMetadata);
-            } catch (Exception e) {
-                throw new TikaException("Non-Sequential Parser failed on test file " + f, e);
-            }
-
-            if (knownContentDiffs.contains(f.getName())) {
-                assertFalse(f.getName(), sequentialContent.equals(nonSequentialContent));
-            } else {
-                assertEquals(f.getName(), sequentialContent, nonSequentialContent);
-            }
-
-            //skip this one file.
-            if (knownMetadataDiffs.contains(f.getName())) {
-                assertFalse(f.getName(), sequentialMetadata.equals(nonSequentialMetadata));
-            } else {
-                assertEquals(f.getName(), sequentialMetadata, nonSequentialMetadata);
-            }
-        }
-        //make sure nothing went wrong with getting the resource to test-documents
-        //must have tested >= 15 pdfs
-        boolean ge15 = (pdfs >= 15);
-        assertTrue("Number of pdf files tested >= 15 in non-sequential parser test", ge15);
-    }
-
 
     // TIKA-973
     //commented out until test documents that are unambiguously
@@ -1326,6 +1216,90 @@ public class PDFParserTest extends TikaTest {
         //TIKA-1678
         XMLResult r = getXML("testPDF_PDFEncodedStringInXMP.pdf");
         assertEquals("Microsoft", r.metadata.get(TikaCoreProperties.TITLE));
+    }
+
+    @Test
+    public void testXFAExtractionBasic() throws Exception {
+        XMLResult r = getXML("testPDF_XFA_govdocs1_258578.pdf");
+        //contains content existing only in the "regular" pdf
+        assertContains("Mount Rushmore National Memorial", r.xml);
+        //contains xfa fields and data
+        assertContains("<li fieldName=\"School_Name\">School Name: my_school</li>",
+            r.xml);
+    }
+
+    @Test
+    public void testXFAOnly() throws Exception {
+        ParseContext context = new ParseContext();
+
+        PDFParserConfig config = new PDFParserConfig();
+        config.setIfXFAExtractOnlyXFA(true);
+        context.set(PDFParserConfig.class, config);
+        ContentHandler handler = new ToXMLContentHandler(StandardCharsets.UTF_8.name());
+        Metadata metadata = new Metadata();
+        Parser parser = new AutoDetectParser();
+        try (InputStream is = getResourceAsStream("/test-documents/testPDF_XFA_govdocs1_258578.pdf")) {
+            parser.parse(is, handler, metadata, context);
+        }
+        String xml = handler.toString();
+        assertContains("<li fieldName=\"Room_1\">Room [1]: my_room1</li>", xml);
+        assertContains("</xfa_content></body></html>", xml);
+
+        assertNotContained("Mount Rushmore National Memorial", xml);
+    }
+
+    @Test
+    public void testXMPMM() throws Exception {
+//        XMLResult r = getXML("testPDF_Version.11.x.PDFA-1b.pdf");
+        Metadata m = getXML("testPDF_twoAuthors.pdf").metadata;
+        assertEquals("uuid:0e46913c-72b9-40c0-8232-69e362abcd1e",
+                m.get(XMPMM.DOCUMENTID));
+
+        m = getXML("testPDF_Version.11.x.PDFA-1b.pdf").metadata;
+        assertEquals("uuid:cccee1fc-51b3-4b52-ac86-672af3974d25",
+                m.get(XMPMM.DOCUMENTID));
+
+        //now test for 7 elements in each parallel array
+        //from the history section
+        assertArrayEquals(new String[]{
+                "uuid:0313504b-a0b0-4dac-a9f0-357221f2eadf",
+                "uuid:edc4279e-0d5f-465e-b13e-1298402fd11c",
+                "uuid:f565b775-43f3-4a9a-8541-e98c4115db6d",
+                "uuid:9fd5e0a8-14a5-4920-ad7f-870c0b8ee65f",
+                "uuid:09b6cfba-efde-4e07-a77f-70de858cc0aa",
+                "uuid:1e4ffbd7-dabc-4aae-801c-15b3404ade36",
+                "uuid:c1669773-a6ca-4bdd-aade-519030d0af00"
+        }, m.getValues(XMPMM.HISTORY_EVENT_INSTANCEID));
+
+        assertArrayEquals(new String[]{
+                "converted",
+                "converted",
+                "converted",
+                "converted",
+                "converted",
+                "converted",
+                "converted"
+        }, m.getValues(XMPMM.HISTORY_ACTION));
+
+        assertArrayEquals(new String[]{
+                "Preflight",
+                "Preflight",
+                "Preflight",
+                "Preflight",
+                "Preflight",
+                "Preflight",
+                "Preflight"
+        }, m.getValues(XMPMM.HISTORY_SOFTWARE_AGENT));
+
+        assertArrayEquals(new String[]{
+                "2014-03-04T23:50:41Z",
+                "2014-03-04T23:50:42Z",
+                "2014-03-04T23:51:34Z",
+                "2014-03-04T23:51:36Z",
+                "2014-03-04T23:51:37Z",
+                "2014-03-04T23:52:22Z",
+                "2014-03-04T23:54:48Z"
+        }, m.getValues(XMPMM.HISTORY_WHEN));
     }
 
     private void assertException(String path, Parser parser, ParseContext context, Class expected) {
