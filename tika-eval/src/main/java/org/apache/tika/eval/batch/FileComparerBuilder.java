@@ -1,5 +1,3 @@
-package org.apache.tika.eval.batch;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,9 +14,12 @@ package org.apache.tika.eval.batch;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval.batch;
+
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,17 +39,16 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
     @Override
     public FileResourceConsumer build() throws IOException, SQLException {
-        File thisRootDir = PropsUtil.getFile(localAttrs.get("extractDirA"), null);
+        Path thisRootDir = PropsUtil.getPath(localAttrs.get("extractDirA"), null);
         if (thisRootDir == null) {
             throw new RuntimeException("Must specify \"extractDirA\" -- directory for 'A' extracts");
         }
-        File thatRootDir = PropsUtil.getFile(localAttrs.get("extractDirB"), null);
+        Path thatRootDir = PropsUtil.getPath(localAttrs.get("extractDirB"), null);
         if (thatRootDir == null) {
             throw new RuntimeException("Must specify \"extractDirB\" -- directory for 'B' extracts");
         }
 
-        File inputRootDir = PropsUtil.getFile(localAttrs.get("inputDir"), null);
-        boolean crawlingInputDir = PropsUtil.getBoolean(localAttrs.get("crawlingInputDir"), false);
+        Path inputRootDir = PropsUtil.getPath(localAttrs.get("inputDir"), null);
 
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
@@ -96,16 +96,16 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
     @Override
     protected void addErrorLogTablePairs(DBConsumersManager manager) {
-        File errorLogA = PropsUtil.getFile(localAttrs.get("errorLogFileA"), null);
+        Path errorLogA = PropsUtil.getPath(localAttrs.get("errorLogFileA"), null);
         if (errorLogA == null) {
             return;
         }
         manager.addErrorLogTablePair(errorLogA, FileComparer.ERROR_TABLE_A);
-        File errorLogB = PropsUtil.getFile(localAttrs.get("errorLogFileB"), null);
+        Path errorLogB = PropsUtil.getPath(localAttrs.get("errorLogFileB"), null);
         if (errorLogB == null) {
             return;
         }
-        manager.addErrorLogTablePair(errorLogA, FileComparer.ERROR_TABLE_B);
+        manager.addErrorLogTablePair(errorLogB, FileComparer.ERROR_TABLE_B);
 
     }
 

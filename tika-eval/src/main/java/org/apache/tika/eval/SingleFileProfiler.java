@@ -1,5 +1,3 @@
-package org.apache.tika.eval;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +14,9 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval;
+
+
 
 import java.io.File;
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class SingleFileProfiler extends AbstractProfiler {
 
     public static TableInfo PROFILE_TABLE = new TableInfo("profiles",
             new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
-            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),//, "FOREIGN KEY"),
+            new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),
             new ColInfo(Cols.FILE_NAME, Types.VARCHAR, 256),
             new ColInfo(Cols.MD5, Types.CHAR, 32),
             new ColInfo(Cols.LENGTH, Types.BIGINT),

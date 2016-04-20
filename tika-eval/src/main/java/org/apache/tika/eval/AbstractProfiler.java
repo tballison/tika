@@ -19,8 +19,6 @@ package org.apache.tika.eval;
 
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -147,8 +145,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12)
     );
 
-
-
     private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
 
 
@@ -202,16 +198,23 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         langIder = new LanguageIDWrapper();
     }
 
-
     protected void writeError(TableInfo extractErrorTable, String containerId,
-                              String filePath, File extractA) throws IOException {
+                              String filePath, Path extractA) throws IOException {
         Map<Cols, String> data = new HashMap<>();
         data.put(Cols.CONTAINER_ID, containerId);
         data.put(Cols.FILE_PATH, filePath);
         int errorCode = -1;
+        long len = -1;
+        if (extractA != null) {
+            try {
+                len = Files.size(extractA);
+            } catch (IOException e) {
+                //swallow
+            }
+        }
         if (extractA == null) {
             errorCode = EXTRACT_ERROR_TYPE.NO_EXTRACT_FILE.ordinal();
-        } else if (extractA.length() == 0) {
+        } else if (len == 0) {
             errorCode = EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal();
         } else {
             errorCode = EXTRACT_ERROR_TYPE.EXTRACT_PARSE_EXCEPTION.ordinal();
@@ -220,8 +223,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         writer.writeRow(extractErrorTable, data);
 
     }
-
-
 
     protected void writeProfileData(EvalFilePaths fps, int i, Metadata m,
                                     String fileId, String containerId,
@@ -276,7 +277,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     protected void writeExceptionData(String fileId, Metadata m, TableInfo exceptionTable) {
-        Map<Cols, String> data = new HashMap<Cols, String>();
+        Map<Cols, String> data = new HashMap<>();
         getExceptionStrings(m, data);
         if (data.keySet().size() > 0) {
             try {
@@ -359,31 +360,31 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         data.put(Cols.NUM_COMMON_WORDS, Integer.toString(c));
     }
 
-    List<Metadata> getMetadata(File thisFile) {
+    List<Metadata> getMetadata(Path thisFile) {
         List<Metadata> metadataList = null;
-        if (thisFile == null || ! thisFile.exists()) {
+        if (thisFile == null || ! Files.isRegularFile(thisFile)) {
             return metadataList;
         }
         Reader reader = null;
+        InputStream is= null;
         try {
-            InputStream is = new FileInputStream(thisFile);
-            if (thisFile.getName().endsWith("bz2")) {
+            is = Files.newInputStream(thisFile);
+            if (thisFile.getFileName().toString().endsWith("bz2")) {
                 is = new BZip2CompressorInputStream(is);
-            } else if (thisFile.getName().endsWith("gz")) {
+            } else if (thisFile.getFileName().toString().endsWith("gz")) {
                 is = new GzipCompressorInputStream(is);
-            } else if (thisFile.getName().endsWith("zip")) {
+            } else if (thisFile.getFileName().toString().endsWith("zip")) {
                 is = new ZCompressorInputStream(is);
             }
             reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
             metadataList = JsonMetadataList.fromJson(reader);
         } catch (IOException e) {
-            //log
-            e.printStackTrace();
+            logger.warn("couldn't open:"+thisFile.toAbsolutePath(), e);
         } catch (TikaException e) {
-            //log
-            e.printStackTrace();
+            logger.warn("couldn't open:"+thisFile.toAbsolutePath(), e);
         } finally {
             IOUtils.closeQuietly(reader);
+            IOUtils.closeQuietly(is);
         }
         return metadataList;
     }
@@ -408,7 +409,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
         return elapsed;
     }
-
 
     int countMetadataValues(Metadata m) {
         if (m == null) {
@@ -478,7 +478,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
         return c;
     }
-
 
     void unicodeBlocks(Metadata metadata, Map<Cols, String> data) {
         String content = getContent(metadata, MAX_LEN_FOR_LANG_ID);
@@ -671,48 +670,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         writer.close();
     }
 
-
-    /*    protected IndexReader index(List<Metadata> metadataList) {
-            IndexReader reader = null;
-            MemoryIndex index = new MemoryIndex();
-            Analyzer analyzer = new ICUAnalyzer(LUCENE_VERSION, CharArraySet.EMPTY_SET);
-            for (Metadata m : metadataList) {
-                String content = m.get(RecursiveParserWrapper.TIKA_CONTENT);
-                if (content != null) {
-                    index.addField(LUCENE_FIELD, content, analyzer);
-                }
-            }
-            return index.createSearcher().getIndexReader();
-        }*/
-/*
-//if ICU is desired
-    private class ICUAnalyzer extends Analyzer {
-
-        private CharArraySet stopWords = null;
-        private final Version version;
-
-        public ICUAnalyzer(Version version) {
-            this.version = version;
-        }
-
-        private ICUAnalyzer(Version version, CharArraySet stopWords) {
-            this(version);
-            this.stopWords = stopWords;
-        }
-
-        @Override
-        protected TokenStreamComponents createComponents(String field, Reader reader) {
-            Tokenizer stream = new ICUTokenizer(reader);
-            TokenFilter icu = new ICUFoldingFilter(stream);
-            if (stopWords != null && stopWords.size() > 0) {
-                TokenFilter stop = new StopFilter(version, icu, stopWords);
-                return new TokenStreamComponents(stream, stop);
-            }
-            return new TokenStreamComponents(stream, icu);
-
-        }
-    }
-*/
     class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
 
         MutableValueIntPriorityQueue(int maxSize) {
@@ -736,15 +693,15 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      * @return evalfilepaths for files if crawling an extract directory
      */
     protected EvalFilePaths getPathsFromExtractCrawl(Metadata metadata,
-                                                     File extractDir) {
+                                                     Path extractDir) {
         EvalFilePaths fp = new EvalFilePaths();
         String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
         Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
         fp.relativeSourceFilePath = m.replaceAll("");
         fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
         //just try slapping the relextractfilepath on the extractdir
-        fp.extractFile = new File(extractDir, relExtractFilePath);
-        if (! fp.extractFile.exists()) {
+        fp.extractFile = extractDir.resolve(relExtractFilePath);
+        if (! Files.isRegularFile(fp.extractFile)) {
             //if that doesn't work, try to find the right extract file.
             //This is necessary if crawling extractDirA and trying to find a file in
             //extractDirB that is not in the same format: json vs txt or compressed
@@ -753,14 +710,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return fp;
     }
     //call this if the crawler is crawling through the src directory
-    protected EvalFilePaths getPathsFromSrcCrawl(Metadata metadata, File srcDir,
-                                                 File extractDir) {
+    protected EvalFilePaths getPathsFromSrcCrawl(Metadata metadata, Path srcDir,
+                                                 Path extractDir) {
         EvalFilePaths fp = new EvalFilePaths();
         fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
         fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
         fp.extractFile = findFile(extractDir, fp.relativeSourceFilePath);
-        File inputFile = new File(srcDir, fp.relativeSourceFilePath);
-        fp.sourceFileLength = inputFile.length();
+        Path inputFile = srcDir.resolve(fp.relativeSourceFilePath);
+        try {
+            fp.sourceFileLength = Files.size(inputFile);
+        } catch (IOException e) {
+            logger.warn("Couldn't get length for: "+inputFile.toAbsolutePath());
+        }
         return fp;
     }
 
@@ -770,17 +731,17 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      * @param relativeSourceFilePath
      * @return extractFile or null if couldn't find one.
      */
-    private File findFile(File extractRootDir, String relativeSourceFilePath) {
+    private Path findFile(Path extractRootDir, String relativeSourceFilePath) {
         if (lastExtractExtension != null) {
-            File candidate = new File(extractRootDir, relativeSourceFilePath+lastExtractExtension);
-            if (candidate.exists() && candidate.isFile()) {
+            Path candidate = extractRootDir.resolve(relativeSourceFilePath+lastExtractExtension);
+            if (Files.isRegularFile(candidate)) {
                 return candidate;
             }
         }
         for (String ext : EXTRACT_EXTENSIONS) {
             for (String compress : COMPRESSION_EXTENSIONS) {
-                File candidate = new File(extractRootDir, relativeSourceFilePath+ext+compress);
-                if (candidate.exists() && candidate.isFile()) {
+                Path candidate = extractRootDir.resolve(relativeSourceFilePath+ext+compress);
+                if (Files.isRegularFile(candidate)) {
                     lastExtractExtension = ext+compress;
                     return candidate;
                 }
@@ -808,9 +769,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return (len == null) ? NON_EXISTENT_FILE_LENGTH : len;
     }
 
-    protected String getFileLength(File f) {
-        if (f != null && f.exists()) {
-            return Long.toString(f.length());
+    protected String getFileLength(Path p) {
+        if (p != null && Files.isRegularFile(p)) {
+            try {
+                return Long.toString(Files.size(p));
+            } catch (IOException e) {
+                //swallow
+            }
         }
         return NON_EXISTENT_FILE_LENGTH;
     }
@@ -821,7 +786,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      * @return empty list if input list is empty or null
      */
     static List<Integer> countAttachments(List<Metadata> list) {
-        List<Integer> ret = new ArrayList<Integer>();
+        List<Integer> ret = new ArrayList<>();
         if (list == null || list.size() == 0) {
             return ret;
         }

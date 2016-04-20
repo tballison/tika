@@ -17,7 +17,7 @@
 
 package org.apache.tika.eval;
 
-import java.io.File;
+import java.nio.file.Path;
 
 /**
  * Simple struct to keep track of source file (original binary file, e.g. document1.doc)
@@ -27,7 +27,7 @@ class EvalFilePaths {
 
     String sourceFileName;
     String relativeSourceFilePath;
-    File extractFile;
+    Path extractFile;
     long sourceFileLength = -1l;
 
     @Override

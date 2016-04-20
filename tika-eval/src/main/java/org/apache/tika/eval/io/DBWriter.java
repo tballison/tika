@@ -55,7 +55,7 @@ public class DBWriter implements IDBWriter {
     private static MimeBuffer mimeBuffer;
 
     //<tableName, preparedStatement>
-    private final Map<String, PreparedStatement> inserts = new HashMap<String, PreparedStatement>();
+    private final Map<String, PreparedStatement> inserts = new HashMap<>();
 
     public DBWriter(List<TableInfo> tableInfos, TikaConfig tikaConfig, DBUtil dbUtil)
             throws IOException, SQLException {
@@ -134,11 +134,8 @@ public class DBWriter implements IDBWriter {
             throw new IOExceptionWithCause(e);
         }
         try {
-            System.err.println("dbwriter about to close");
             conn.close();
-            System.err.println("dbwriter closed");
         } catch (SQLException e) {
-            e.printStackTrace();
             throw new IOExceptionWithCause(e);
         }
 

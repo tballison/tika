@@ -6,9 +6,8 @@
     <modelVersion>4.0.0</modelVersion>
     <properties>
         <cli.version>1.2</cli.version> <!--sync version with tika-server or move to parent? -->
-        <lucene.version>5.3.1</lucene.version>
-        <cxf.version>3.0.2</cxf.version>
-        <poi.version>3.14-beta1</poi.version>
+        <lucene.version>5.5.0</lucene.version>
+        <poi.version>3.15-beta1</poi.version>
 
     </properties>
 
@@ -89,31 +88,6 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.4</version>
-        </dependency>
-        <!--hack to avoid adding these to the jar for now-->
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-frontend-jaxrs</artifactId>
-            <version>${cxf.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-transports-http-jetty</artifactId>
-            <version>${cxf.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-rs-client</artifactId>
-            <version>${cxf.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-rs-service-description</artifactId>
-            <version>${cxf.version}</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>

@@ -1,5 +1,3 @@
-package org.apache.tika.eval;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,16 +14,17 @@ package org.apache.tika.eval;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval;
+
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
@@ -41,7 +40,6 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.XMLLogMsgHandler;
 import org.apache.tika.eval.io.XMLLogReader;
 import org.apache.tika.io.IOExceptionWithCause;
-import org.apache.tika.io.IOUtils;
 
 /**
  * This is a very task specific class that reads a log file and updates
@@ -53,8 +51,8 @@ public class XMLErrorLogUpdater {
     public static void main(String[] args) throws Exception {
 
         XMLErrorLogUpdater writer = new XMLErrorLogUpdater();
-        File xmlLogFileA = new File(args[0]);
-        File xmlLogFileB = new File(args[1]);
+        Path xmlLogFileA = Paths.get(args[0]);
+        Path xmlLogFileB = Paths.get(args[1]);
         Path dbFile = Paths.get(args[2]);
         DBUtil dbUtil = new H2Util(dbFile);
         Connection connection = dbUtil.getConnection();
@@ -64,17 +62,14 @@ public class XMLErrorLogUpdater {
         connection.close();
     }
 
-    public void update(Connection connection, TableInfo tableInfo, File xmlLogFile) throws Exception {
+    public void update(Connection connection, TableInfo tableInfo, Path xmlLogFile) throws Exception {
         statement = connection.createStatement();
         XMLLogReader reader = new XMLLogReader();
-        InputStream is = null;
-        try {
-            is = new FileInputStream(xmlLogFile);
+        try (InputStream is = Files.newInputStream(xmlLogFile)) {
             reader.read(is, new ErrorMsgUpdater(tableInfo.getName()));
         } catch (IOException e) {
-            throw new RuntimeException("Doh!");
+            throw new RuntimeException("Problem reading: "+xmlLogFile.toAbsolutePath().toString());
         } finally {
-            IOUtils.closeQuietly(is);
             try {
                 connection.commit();
                 statement.close();

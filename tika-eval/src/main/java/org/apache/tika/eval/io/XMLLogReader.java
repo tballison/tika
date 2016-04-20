@@ -1,18 +1,3 @@
-package org.apache.tika.eval.io;
-
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.sql.SQLException;
-
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.tika.io.IOUtils;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -29,6 +14,23 @@ import org.apache.tika.io.IOUtils;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval.io;
+
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
+
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.tika.io.IOUtils;
+import org.apache.tika.parser.ParseContext;
+
+
 public class XMLLogReader {
 
     private final static Logger logger = Logger.getLogger(XMLLogReader.class);
@@ -42,7 +44,7 @@ public class XMLLogReader {
         } catch (IOException e) {
             e.printStackTrace();
         }*/
-        XMLInputFactory factory = XMLInputFactory.newInstance();
+        XMLInputFactory factory = new ParseContext().getXMLInputFactory();
         XMLStreamReader reader = factory.createXMLStreamReader(is);
 
         Level level = null;

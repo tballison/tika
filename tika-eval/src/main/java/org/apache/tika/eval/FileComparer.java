@@ -18,6 +18,7 @@ package org.apache.tika.eval;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -102,16 +103,16 @@ public class FileComparer extends AbstractProfiler {
     //need to parameterize?
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
-    private final File inputDir;
-    private final File extractDirA;
-    private final File extractDirB;
+    private final Path inputDir;
+    private final Path extractDirA;
+    private final Path extractDirB;
 
     private final long minJsonLength;
     private final long maxJsonLength;
 
 
     public FileComparer(ArrayBlockingQueue<FileResource> queue,
-                        File inputDir, File extractDirA, File extractDirB,
+                        Path inputDir, Path extractDirA, Path extractDirB,
                         IDBWriter writer, long minJsonLength,
                         long maxJsonLength) {
         super(queue, writer);

@@ -57,7 +57,7 @@ public class H2Util extends DBUtil {
         String sql = "SHOW TABLES";
         Statement st = connection.createStatement();
         ResultSet rs = st.executeQuery(sql);
-        Set<String> tables = new HashSet<String>();
+        Set<String> tables = new HashSet<>();
         while (rs.next()) {
             String table = rs.getString(1);
             tables.add(table);

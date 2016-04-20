@@ -1,5 +1,3 @@
-package org.apache.tika.eval.util;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +14,7 @@ package org.apache.tika.eval.util;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval.util;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.mime.MediaType;

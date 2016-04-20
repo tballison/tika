@@ -54,11 +54,6 @@ import org.apache.tika.io.IOUtils;
 public class Report {
 
     static final Logger logger = Logger.getLogger(Report.class);
-    enum FORMAT {
-        CSV,
-        HTML,
-        XLSX
-    }
 
     final String NULL_VALUE = "";//TODO: make this configurable!!!
     Map<String, ColFormatter> colFormats = new HashMap<>();
@@ -66,21 +61,12 @@ public class Report {
     String reportFilename;
     String reportDirectory;
     Charset charset;
-    FORMAT format;
     //only for html
     boolean includeSql;
     String reportName;
 
     public void writeReport(Connection c) throws SQLException, IOException {
-        if (format.equals(FORMAT.CSV)) {
-            dumpCSV(c);
-        } else if (format.equals(FORMAT.HTML)) {
-            dumpHTML(c);
-        } else if (format.equals(FORMAT.XLSX)) {
-            dumpXLSX(c);
-        } else {
-            throw new IllegalArgumentException("Dont' recognize:"+format.toString());
-        }
+         dumpXLSX(c);
     }
 
     private void dumpXLSX(Connection c) throws IOException, SQLException {
@@ -154,7 +140,6 @@ public class Report {
             case Types.FLOAT:
             case Types.DECIMAL:
             case Types.NUMERIC:
-                double dval = rs.getDouble(i);
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
@@ -165,19 +150,17 @@ public class Report {
             case Types.CHAR:
             case Types.VARCHAR:
             case Types.LONGNVARCHAR:
-                String val = rs.getString(i);
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
-                    cell.setCellValue(val);
+                    cell.setCellValue(rs.getString(i));
                 }
                 break;
             default:
-                String defaultVal = rs.getString(i);
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
-                    cell.setCellValue(defaultVal);
+                    cell.setCellValue(rs.getString(i));
                 }
                 logger.warn("Couldn't find type for: " + meta.getColumnType(i) +
                         ". Defaulting to String");
@@ -187,50 +170,4 @@ public class Report {
         }
     }
 
-    private void dumpHTML(Connection c) throws IOException, SQLException {
-        throw new IllegalArgumentException("HTML writer not available yet");
-    }
-
-    private void dumpCSV(Connection c) throws IOException, SQLException {
-        Statement st = c.createStatement();
-        Path out = Paths.get(reportDirectory, reportFilename);
-        Files.createDirectories(out.getParent());
-        System.out.println("WRITING TO : "+out.toString());
-        OutputStream os = null;
-        Writer w = null;
-        //can't use closeable because of bom
-        try {
-            os = Files.newOutputStream(out);
-            if (charset.equals(StandardCharsets.UTF_16LE)) {
-                os.write(ByteOrderMark.UTF_16LE.getBytes());
-            } else if (charset.equals(StandardCharsets.UTF_16BE)) {
-                os.write(ByteOrderMark.UTF_16BE.getBytes());
-            }
-            w = new BufferedWriter(new OutputStreamWriter(os, charset));
-            ResultSet rs = st.executeQuery(sql);
-            CSVPrinter p = CSVFormat.EXCEL.withHeader(rs).print(w);
-            ResultSetMetaData m = rs.getMetaData();
-            List<String> output = new ArrayList<>();
-            while (rs.next()) {
-                output.clear();
-                for (int i = 1; i <= m.getColumnCount(); i++) {
-                    ColFormatter formatter = colFormats.get(m.getColumnName(i));
-                    String val;
-                    if (formatter == null) {
-                        val = rs.getString(i);
-                    } else {
-                        val = formatter.getString(i, rs);
-                        System.out.println("FORMATTED_VAL: "+val);
-                    }
-                    output.add(val);
-                }
-                p.printRecord(output);
-            }
-            p.flush();
-            w.flush();
-            p.close();
-        } catch (IOException e) {
-            IOUtils.closeQuietly(w);
-        }
-    }
 }

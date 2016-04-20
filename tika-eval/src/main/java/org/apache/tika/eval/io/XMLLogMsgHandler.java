@@ -1,10 +1,3 @@
-package org.apache.tika.eval.io;
-
-import java.io.IOException;
-import java.sql.SQLException;
-
-import org.apache.log4j.Level;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,6 +14,13 @@ import org.apache.log4j.Level;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval.io;
+
+import java.io.IOException;
+import java.sql.SQLException;
+
+import org.apache.log4j.Level;
+
 public interface XMLLogMsgHandler {
     public void handleMsg(Level level, String xml) throws IOException, SQLException;
 }

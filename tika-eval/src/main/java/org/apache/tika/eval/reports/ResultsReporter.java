@@ -18,7 +18,6 @@ package org.apache.tika.eval.reports;
 
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -31,11 +30,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.parser.ParseContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -62,12 +61,10 @@ public class ResultsReporter {
     public static ResultsReporter build(Path p) throws Exception {
 
         ResultsReporter r = new ResultsReporter();
-        Document doc = null;
-        DocumentBuilderFactory fact = DocumentBuilderFactory.newInstance();
-        DocumentBuilder docBuilder = null;
 
+        DocumentBuilder docBuilder = new ParseContext().getDocumentBuilder();
+        Document doc;
         try(InputStream is = Files.newInputStream(p)) {
-            docBuilder = fact.newDocumentBuilder();
             doc = docBuilder.parse(is);
         }
         Node docElement = doc.getDocumentElement();
@@ -88,7 +85,6 @@ public class ResultsReporter {
                 r.addReport(report);
             }
         }
-        System.out.println(docElement.getNodeName());
 
         return r;
     }
@@ -108,7 +104,6 @@ public class ResultsReporter {
         r.reportDirectory = attrs.getNamedItem("reportDirectory").getNodeValue();
         r.reportFilename = attrs.getNamedItem("reportFilename").getNodeValue();
         r.reportName = attrs.getNamedItem("reportName").getNodeValue();
-        r.format = getFormat(attrs.getNamedItem("format").getNodeValue());
 
         for (int i = 0; i < children.getLength(); i++) {
             Node child = children.item(i);
@@ -121,7 +116,6 @@ public class ResultsReporter {
                     throw new IllegalArgumentException("Can only have one sql statement per report");
                 }
                 r.sql = child.getTextContent();
-                System.out.println("adding " + r.sql);
             } else if ("colformats".equals(child.getNodeName())) {
                 r.colFormats = getColFormats(child);
             } else {
@@ -152,21 +146,6 @@ public class ResultsReporter {
         return ret;
     }
 
-    private static Report.FORMAT getFormat(String format) {
-        assert(format != null);
-        if (format.toLowerCase(Locale.ENGLISH).equals("csv")) {
-            return Report.FORMAT.CSV;
-        } else if (format.toLowerCase(Locale.ENGLISH).equals("html")) {
-            return Report.FORMAT.HTML;
-        } else if (format.toLowerCase(Locale.ENGLISH).equals("xlsx")) {
-            return Report.FORMAT.XLSX;
-        }
-
-        throw new IllegalArgumentException("Format must be 'csv' or 'html'. I don't "+
-            "understand: "+format);
-
-    }
-
     private static List<String> getSql(Node n) {
         List<String> ret = new ArrayList<>();
 
@@ -177,9 +156,6 @@ public class ResultsReporter {
             if (child.getNodeType() != 1) {
                 continue;
             }
-            System.out.println(child.getNodeType() + " : " + child.getNodeName());
-//            assert("sql".equals(child.getNodeName()));
-            System.out.println("TEXT: " + child.getTextContent());
             ret.add(child.getTextContent());
         }
         return ret;

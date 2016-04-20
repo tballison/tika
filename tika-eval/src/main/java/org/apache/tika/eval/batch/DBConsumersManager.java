@@ -1,5 +1,3 @@
-package org.apache.tika.eval.batch;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,9 +14,10 @@ package org.apache.tika.eval.batch;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.eval.batch;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,7 +34,7 @@ import org.apache.tika.eval.db.TableInfo;
 public class DBConsumersManager extends ConsumersManager {
 
     private Connection conn;
-    List<LogTablePair> errorLogs = new ArrayList<LogTablePair>();
+    List<LogTablePair> errorLogs = new ArrayList<>();
 
     public DBConsumersManager(DBUtil dbUtil, List<FileResourceConsumer> consumers)
             throws IOException {
@@ -79,7 +78,7 @@ public class DBConsumersManager extends ConsumersManager {
         }
     }
 
-    public void addErrorLogTablePair(File log, TableInfo tableName) {
+    public void addErrorLogTablePair(Path log, TableInfo tableName) {
         LogTablePair p = new LogTablePair();
         p.log = log;
         p.tableInfo = tableName;
@@ -87,7 +86,7 @@ public class DBConsumersManager extends ConsumersManager {
     }
 
     class LogTablePair {
-        File log;
+        Path log;
         TableInfo tableInfo;
     }
 }

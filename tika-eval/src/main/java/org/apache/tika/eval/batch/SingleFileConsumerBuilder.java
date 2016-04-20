@@ -2,6 +2,7 @@ package org.apache.tika.eval.batch;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,8 +70,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
 
     @Override
     protected void addErrorLogTablePairs(DBConsumersManager manager) {
-        File errorLog = PropsUtil.getFile(localAttrs.get("errorLogFile"), null);
-        System.err.println("ADDING ERROR LOG:"+errorLog);
+        Path errorLog = PropsUtil.getPath(localAttrs.get("errorLogFile"), null);
         if (errorLog == null) {
             return;
         }

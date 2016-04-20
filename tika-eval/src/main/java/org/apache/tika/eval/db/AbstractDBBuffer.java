@@ -31,7 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 abstract class AbstractDBBuffer {
 
-    private final Map<String, Integer> m = new HashMap<String, Integer>();
+    private final Map<String, Integer> m = new HashMap<>();
     private final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
     private final Lock r = rwl.readLock();
     private final Lock w = rwl.writeLock();
