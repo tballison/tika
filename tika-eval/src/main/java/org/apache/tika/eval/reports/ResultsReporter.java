@@ -20,7 +20,6 @@ package org.apache.tika.eval.reports;
 import javax.xml.parsers.DocumentBuilder;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.poi.common.usermodel.Hyperlink;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.parser.ParseContext;
@@ -93,13 +93,7 @@ public class ResultsReporter {
         NodeList children = n.getChildNodes();
         Report r = new Report();
         NamedNodeMap attrs = n.getAttributes();
-        Node encodingNode = attrs.getNamedItem("encoding");
-        if (encodingNode != null) {
-            String encodingString = encodingNode.getNodeValue();
-            if (encodingString != null) {
-                r.charset = Charset.forName(attrs.getNamedItem("encoding").getNodeValue());
-            }
-        }
+
         r.includeSql = Boolean.parseBoolean(attrs.getNamedItem("includeSql").getNodeValue());
         r.reportDirectory = attrs.getNamedItem("reportDirectory").getNodeValue();
         r.reportFilename = attrs.getNamedItem("reportFilename").getNodeValue();
@@ -117,7 +111,7 @@ public class ResultsReporter {
                 }
                 r.sql = child.getTextContent();
             } else if ("colformats".equals(child.getNodeName())) {
-                r.colFormats = getColFormats(child);
+                r.cellFormatters = getCellFormatters(child);
             } else {
                 throw new IllegalArgumentException("Not expecting to see:"+child.getNodeName());
             }
@@ -125,9 +119,9 @@ public class ResultsReporter {
         return r;
     }
 
-    private static Map<String, ColFormatter> getColFormats(Node n) {
+    private static Map<String, XSLXCellFormatter> getCellFormatters(Node n) {
         NodeList children = n.getChildNodes();
-        Map<String, ColFormatter> ret = new HashMap<>();
+        Map<String, XSLXCellFormatter> ret = new HashMap<>();
         for (int i = 0; i < children.getLength(); i++) {
             Node child = children.item(i);
             if (child.getNodeType() != 1) {
@@ -137,10 +131,26 @@ public class ResultsReporter {
             String columnName = attrs.getNamedItem("name").getNodeValue();
             assert(!ret.containsKey(columnName));
             String type = attrs.getNamedItem("type").getNodeValue();
-            String textFormat = n.getTextContent();
             if ("numberFormatter".equals(type)) {
-                ColFormatter f = new NumFormatter(textFormat);
+                String format = attrs.getNamedItem("format").getNodeValue();
+                XSLXCellFormatter f = new XLSXNumFormatter(format);
                 ret.put(columnName,f);
+            } else if ("urlLink".equals(type)) {
+                String base = "";
+                Node baseNode = attrs.getNamedItem("base");
+                if (baseNode != null) {
+                    base = baseNode.getNodeValue();
+                }
+                XLSXHREFFormatter f = new XLSXHREFFormatter(base, Hyperlink.LINK_URL);
+                ret.put(columnName, f);
+            } else if ("fileLink".equals(type)) {
+                String base = "";
+                Node baseNode = attrs.getNamedItem("base");
+                if (baseNode != null) {
+                    base = baseNode.getNodeValue();
+                }
+                XLSXHREFFormatter f = new XLSXHREFFormatter(base, Hyperlink.LINK_FILE);
+                ret.put(columnName, f);
             }
         }
         return ret;

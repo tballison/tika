@@ -16,13 +16,8 @@
  */
 package org.apache.tika.eval.reports;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,35 +27,30 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.io.ByteOrderMark;
 import org.apache.log4j.Logger;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.tika.io.IOUtils;
 
+/**
+ * This class represents a single report.
+ */
 public class Report {
 
     static final Logger logger = Logger.getLogger(Report.class);
 
     final String NULL_VALUE = "";//TODO: make this configurable!!!
-    Map<String, ColFormatter> colFormats = new HashMap<>();
+    Map<String, XSLXCellFormatter> cellFormatters = new HashMap<>();
     String sql;
     String reportFilename;
     String reportDirectory;
-    Charset charset;
     //only for html
     boolean includeSql;
     String reportName;
@@ -79,13 +69,10 @@ public class Report {
         try {
             dumpReportToWorkbook(st, wb);
         } finally {
-            System.out.println("about to write file: "+out);
             try (OutputStream os = Files.newOutputStream(out)) {
                 wb.write(os);
-                System.out.println("Finished writing file");
             } finally {
                 wb.dispose();
-                System.out.println("disposed");
             }
         }
     }
@@ -105,33 +92,26 @@ public class Report {
             cell.setCellValue(meta.getColumnLabel(i));
             colNames.add(meta.getColumnLabel(i));
         }
-        Map<String, CellStyle> styles = new HashMap<>();
-        for (Map.Entry<String, ColFormatter> e : colFormats.entrySet()) {
-            if (! colNames.contains(e.getKey())) {
-                logger.warn("Format for non-existing column label: "+e.getKey() + " in "+reportName);
-                continue;
-            }
-            CellStyle style = wb.createCellStyle();
-            style.setDataFormat(wb.getCreationHelper()
-                    .createDataFormat().getFormat(e.getValue().getFormatString()));
-            styles.put(e.getKey(), style);
-        }
 
 
         while (rs.next()) {
             xssfRow = sheet.createRow(rowCount++);
             for (int i = 1; i <= meta.getColumnCount(); i++) {
-                CellStyle style = styles.get(meta.getColumnLabel(i));
                 Cell cell = xssfRow.createCell(i-1);
-                writeCell(meta, rs, i, cell, style);
+                XSLXCellFormatter formatter = cellFormatters.get(meta.getColumnLabel(i));
+                if (formatter != null) {
+                    formatter.applyStyleAndValue(i, rs, cell);
+                } else {
+                    writeCell(meta, i, rs, cell);
+                }
             }
         }
     }
 
-    private void writeCell(ResultSetMetaData meta, ResultSet rs, int i,
-                           Cell cell, CellStyle style) throws SQLException {
+    private void writeCell(ResultSetMetaData meta, int colIndex, ResultSet rs,
+                           Cell cell) throws SQLException {
 
-        switch(meta.getColumnType(i)) {
+        switch(meta.getColumnType(colIndex)) {
             //fall through on numerics
             case Types.BIGINT:
             case Types.SMALLINT:
@@ -140,33 +120,32 @@ public class Report {
             case Types.FLOAT:
             case Types.DECIMAL:
             case Types.NUMERIC:
+                double dbl = rs.getDouble(colIndex);
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
-                    cell.setCellValue(rs.getDouble(i));
+                    cell.setCellValue(dbl);
                 }
                 break;
             //fall through strings
             case Types.CHAR:
             case Types.VARCHAR:
             case Types.LONGNVARCHAR:
+                String val = rs.getString(colIndex);
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
-                    cell.setCellValue(rs.getString(i));
+                    cell.setCellValue(val);
                 }
                 break;
             default:
                 if (rs.wasNull()) {
                     cell.setCellValue(NULL_VALUE);
                 } else {
-                    cell.setCellValue(rs.getString(i));
+                    cell.setCellValue(rs.getString(colIndex));
                 }
-                logger.warn("Couldn't find type for: " + meta.getColumnType(i) +
+                logger.warn("Couldn't find type for: " + meta.getColumnType(colIndex) +
                         ". Defaulting to String");
-        }
-        if (style != null) {
-            cell.setCellStyle(style);
         }
     }
 

@@ -16,7 +16,6 @@
  */
 package org.apache.tika.eval;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Types;
@@ -39,7 +38,6 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
-import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
@@ -140,19 +138,22 @@ public class FileComparer extends AbstractProfiler {
             fpsB = getPathsFromSrcCrawl(metadata, inputDir, extractDirB);
         }
 
-        if (minJsonLength > -1) {
-            if (fpsA.extractFile != null && fpsA.extractFile.length() < minJsonLength
-                    && fpsB.extractFile != null && fpsB.extractFile.length() < minJsonLength) {
-                return false;
+            if (minJsonLength > -1) {
+                //if both files exist and are < minJsonLength, skip em
+                if (fpsA.getExtractFileLength() > NON_EXISTENT_FILE_LENGTH
+                        && fpsA.getExtractFileLength() < minJsonLength
+                        && fpsB.getExtractFileLength() > NON_EXISTENT_FILE_LENGTH
+                        && fpsB.getExtractFileLength() < minJsonLength) {
+                    return false;
+                }
             }
-        }
+            if (maxJsonLength > -1) {
+                if ((fpsA.getExtractFileLength() > maxJsonLength) ||
+                        (fpsB.getExtractFileLength() > maxJsonLength)) {
+                    return false;
+                }
+            }
 
-        if (maxJsonLength > -1) {
-            if ((fpsA.extractFile != null && fpsA.extractFile.length() > maxJsonLength) ||
-                    (fpsB.extractFile != null && fpsB.extractFile.length() > maxJsonLength)) {
-                return false;
-            }
-        }
 
         try {
             compareFiles(fpsA, fpsB);
@@ -167,8 +168,8 @@ public class FileComparer extends AbstractProfiler {
 
     //protected for testing, should find better way so that this can be private!
     protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException {
-        List<Metadata> metadataListA = getMetadata(fpsA.extractFile);
-        List<Metadata> metadataListB = getMetadata(fpsB.extractFile);
+        List<Metadata> metadataListA = getMetadata(fpsA.getExtractFile());
+        List<Metadata> metadataListB = getMetadata(fpsB.getExtractFile());
 
         //array indices for those metadata items handled in
         //"that"
@@ -177,21 +178,29 @@ public class FileComparer extends AbstractProfiler {
         //container table
         Map<Cols, String> contData = new HashMap<>();
         contData.put(Cols.CONTAINER_ID, containerID);
-        contData.put(Cols.FILE_PATH, fpsA.relativeSourceFilePath);
-        contData.put(Cols.LENGTH, getSourceFileLength(metadataListA, metadataListB));
-        contData.put(Cols.FILE_EXTENSION, FilenameUtils.getName(fpsA.relativeSourceFilePath));
-        contData.put(Cols.EXTRACT_FILE_LENGTH_A, getFileLength(fpsA.extractFile));
-        contData.put(Cols.EXTRACT_FILE_LENGTH_B, getFileLength(fpsB.extractFile));
+        contData.put(Cols.FILE_PATH, fpsA.getRelativeSourceFilePath().toString());
+        long srcFileLength = getSourceFileLength(metadataListA, metadataListB);
+        contData.put(Cols.LENGTH,
+                srcFileLength > NON_EXISTENT_FILE_LENGTH ?
+                    Long.toString(srcFileLength) : "");
+        contData.put(Cols.FILE_EXTENSION, fpsA.getRelativeSourceFilePath().getFileName().toString());
+        long extractFileLengthA = getFileLength(fpsA.getExtractFile());
+        contData.put(Cols.EXTRACT_FILE_LENGTH_A, extractFileLengthA > NON_EXISTENT_FILE_LENGTH ?
+                Long.toString(extractFileLengthA) : "");
+
+        long extractFileLengthB = getFileLength(fpsA.getExtractFile());
+        contData.put(Cols.EXTRACT_FILE_LENGTH_B, extractFileLengthB > NON_EXISTENT_FILE_LENGTH ?
+                Long.toString(extractFileLengthB) : "");
 
         writer.writeRow(COMPARISON_CONTAINERS, contData);
 
         if (metadataListA == null) {
-            writeError(ERROR_TABLE_A, containerID, fpsA.relativeSourceFilePath,
-                    fpsA.extractFile);
+            writeError(ERROR_TABLE_A, containerID, fpsA.getRelativeSourceFilePath().toString(),
+                    fpsA.getExtractFile());
         }
         if (metadataListB == null) {
-            writeError(ERROR_TABLE_B, containerID, fpsB.relativeSourceFilePath,
-                    fpsB.extractFile);
+            writeError(ERROR_TABLE_B, containerID, fpsB.getRelativeSourceFilePath().toString(),
+                    fpsB.getExtractFile());
         }
 
         if (metadataListA == null && metadataListB == null) {
@@ -294,9 +303,9 @@ public class FileComparer extends AbstractProfiler {
         }
     }
 
-    private String getSourceFileLength(List<Metadata> metadataListA, List<Metadata> metadataListB) {
-        String len = getSourceFileLength(metadataListA);
-        if (! len.equals("-1")) {
+    private long getSourceFileLength(List<Metadata> metadataListA, List<Metadata> metadataListB) {
+        long len = getSourceFileLength(metadataListA);
+        if (len > NON_EXISTENT_FILE_LENGTH) {
             return len;
         }
         return getSourceFileLength(metadataListB);

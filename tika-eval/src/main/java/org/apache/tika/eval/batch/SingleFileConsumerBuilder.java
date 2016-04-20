@@ -1,7 +1,7 @@
 package org.apache.tika.eval.batch;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -21,15 +21,16 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
 
     @Override
     public FileResourceConsumer build() throws IOException {
-        File extractDir = PropsUtil.getFile(localAttrs.get("extractDir"), null);
+        Path extractDir = PropsUtil.getPath(localAttrs.get("extractDir"), null);
         if (extractDir == null) {
             throw new RuntimeException("Must specify \"extractDir\" -- directory to crawl");
         }
-        if (!extractDir.isDirectory()) {
-            throw new RuntimeException("ROOT DIRECTORY DOES NOT EXIST: " + extractDir.getAbsolutePath());
+        if (!Files.isDirectory(extractDir)) {
+            throw new RuntimeException("ROOT DIRECTORY DOES NOT EXIST: " +
+                    extractDir.toAbsolutePath());
         }
 
-        File inputDir = PropsUtil.getFile(localAttrs.get("inputDir"), null);
+        Path inputDir = PropsUtil.getPath(localAttrs.get("inputDir"), null);
 
         IDBWriter writer = null;
         try {

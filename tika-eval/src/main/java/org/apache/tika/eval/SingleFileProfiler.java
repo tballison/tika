@@ -17,9 +17,8 @@
 package org.apache.tika.eval;
 
 
-
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Types;
 import java.util.Collection;
 import java.util.HashMap;
@@ -101,11 +100,11 @@ public class SingleFileProfiler extends AbstractProfiler {
             new ColInfo(Cols.TOKEN_LENGTH_STD_DEV, Types.FLOAT)
     );
 
-    private final File inputDir;
-    private final File extractDir;
+    private final Path inputDir;
+    private final Path extractDir;
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
-                              File inputDir, File extractDir,
+                              Path inputDir, Path extractDir,
                               IDBWriter dbWriter) {
         super(queue, dbWriter);
         this.inputDir = inputDir;
@@ -123,17 +122,23 @@ public class SingleFileProfiler extends AbstractProfiler {
         } else {
             fps = getPathsFromSrcCrawl(metadata, inputDir, extractDir);
         }
-        File extractA = fps.extractFile;
-        System.err.println("FPS: "+fps);
-        List<Metadata> metadataList = getMetadata(extractA);
+        List<Metadata> metadataList = getMetadata(fps.getExtractFile());
 
         Map<Cols, String> contOutput = new HashMap<>();
         String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());
-        contOutput.put(Cols.LENGTH, getSourceFileLength(fps, metadataList));
+        Long srcFileLen = getSourceFileLength(fps, metadataList);
+        contOutput.put(Cols.LENGTH,
+                srcFileLen > NON_EXISTENT_FILE_LENGTH ?
+                        Long.toString(srcFileLen): "");
         contOutput.put(Cols.CONTAINER_ID, containerId);
-        contOutput.put(Cols.FILE_PATH, fps.relativeSourceFilePath);
-        contOutput.put(Cols.EXTRACT_FILE_LENGTH, (extractA == null) ? NON_EXISTENT_FILE_LENGTH :
-                Long.toString(extractA.length()));
+        contOutput.put(Cols.FILE_PATH, fps.getRelativeSourceFilePath().toString());
+
+        if (fps.getExtractFileLength() > 0) {
+            contOutput.put(Cols.EXTRACT_FILE_LENGTH,
+                    (fps.getExtractFile() == null) ?
+                            "" :
+                    Long.toString(fps.getExtractFileLength()));
+        }
         try {
             writer.writeRow(CONTAINER_TABLE, contOutput);
         } catch (IOException e) {
@@ -144,7 +149,7 @@ public class SingleFileProfiler extends AbstractProfiler {
         if (metadataList == null) {
             try {
                 writeError(ERROR_TABLE, containerId,
-                        fps.relativeSourceFilePath, extractA);
+                        fps.getRelativeSourceFilePath().toString(), fps.getExtractFile());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

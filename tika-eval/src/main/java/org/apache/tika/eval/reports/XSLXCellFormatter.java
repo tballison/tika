@@ -20,8 +20,11 @@ package org.apache.tika.eval.reports;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-interface ColFormatter {
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-    String getString(int i, ResultSet rs) throws SQLException;
-    String getFormatString();
+interface XSLXCellFormatter {
+
+    public void reset(XSSFWorkbook workbook);
+    public void applyStyleAndValue(int dbColNum, ResultSet resultSet, Cell cell) throws SQLException;
 }

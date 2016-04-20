@@ -27,6 +27,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ import com.optimaize.langdetect.DetectedLanguage;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
@@ -66,7 +68,6 @@ import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStats;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.FilenameUtils;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -88,7 +89,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             ".gzip",
             ".zip",
     };
-    static final String NON_EXISTENT_FILE_LENGTH = "-1";
+    static final long NON_EXISTENT_FILE_LENGTH = -1l;
 
     public static TableInfo REF_EXTRACT_ERROR_TYPES = new TableInfo("ref_extract_error_types",
             new ColInfo(Cols.EXTRACT_ERROR_TYPE_ID, Types.INTEGER),
@@ -246,15 +247,18 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if (i == 0) {
 
             data.put(Cols.IS_EMBEDDED, FALSE);
-            data.put(Cols.FILE_NAME, fps.sourceFileName);
-            data.put(Cols.FILE_EXTENSION, FilenameUtils.getExtension(fps.sourceFileName));
+            data.put(Cols.FILE_NAME, fps.getRelativeSourceFilePath().getFileName().toString());
         } else {
             data.put(Cols.IS_EMBEDDED, TRUE);
             data.put(Cols.FILE_NAME, FilenameUtils.getName(m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH)));
-            data.put(Cols.FILE_EXTENSION,
-                    FilenameUtils.getExtension(data.get(Cols.FILE_NAME)));
         }
-        data.put(Cols.LENGTH, getSourceFileLength(m));
+        data.put(Cols.FILE_EXTENSION, FilenameUtils.getExtension(fps.getRelativeSourceFilePath().getFileName().toString()));
+        long srcFileLen = getSourceFileLength(m);
+        if (srcFileLen > NON_EXISTENT_FILE_LENGTH) {
+            data.put(Cols.LENGTH, Long.toString(srcFileLen));
+        } else {
+            data.put(Cols.LENGTH, "");
+        }
         int numMetadataValues = countMetadataValues(m);
         data.put(Cols.NUM_METADATA_VALUES,
                 Integer.toString(numMetadataValues));
@@ -694,35 +698,34 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      */
     protected EvalFilePaths getPathsFromExtractCrawl(Metadata metadata,
                                                      Path extractDir) {
-        EvalFilePaths fp = new EvalFilePaths();
         String relExtractFilePath = metadata.get(FSProperties.FS_REL_PATH);
         Matcher m = FILE_NAME_CLEANER.matcher(relExtractFilePath);
-        fp.relativeSourceFilePath = m.replaceAll("");
-        fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
+        Path relativeSourceFilePath = Paths.get(m.replaceAll(""));
         //just try slapping the relextractfilepath on the extractdir
-        fp.extractFile = extractDir.resolve(relExtractFilePath);
-        if (! Files.isRegularFile(fp.extractFile)) {
+        Path extractFile = extractDir.resolve(relExtractFilePath);
+        if (! Files.isRegularFile(extractFile)) {
             //if that doesn't work, try to find the right extract file.
             //This is necessary if crawling extractDirA and trying to find a file in
             //extractDirB that is not in the same format: json vs txt or compressed
-            fp.extractFile = findFile(extractDir, fp.relativeSourceFilePath);
+            extractFile = findFile(extractDir, relativeSourceFilePath);
         }
-        return fp;
+        return new EvalFilePaths(relativeSourceFilePath, extractFile);
     }
     //call this if the crawler is crawling through the src directory
     protected EvalFilePaths getPathsFromSrcCrawl(Metadata metadata, Path srcDir,
                                                  Path extractDir) {
-        EvalFilePaths fp = new EvalFilePaths();
-        fp.relativeSourceFilePath = metadata.get(FSProperties.FS_REL_PATH);
-        fp.sourceFileName = FilenameUtils.getName(fp.relativeSourceFilePath);
-        fp.extractFile = findFile(extractDir, fp.relativeSourceFilePath);
-        Path inputFile = srcDir.resolve(fp.relativeSourceFilePath);
+        Path relativeSourceFilePath = Paths.get(metadata.get(FSProperties.FS_REL_PATH));
+        Path extractFile = findFile(extractDir, relativeSourceFilePath);
+        Path inputFile = srcDir.resolve(relativeSourceFilePath);
+        long srcLen = -1l;
+        //try to get the length of the source file in case there was an error
+        //in both extracts
         try {
-            fp.sourceFileLength = Files.size(inputFile);
+            srcLen = Files.size(inputFile);
         } catch (IOException e) {
             logger.warn("Couldn't get length for: "+inputFile.toAbsolutePath());
         }
-        return fp;
+        return new EvalFilePaths(relativeSourceFilePath, extractFile, srcLen);
     }
 
     /**
@@ -731,16 +734,17 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      * @param relativeSourceFilePath
      * @return extractFile or null if couldn't find one.
      */
-    private Path findFile(Path extractRootDir, String relativeSourceFilePath) {
+    private Path findFile(Path extractRootDir, Path relativeSourceFilePath) {
+        String relSrcFilePathString = relativeSourceFilePath.toString();
         if (lastExtractExtension != null) {
-            Path candidate = extractRootDir.resolve(relativeSourceFilePath+lastExtractExtension);
+            Path candidate = extractRootDir.resolve(relSrcFilePathString+lastExtractExtension);
             if (Files.isRegularFile(candidate)) {
                 return candidate;
             }
         }
         for (String ext : EXTRACT_EXTENSIONS) {
             for (String compress : COMPRESSION_EXTENSIONS) {
-                Path candidate = extractRootDir.resolve(relativeSourceFilePath+ext+compress);
+                Path candidate = extractRootDir.resolve(relSrcFilePathString+ext+compress);
                 if (Files.isRegularFile(candidate)) {
                     lastExtractExtension = ext+compress;
                     return candidate;
@@ -750,29 +754,37 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         return null;
     }
 
-    protected String getSourceFileLength(EvalFilePaths fps, List<Metadata> metadataList) {
-        if (fps.sourceFileLength > -1) {
-            return Long.toString(fps.sourceFileLength);
+    protected long getSourceFileLength(EvalFilePaths fps, List<Metadata> metadataList) {
+        if (fps.getSourceFileLength() > NON_EXISTENT_FILE_LENGTH) {
+            return fps.getSourceFileLength();
         }
         return getSourceFileLength(metadataList);
     }
 
-    String getSourceFileLength(List<Metadata> metadataList) {
+    long getSourceFileLength(List<Metadata> metadataList) {
         if (metadataList == null || metadataList.size() < 1) {
             return NON_EXISTENT_FILE_LENGTH;
         }
         return getSourceFileLength(metadataList.get(0));
     }
 
-    String getSourceFileLength(Metadata m) {
-        String len = m.get(Metadata.CONTENT_LENGTH);
-        return (len == null) ? NON_EXISTENT_FILE_LENGTH : len;
+    long getSourceFileLength(Metadata m) {
+        String lenString = m.get(Metadata.CONTENT_LENGTH);
+        if (lenString == null) {
+            return NON_EXISTENT_FILE_LENGTH;
+        }
+        try {
+            return Long.parseLong(lenString);
+        } catch (NumberFormatException e) {
+            //swallow
+        }
+        return NON_EXISTENT_FILE_LENGTH;
     }
 
-    protected String getFileLength(Path p) {
+    protected long getFileLength(Path p) {
         if (p != null && Files.isRegularFile(p)) {
             try {
-                return Long.toString(Files.size(p));
+                return Files.size(p);
             } catch (IOException e) {
                 //swallow
             }

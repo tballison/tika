@@ -43,7 +43,7 @@ public class AbstractBufferTest {
 
     @Test(timeout = 30000)
     public void runTest() throws InterruptedException, ExecutionException {
-        List<String> keys = new ArrayList<String>();
+        List<String> keys = new ArrayList<>();
         Collections.addAll(keys, new String[]{
                 "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"});
 
@@ -54,14 +54,14 @@ public class AbstractBufferTest {
 
         ExecutorService ex = Executors.newFixedThreadPool(numTesters);
         CompletionService<MyTestResult> completionService =
-                new ExecutorCompletionService<MyTestResult>(
+                new ExecutorCompletionService<>(
                         ex);
         for (int i = 0; i < numTesters; i++) {
             completionService.submit(new Tester(keys, b, numGets));
         }
 
         int results = 0;
-        Map<String, Integer> combined = new HashMap<String, Integer>();
+        Map<String, Integer> combined = new HashMap<>();
         while (results < numTesters) {
             Future<MyTestResult> futureResult =
                     completionService.poll(1, TimeUnit.SECONDS);
@@ -83,8 +83,8 @@ public class AbstractBufferTest {
     private class Tester implements Callable<MyTestResult> {
 
         private Random r = new Random();
-        private Map<String, Integer> m = new HashMap<String, Integer>();
-        List<String> keys = new ArrayList<String>();
+        private Map<String, Integer> m = new HashMap<>();
+        List<String> keys = new ArrayList<>();
         private final AbstractDBBuffer dbBuffer;
         private final int numGets;
 
