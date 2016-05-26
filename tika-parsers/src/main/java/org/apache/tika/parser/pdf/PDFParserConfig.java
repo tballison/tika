@@ -82,12 +82,6 @@ public class PDFParserConfig implements Serializable {
 
     private AccessChecker accessChecker;
 
-    //The PDFParser can throw IOExceptions if there is a problem
-    //with a streams.  If this is set to true, Tika's
-    //parser catches these exceptions, reports them in the metadata
-    //and then throws the first stored exception after the parse has completed.
-    private boolean isCatchIntermediateIOExceptions = true;
-
     public PDFParserConfig() {
         init(this.getClass().getResourceAsStream("PDFParser.properties"));
     }
@@ -146,10 +140,6 @@ public class PDFParserConfig implements Serializable {
         setIfXFAExtractOnlyXFA(
             getProp(props.getProperty("ifXFAExtractOnlyXFA"),
                 getIfXFAExtractOnlyXFA()));
-
-        setCatchIntermediateIOExceptions(
-                getProp(props.getProperty("catchIntermediateIOExceptions"),
-                isCatchIntermediateIOExceptions()));
 
         boolean checkExtractAccessPermission = getProp(props.getProperty("checkExtractAccessPermission"), false);
         boolean allowExtractionForAccessibility = getProp(props.getProperty("allowExtractionForAccessibility"), true);
@@ -388,26 +378,6 @@ public class PDFParserConfig implements Serializable {
         this.accessChecker = accessChecker;
     }
 
-    /**
-     * See {@link #setCatchIntermediateIOExceptions(boolean)}
-     * @return whether or not to catch IOExceptions
-     */
-    public boolean isCatchIntermediateIOExceptions() {
-        return isCatchIntermediateIOExceptions;
-    }
-
-    /**
-     * The PDFBox parser will throw an IOException if there is
-     * a problem with a stream.  If this is set to <code>true</code>,
-     * Tika's PDFParser will catch these exceptions and try to parse
-     * the rest of the document.  After the parse is completed,
-     * Tika's PDFParser will throw the first caught exception.
-     * @param catchIntermediateIOExceptions
-     */
-    public void setCatchIntermediateIOExceptions(boolean catchIntermediateIOExceptions) {
-        isCatchIntermediateIOExceptions = catchIntermediateIOExceptions;
-    }
-
     private boolean getProp(String p, boolean defaultMissing) {
         if (p == null) {
             return defaultMissing;
@@ -497,6 +467,4 @@ public class PDFParserConfig implements Serializable {
                 + averageCharTolerance + ", spacingTolerance="
                 + spacingTolerance + "]";
     }
-
-
 }
