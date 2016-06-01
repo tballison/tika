@@ -18,12 +18,15 @@ package org.apache.tika;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+
+import org.junit.Ignore;
 import org.junit.Test;
 
 
 public class TikaIT {
 
     @Test
+    @Ignore
     public void testToString() {
         String version = new Tika().toString();
         assertNotNull(version);
