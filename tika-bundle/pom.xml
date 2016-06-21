@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.13-SNAPSHOT</version>
+    <version>1.14-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -137,7 +137,7 @@
               asm,
               juniversalchardet,
               vorbis-java-core, vorbis-java-tika,
-              isoparser, aspectjrt,
+              isoparser,
               metadata-extractor, xmpcore, json-simple,
               boilerpipe, rome, rome-utils, opennlp-tools, opennlp-maxent,
               geoapi, sis-metadata, sis-netcdf, sis-utility,

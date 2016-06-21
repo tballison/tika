@@ -14,9 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.tika.parser.microsoft;
 
-/**
- * Language detection.
- */
-@aQute.bnd.annotation.Version("1.0.0")
-package org.apache.tika.language;
+import org.apache.tika.TikaTest;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+
+public class MSOwnerFileParserTest extends TikaTest {
+    @Test
+    public void testBasic() throws Exception {
+        XMLResult r = getXML("testMSOwnerFile");
+        assertEquals("heidi", r.metadata.get(TikaCoreProperties.MODIFIER));
+    }
+}
