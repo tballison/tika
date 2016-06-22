@@ -115,6 +115,15 @@
   <mime-type type="application/davmount+xml">
     <glob pattern="*.davmount"/>
   </mime-type>
+  <mime-type type="application/x-dbf">
+    <magic priority="100">
+      <match value="(?s)^[\\x02\\x03\\x30\\x31\\x32\\x43\\x63\\x83\\x8B\\xCB\\xF5\\xE5\\xFB].[\\x01-\\x0C][\\x01-\\x1F].{4}(?:.[^\\x00]|[\\x41-\\xFF].)(?:[^\\x00\\x01].|.[^\\x00]).{31}(?&lt;=[\\x00][^\\x00]{0,10})[A-Z@+]" type="regex" offset="0"/>
+    </magic>
+    <glob pattern="*.dbf"/>
+    <glob pattern="*.dbase"/>
+    <glob pattern="*.dbase3"/>
+  </mime-type>
+
   <mime-type type="application/dca-rft"/>
   <mime-type type="application/dec-dx"/>
   <mime-type type="application/dialog-info+xml"/>
@@ -608,6 +617,21 @@
   <mime-type type="application/prs.nprend"/>
   <mime-type type="application/prs.plucker"/>
   <mime-type type="application/qsig"/>
+
+  <mime-type type="application/vnd.ms-spreadsheetml">
+    <root-XML localName="Workbook" namespaceURI="urn:schemas-microsoft-com:office:spreadsheet"/>
+    <root-XML localName="Workbook"/>
+    <sub-class-of type="application/xml"/>
+    <_comment>Excel 2003 xml format, pre-ooxml</_comment>
+    <_comment>glob pattern typically *.xls</_comment>
+  </mime-type>
+  <mime-type type="application/vnd.ms-wordml">
+    <root-XML localName="wordDocument" namespaceURI="http://schemas.microsoft.com/office/word/2003/wordml"/>
+    <root-XML localName="wordDocument"/>
+    <sub-class-of type="application/xml"/>
+    <_comment>Word 2003 xml format, pre-ooxml</_comment>
+    <_comment>glob pattern typically *.doc</_comment>
+  </mime-type>
 
   <mime-type type="application/rdf+xml">
     <root-XML localName="RDF"/>
@@ -3089,6 +3113,18 @@
     <sub-class-of type="text/x-tika-text-based-message"/>
   </mime-type>
 
+  <mime-type type="application/x-endnote-refer">
+    <magic priority="80">
+      <match value="%A " type="string" offset="0:50">
+        <match value="\n%D " type="string" offset="0:1000">
+          <match value="\n%T " type="string" offset="0:1000"/>
+        </match>
+      </match>
+    </magic>
+    <glob pattern="*.enw"/>
+    <glob pattern="*.enr"/>
+  </mime-type>
+
   <mime-type type="application/x-killustrator">
     <_comment>KIllustrator File</_comment>
     <glob pattern="*.kil"/>
@@ -3443,6 +3479,13 @@
   </mime-type>
   <mime-type type="application/x-ms-application">
     <glob pattern="*.application"/>
+  </mime-type>
+  <mime-type type="application/x-ms-owner">
+    <_comment>Temporary files created by MSOffice applications</_comment>
+    <_comment>PRONOM fmt-473</_comment>
+    <magic priority="80">
+      <match value="(?s)^([\\x05-\\x0F]).{53}\\1\x00" type="regex" offset="0"/>
+    </magic>
   </mime-type>
   <mime-type type="application/x-ms-wmd">
     <glob pattern="*.wmd"/>
@@ -4718,6 +4761,14 @@
     <glob pattern="*.gif"/>
   </mime-type>
 
+  <mime-type type="image/icns">
+    <_comment>Apple Icon Image Format</_comment>
+    <magic priority="50">
+      <match value="icns" type="string" offset="0"/>
+    </magic>
+    <glob pattern="*.icns"/>
+  </mime-type>
+
   <mime-type type="image/ief">
     <glob pattern="*.ief"/>
   </mime-type>
@@ -4857,6 +4908,9 @@
   <mime-type type="image/vnd.djvu">
     <glob pattern="*.djvu"/>
     <glob pattern="*.djv"/>
+    <magic priority="50">
+      <match value="AT&amp;TFORM" type="string" offset="0"/>
+    </magic>
   </mime-type>
 
   <mime-type type="image/vnd.dwg">
@@ -5276,6 +5330,7 @@
 
   <mime-type type="message/rfc822">
     <magic priority="50">
+      <match value="Delivered-To:" type="string" offset="0"/>
       <match value="Status:" type="string" offset="0"/>
       <match value="X-Mozilla-Status:" type="string" offset="0"/>
       <match value="X-Mozilla-Status2:" type="string" offset="0"/>
@@ -5461,8 +5516,14 @@
   </mime-type>
 
   <mime-type type="text/calendar">
+    <magic priority="50">
+      <match value="BEGIN:VCALENDAR" type="string" offset="0">
+        <match value="VERSION:2.0" type="string" offset="15:30"/>
+      </match>
+    </magic>
     <glob pattern="*.ics"/>
     <glob pattern="*.ifb"/>
+    <sub-class-of type="text/plain"/>
   </mime-type>
 
   <mime-type type="text/css">
@@ -6217,6 +6278,11 @@
   </mime-type>
 
   <mime-type type="text/x-vcalendar">
+    <magic priority="50">
+      <match value="BEGIN:VCALENDAR" type="string" offset="0">
+        <match value="VERSION:1.0" type="string" offset="15:30"/>
+      </match>
+    </magic>
     <glob pattern="*.vcs"/>
     <sub-class-of type="text/plain"/>
   </mime-type>
@@ -6540,10 +6606,16 @@
 
   <mime-type type="video/x-ms-asf">
     <glob pattern="*.asf"/>
-    <glob pattern="*.asx"/>
     <magic>
        <match value="0x3026b275" type="big32" offset="0" />
     </magic>
+  </mime-type>
+  <mime-type type="application/x-ms-asx">
+    <_comment>Windows Media Metafile</_comment>
+    <glob pattern="*.asx"/>
+    <root-XML localName="asx"/>
+    <root-XML localName="ASX"/>
+    <sub-class-of type="application/xml"/>
   </mime-type>
   <mime-type type="video/x-ms-wm">
     <glob pattern="*.wm"/>
