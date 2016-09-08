@@ -28,7 +28,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -45,6 +47,7 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
 import org.apache.tika.parser.PasswordProvider;
+import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.parser.microsoft.WordParserTest;
 import org.apache.tika.sax.BodyContentHandler;
 import org.junit.Ignore;
@@ -1208,6 +1211,41 @@ public class OOXMLParserTest extends TikaTest {
         assertContains("<a href=\"linked_file.txt.htm\">", xml);
         //link on textbox
         assertContains("<a href=\"http://tika.apache.org/1.12/gettingstarted.html\">", xml);
+    }
+
+    @Test
+    public void testEmbeddedPDFInPPTX() throws Exception {
+        List<Metadata> metadataList = getRecursiveMetadata("testPPT_EmbeddedPDF.pptx");
+        Metadata pdfMetadata1 = metadataList.get(2);
+        assertContains("Apache Tika", pdfMetadata1.get(RecursiveParserWrapper.TIKA_CONTENT));
+        Metadata pdfMetadata2 = metadataList.get(4);
+        assertContains("Hello World", pdfMetadata2.get(RecursiveParserWrapper.TIKA_CONTENT));
+    }
+
+    @Test
+    public void testEmbeddedPDFInXLSX() throws Exception {
+        List<Metadata> metadataList = getRecursiveMetadata("testExcel_embeddedPDF.xlsx");
+        Metadata pdfMetadata = metadataList.get(1);
+        assertContains("Hello World", pdfMetadata.get(RecursiveParserWrapper.TIKA_CONTENT));
+    }
+
+    @Test
+    public void testOrigSourcePath() throws Exception {
+        Metadata embed1_zip_metadata = getRecursiveMetadata("test_recursive_embedded.docx").get(11);
+        assertContains("C:\\Users\\tallison\\AppData\\Local\\Temp\\embed1.zip",
+                Arrays.asList(embed1_zip_metadata.getValues(TikaCoreProperties.ORIGINAL_RESOURCE_NAME)));
+        assertContains("C:\\Users\\tallison\\Desktop\\tmp\\New folder (2)\\embed1.zip",
+                Arrays.asList(embed1_zip_metadata.getValues(TikaCoreProperties.ORIGINAL_RESOURCE_NAME)));
+    }
+
+    @Test
+    public void testBigIntegersWGeneralFormat() throws Exception {
+        //TIKA-2025
+        String xml = getXML("testEXCEL_big_numbers.xlsx").xml;
+        assertContains("123456789012345", xml);//15 digit number
+        assertContains("123456789012346", xml);//15 digit formula
+        assertContains("1.23456789012345E+15", xml);//16 digit number is treated as scientific notation
+        assertContains("1.23456789012345E+15", xml);//16 digit formula, ditto
     }
 }
 
