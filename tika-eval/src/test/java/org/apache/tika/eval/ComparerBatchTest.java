@@ -37,14 +37,14 @@ import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tika.batch.fs.FSBatchTestBase;
-import org.apache.tika.batch.testutils.BatchProcessTestExecutor;
-import org.apache.tika.batch.testutils.StreamStrings;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.H2Util;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
+@Ignore
 public class ComparerBatchTest extends FSBatchTestBase {
 
     public final static String COMPARER_PROCESS_CLASS = "org.apache.tika.batch.fs.FSBatchProcessCLI";
@@ -69,12 +69,12 @@ public class ComparerBatchTest extends FSBatchTestBase {
 
         //for debugging, you can use this to select only one file pair to load
         //args.put("-includeFilePat", "file8.*");
-
+/*
         BatchProcessTestExecutor ex = new BatchProcessTestExecutor(COMPARER_PROCESS_CLASS, args,
                 "/tika-batch-comparison-eval-config.xml");
         StreamStrings streamStrings = ex.execute();
         System.out.println(streamStrings.getErrString());
-        System.out.println(streamStrings.getOutString());
+        System.out.println(streamStrings.getOutString());*/
         H2Util dbUtil = new H2Util(dbFile);
         conn = dbUtil.getConnection();
     }

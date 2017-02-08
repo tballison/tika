@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.SQLType;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.HashMap;
@@ -48,6 +49,8 @@ public class Report {
 
     final String NULL_VALUE = "";//TODO: make this configurable!!!
     Map<String, XSLXCellFormatter> cellFormatters = new HashMap<>();
+    private XLSXNumFormatter defaultDoubleFormatter = new XLSXNumFormatter("0.000");
+    private XLSXNumFormatter defaultIntegerFormatter = new XLSXNumFormatter("0");
     String sql;
     String reportFilename;
     String reportDirectory;
@@ -66,6 +69,9 @@ public class Report {
 
         SXSSFWorkbook wb = new SXSSFWorkbook(new XSSFWorkbook(), 100, true, true);
         wb.setCompressTempFiles(true);
+        defaultIntegerFormatter.reset(wb.getXSSFWorkbook());
+        defaultDoubleFormatter.reset(wb.getXSSFWorkbook());
+
         try {
             dumpReportToWorkbook(st, wb);
         } finally {
@@ -93,18 +99,34 @@ public class Report {
             colNames.add(meta.getColumnLabel(i));
         }
 
-
+        ResultSetMetaData resultSetMetaData = rs.getMetaData();
         while (rs.next()) {
             xssfRow = sheet.createRow(rowCount++);
             for (int i = 1; i <= meta.getColumnCount(); i++) {
                 Cell cell = xssfRow.createCell(i-1);
                 XSLXCellFormatter formatter = cellFormatters.get(meta.getColumnLabel(i));
+                if (formatter == null) {
+                    formatter = getDefaultFormatter(resultSetMetaData.getColumnType(i));
+                }
                 if (formatter != null) {
                     formatter.applyStyleAndValue(i, rs, cell);
                 } else {
                     writeCell(meta, i, rs, cell);
                 }
             }
+        }
+    }
+
+    private XSLXCellFormatter getDefaultFormatter(int columnType) {
+        switch (columnType) {
+            case Types.INTEGER :
+                return defaultIntegerFormatter;
+            case Types.DOUBLE:
+            case Types.FLOAT:
+            case Types.DECIMAL:
+                return defaultDoubleFormatter;
+            default:
+                return null;
         }
     }
 

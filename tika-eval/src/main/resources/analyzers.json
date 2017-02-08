@@ -1,0 +1,62 @@
+{
+  "analyzers": {
+    "general" :
+    {
+      "charfilters": [
+        {
+          "factory": "oala.charfilter.MappingCharFilterFactory",
+          "params": {
+            "mapping" : "/mapping.txt"
+          }
+        }
+      ],
+      "tokenizer": {
+        "factory": "oala.standard.StandardTokenizerFactory",
+        "params": {}
+      },
+      "tokenfilters": [
+        {
+          "factory": "oala.icu.ICUFoldingFilterFactory",
+          "params": {}
+        },
+        {
+          "factory": "oala.cjk.CJKBigramFilterFactory",
+          "params": {}
+        }
+      ]
+
+    },
+
+    "common" :
+    {
+      "charfilters": [
+        {
+          "factory": "oala.charfilter.MappingCharFilterFactory",
+          "params": {
+            "mapping" : "/mapping.txt"
+          }
+        }
+      ],
+      "tokenizer": {
+        "factory": "oala.standard.StandardTokenizerFactory",
+        "params": {}
+      },
+      "tokenfilters": [
+        {
+          "factory": "oala.icu.ICUFoldingFilterFactory",
+          "params": {}
+        },
+        {
+          "factory": "oala.cjk.CJKBigramFilterFactory",
+          "params": {}
+        },
+        {
+          "factory": "org.apache.tika.eval.tokens.AlphaIdeogramFilterFactory",
+          "params": {}
+        }
+
+      ]
+
+    }
+  }
+}

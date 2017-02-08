@@ -51,10 +51,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
@@ -64,6 +64,7 @@ import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
+import org.apache.tika.eval.tokens.AnalyzerManager;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStats;
@@ -119,6 +120,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     private final static String DIGEST_KEY = "X-TIKA:digest:MD5";
     private String lastExtractExtension = null;
 
+    private final AnalyzerManager analyzerManager;
 
     public enum EXTRACT_ERROR_TYPE {
         //what do you see when you look at the extract file
@@ -170,23 +172,14 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     public static void loadCommonWords(Path p) throws IOException {
         try (BufferedReader reader = Files.newBufferedReader(p, StandardCharsets.UTF_16LE)) {
-            Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
             String line = reader.readLine();
             while (line != null) {
-                TokenStream ts = analyzer.tokenStream("f", line);
-                ts.reset();
-                CharTermAttribute charTermAttribute = ts.getAttribute(CharTermAttribute.class);
-                String term = null;
-                int i = 0;
-                while (ts.incrementToken()) {
-                    if (i++ == 0) {
-                        term = charTermAttribute.toString();
-                    }
+                if (line.startsWith("#")) {
+                    line = reader.readLine();
+                    continue;
                 }
-                ts.close();
-                if (term != null) {
-                    COMMON_WORDS.add(term);
-                }
+                COMMON_WORDS.add(line);
+
                 line = reader.readLine();
             }
         }
@@ -197,6 +190,12 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         super(fileQueue);
         this.writer = writer;
         langIder = new LanguageIDWrapper();
+        try {
+            analyzerManager = AnalyzerManager.newInstance();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        ;
     }
 
     protected void writeError(TableInfo extractErrorTable, String containerId,
@@ -614,7 +613,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if (metadata == null) {
             return;
         }
-        Analyzer analyzer = new StandardAnalyzer(CharArraySet.EMPTY_SET);
+        Analyzer analyzer = analyzerManager.getGeneralAnalyzer();
         String content = getContent(metadata, MAX_STRING_LENGTH);
         addTokens(content, analyzer, counter);
         return;

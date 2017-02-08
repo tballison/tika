@@ -65,14 +65,14 @@ public class SimpleComparerTest extends TikaTest {
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
-                getResourceAsFile("/test-dirs/extractA/file1.pdf.json").toPath());
+                getResourceAsFile("/test-dirs/extractB/file1.pdf.json").toPath());
 
         comparer.compareFiles(fpsA, fpsB);
 
         List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
         Map<Cols, String> row = tableInfos.get(0);
+        //debugPrintRow(row);
         assertEquals("0", row.get(Cols.ID));
-        debugPrintRow(row);
         assertTrue(
                 row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
                         .startsWith("over: 1"));

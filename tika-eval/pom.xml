@@ -5,16 +5,16 @@
 
     <modelVersion>4.0.0</modelVersion>
     <properties>
-        <cli.version>1.2</cli.version> <!--sync version with tika-server or move to parent? -->
-        <lucene.version>5.5.0</lucene.version>
-        <poi.version>3.15-beta1</poi.version>
+        <cli.version>1.3.1</cli.version> <!--sync version with tika-server or move to parent? -->
+        <lucene.version>6.2.1</lucene.version>
+        <poi.version>3.16-beta2</poi.version>
 
     </properties>
 
     <parent>
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parent</artifactId>
-        <version>1.13-SNAPSHOT</version>
+        <version>1.15-SNAPSHOT</version>
         <relativePath>../tika-parent/pom.xml</relativePath>
     </parent>
 
@@ -81,6 +81,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analyzers-icu</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-memory</artifactId>
             <version>${lucene.version}</version>
         </dependency>
@@ -140,6 +145,9 @@
                                 false
                             </createDependencyReducedPom>
                             <!-- <filters> -->
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                            </transformers>
                         </configuration>
                     </execution>
                 </executions>
