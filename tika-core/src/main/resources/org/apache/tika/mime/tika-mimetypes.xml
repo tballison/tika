@@ -365,9 +365,22 @@
   <mime-type type="application/mbms-register+xml"/>
   <mime-type type="application/mbms-register-response+xml"/>
   <mime-type type="application/mbms-user-service-description+xml"/>
+
   <mime-type type="application/mbox">
-    <sub-class-of type="text/plain"/>
+    <!-- MBOX files start with "From [sender] [date]" -->
+    <!-- To avoid false matches, check for other headers after that -->
+    <magic priority="70">
+      <match value="From " type="string" offset="0">
+         <match value="\nFrom: " type="string" offset="32:256"/>
+         <match value="\nDate: " type="string" offset="32:256"/>
+         <match value="\nDelivered-To: " type="string" offset="32:256"/>
+         <match value="\nReceived: by " type="string" offset="32:256"/>
+         <match value="\nReceived: via " type="string" offset="32:256"/>
+         <match value="\nReceived: from " type="string" offset="32:256"/>
+      </match>
+    </magic>
     <glob pattern="*.mbox"/>
+    <sub-class-of type="text/x-tika-text-based-message"/>
   </mime-type>
   <mime-type type="application/media_control+xml"/>
   <mime-type type="application/mediaservercontrol+xml">
@@ -3989,10 +4002,11 @@
   <!-- =================================================================== -->
   <mime-type type="application/x-tika-ooxml">
     <sub-class-of type="application/zip"/>
-    <!-- Only works if the Content Types file is the first zip entry -->
+    <!-- Only works if the Content Types or rels file is the first zip entry -->
     <magic priority="50">
       <match value="PK\003\004" type="string" offset="0">
         <match value="[Content_Types].xml" type="string" offset="30"/>
+        <match value="_rels/.rels" type="string" offset="30"/>
       </match>
     </magic>
   </mime-type>
