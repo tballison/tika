@@ -60,6 +60,7 @@ import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.AnalyzerManager;
 import org.apache.tika.eval.tokens.CommonTokenCountManager;
+import org.apache.tika.eval.tokens.CommonTokenResult;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStatistics;
@@ -311,14 +312,15 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         langid = (langid == null) ? "" : langid;
 
         writeWordCounts(data, fieldName, tokenCounter);
-        int commonWordsOverlap = 0;
+        CommonTokenResult commonTokenResult = null;
         try {
-            commonWordsOverlap = commonTokenCountManager.countTokenOverlaps(langid,
+            commonTokenResult = commonTokenCountManager.countTokenOverlaps(langid,
                     tokenCounter.getAlphaTokens(fieldName));
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
         }
-        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(commonWordsOverlap));
+        data.put(Cols.COMMON_WORDS_LANG, commonTokenResult.getLangCode());
+        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(commonTokenResult.getTokens()));
 
         TokenStatistics tokenStatistics = tokenCounter.getTokenStatistics(fieldName);
 
@@ -522,7 +524,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
     void langid(Metadata metadata, Map<Cols, String> data) {
         String content = getContent(metadata, MAX_LEN_FOR_LANG_ID);
-        if (content.length() < 200) {
+        if (content.length() < 50) {
             return;
         }
         String s = content;

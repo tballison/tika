@@ -84,6 +84,7 @@ public class SingleFileProfiler extends AbstractProfiler {
             new ColInfo(Cols.CONTENT_LENGTH, Types.INTEGER),
             new ColInfo(Cols.TOKEN_COUNT, Types.INTEGER),
             new ColInfo(Cols.UNIQUE_TOKEN_COUNT, Types.INTEGER),
+            new ColInfo(Cols.COMMON_WORDS_LANG, Types.VARCHAR, 12),
             new ColInfo(Cols.NUM_COMMON_WORDS, Types.INTEGER),
             new ColInfo(Cols.TOP_N_WORDS, Types.VARCHAR, 1024),
             new ColInfo(Cols.NUM_EN_STOPS_TOP_N, Types.INTEGER),

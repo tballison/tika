@@ -27,6 +27,7 @@ public enum Cols {
     CONTENT_LENGTH,
     UNIQUE_TOKEN_COUNT,
     TOKEN_COUNT,
+    COMMON_WORDS_LANG, //which language was used for the common words metric?
     NUM_COMMON_WORDS,
     TOP_N_WORDS,
     NUM_EN_STOPS_TOP_N,

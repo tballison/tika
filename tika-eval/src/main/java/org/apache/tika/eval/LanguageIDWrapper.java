@@ -62,6 +62,7 @@ public class LanguageIDWrapper {
     }
 
     public static List<DetectedLanguage> getProbabilities(String s) {
+
         return detector.getProbabilities(textObjectFactory.forText(s));
     }
 

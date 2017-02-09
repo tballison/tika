@@ -55,7 +55,8 @@ public class SimpleComparerTest extends TikaTest {
         comparer = new FileComparer(null, null,
                 Paths.get("extractA"), Paths.get("extractB"),
                 writer, -1, -1);
-        AbstractProfiler.loadCommonWords(this.getResourceAsFile("commonwords").toPath());
+        AbstractProfiler.loadCommonWords(this.getResourceAsFile("/commonwords").toPath());
+        LanguageIDWrapper.loadBuiltInModels();
     }
 
     @Test
@@ -83,23 +84,54 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("57", row.get(Cols.CONTENT_LENGTH));
         assertEquals("8", row.get(Cols.UNIQUE_TOKEN_COUNT));
         assertEquals("12", row.get(Cols.TOKEN_COUNT));
-        assertEquals("0", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("6", row.get(Cols.NUM_COMMON_WORDS));
         assertEquals("46", row.get(Cols.TOKEN_LENGTH_SUM));
-        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_B);
+        assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
+        debugPrintRow(row);
 
+        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_B);
         row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
         assertEquals("76", row.get(Cols.CONTENT_LENGTH));
         assertEquals("9", row.get(Cols.UNIQUE_TOKEN_COUNT));
         assertEquals("13", row.get(Cols.TOKEN_COUNT));
-        assertEquals("0", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("4", row.get(Cols.NUM_COMMON_WORDS));
         assertEquals("64", row.get(Cols.TOKEN_LENGTH_SUM));
+        assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
+    }
 
+    @Test
+    public void testBasicSpanish() throws Exception {
+        EvalFilePaths fpsA = new EvalFilePaths(
+                Paths.get("file1.pdf.json"),
+                getResourceAsFile("/test-dirs/extractA/file12_es.txt.json").toPath()
+        );
+        EvalFilePaths fpsB = new EvalFilePaths(
+                Paths.get("file1.pdf.json"),
+                getResourceAsFile("/test-dirs/extractB/file12_es.txt.json").toPath());
 
-        //debugPrintRow(row);
+        comparer.compareFiles(fpsA, fpsB);
 
+        List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
+        Map<Cols, String> row = tableInfos.get(0);
+        assertEquals("4", row.get(Cols.ID));
+       // assertTrue(
+         //       row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
+           //             .startsWith("over: 1"));
+
+        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_A);
+        row = tableInfos.get(0);
+//        debugPrintRow(row);
+        assertEquals("4", row.get(Cols.ID));
+        assertEquals("133", row.get(Cols.CONTENT_LENGTH));
+        assertEquals("7", row.get(Cols.UNIQUE_TOKEN_COUNT));
+        assertEquals("24", row.get(Cols.TOKEN_COUNT));
+        assertEquals("3", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("108", row.get(Cols.TOKEN_LENGTH_SUM));
+        assertEquals("es", row.get(Cols.COMMON_WORDS_LANG));
 
     }
+
 
     @Test
     public void testEmpty() throws Exception {

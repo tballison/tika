@@ -51,6 +51,11 @@ public class TokenCounter {
     }
 
     public void add(String field, String content) throws IOException {
+        _add(field, content);
+        _add(field+ALPHA_IDEOGRAPH_SUFFIX, content);
+    }
+
+    private void _add(String field, String content) throws IOException {
         int totalTokens = 0;
 
         TokenStream ts = generalAnalyzer.tokenStream(field, content);
@@ -136,6 +141,7 @@ public class TokenCounter {
         }
 
         tokenStatistics.put(field+ALPHA_IDEOGRAPH_SUFFIX, NULL_TOKEN_STAT);
+        tokenStatistics.put(field, NULL_TOKEN_STAT);
     }
 
     public Map<String, Integer> getAlphaTokens(String field) {
