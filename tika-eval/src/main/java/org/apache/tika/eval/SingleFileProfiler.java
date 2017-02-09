@@ -20,24 +20,22 @@ package org.apache.tika.eval;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Types;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.lucene.util.mutable.MutableValueInt;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
-import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class SingleFileProfiler extends AbstractProfiler {
 
+    private final static String FIELD = "f";
 
     public static TableInfo ERROR_TABLE = new TableInfo("errors",
             new ColInfo(Cols.CONTAINER_ID, Types.INTEGER),
@@ -165,8 +163,11 @@ public class SingleFileProfiler extends AbstractProfiler {
             writeProfileData(fps, i, m, fileId, containerId, numAttachments, PROFILE_TABLE);
             writeEmbeddedPathData(i, fileId, m, EMBEDDED_FILE_PATH_TABLE);
             writeExceptionData(fileId, m, EXCEPTION_TABLE);
-            SingleFileTokenCounter counter = new SingleFileTokenCounter();
-            writeContentData(fileId, m, counter, CONTENTS_TABLE);
+            try {
+                writeContentData(fileId, m, FIELD, CONTENTS_TABLE);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             i++;
         }
         return true;
@@ -187,37 +188,4 @@ public class SingleFileProfiler extends AbstractProfiler {
             throw new RuntimeException(e);
         }
     }
-
-
-    class SingleFileTokenCounter extends TokenCounter {
-        private final Map<String, MutableValueInt> m = new HashMap<>();
-
-
-        @Override
-        public void increment (String s){
-            MutableValueInt i = m.get(s);
-            if (i == null) {
-                i = new MutableValueInt();
-                i.value = 0;
-            }
-            incrementOverallCounts(i.value);
-            i.value++;
-            m.put(s, i);
-        }
-
-        @Override
-        public Collection<String> getTokens() {
-            return m.keySet();
-        }
-
-        @Override
-        public int getCount(String token) {
-            MutableValueInt i = m.get(token);
-            if (i == null) {
-                return 0;
-            }
-            return i.value;
-        }
-    }
-
 }

@@ -16,43 +16,141 @@
  */
 package org.apache.tika.eval.tokens;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import org.apache.commons.math3.util.FastMath;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+
+public class TokenCounter {
+
+    private static final String ALPHA_IDEOGRAPH_SUFFIX = "_a";
 
 
-import java.util.Collection;
+    Map<String, Map<String, Integer>> map = new HashMap<>(); //Map<field, Map<token, count>>
+    Map<String, TokenStatistics> tokenStatistics = new HashMap<>();
 
-public abstract class TokenCounter {
-    int tokenCount = 0;
-    int uniqueTokenCount = 0;
+    private final TokenStatistics NULL_TOKEN_STAT = new TokenStatistics(
+            0, 0, new TokenIntPair[0], 0.0d, new SummaryStatistics());
 
-    public abstract void increment(String s);
+    private final Analyzer generalAnalyzer;
+    private final Analyzer commonAnalyzer;
 
-    /**
-     * Returns the tokens in this counter.
-     * WARNING: In BasicFileComparer, this can return tokens that don't actually exist in this
-     * counter!  Make sure to check getCount() > 0.
-     * @return
-     */
-    public abstract Collection<String> getTokens();
+    private int topN = 10;
 
-    public abstract int getCount(String token);
+    public TokenCounter(Analyzer generalAnalyzer, Analyzer commonAnalyzer) throws IOException {
+        this.generalAnalyzer = generalAnalyzer;
+        this.commonAnalyzer = commonAnalyzer;
+    }
 
-    /**
-     *
-     * @param currentCount the current count of the token in this counter
-     */
-    public void incrementOverallCounts(int currentCount) {
-        if (currentCount == 0){
-            uniqueTokenCount++;
+    public void add(String field, String content) throws IOException {
+        int totalTokens = 0;
+
+        TokenStream ts = generalAnalyzer.tokenStream(field, content);
+        CharTermAttribute termAtt = ts.getAttribute(CharTermAttribute.class);
+        ts.reset();
+        Map<String, Integer> tokenMap = map.get(field);
+        if (tokenMap == null) {
+            tokenMap = new HashMap<>();
+            map.put(field, tokenMap);
         }
-        tokenCount++;
+        while (ts.incrementToken()) {
+            String token = termAtt.toString();
+            Integer cnt = tokenMap.get(token);
+            if (cnt == null) {
+                cnt = 1;
+            } else {
+                cnt++;
+            }
+            tokenMap.put(token, cnt);
+            totalTokens++;
+        }
+        ts.close();
+        ts.end();
+
+        int totalUniqueTokens = tokenMap.size();
+
+        double ent = 0.0d;
+        double p = 0.0d;
+        double base = 2.0;
+
+        TokenCountPriorityQueue queue = new TokenCountPriorityQueue(topN);
+
+        List<TokenIntPair> allTokens = new ArrayList<>();
+        SummaryStatistics summaryStatistics = new SummaryStatistics();
+        for (Map.Entry<String, Integer> e : tokenMap.entrySet()) {
+            String token = e.getKey();
+            int termFreq = e.getValue();
+
+            p = (double) termFreq / (double) totalTokens;
+            ent += p * FastMath.log(base, p);
+            int len = token.codePointCount(0, token.length());
+            for (int i = 0; i < e.getValue(); i++) {
+                summaryStatistics.addValue(len);
+            }
+            if (queue.top() == null || queue.size() < topN ||
+                    termFreq >= queue.top().getValue()) {
+                queue.insertWithOverflow(new TokenIntPair(token, termFreq));
+            }
+
+        }
+
+/*            Collections.sort(allTokens);
+            List<TokenIntPair> topNList = new ArrayList<>(topN);
+            for (int i = 0; i < topN && i < allTokens.size(); i++) {
+                topNList.add(allTokens.get(i));
+            }*/
+
+        tokenStatistics.put(field, new TokenStatistics(totalUniqueTokens, totalTokens,
+                queue.getArray(), ent, summaryStatistics));
+
     }
 
-    public int getUniqueTokenCount() {
-        return uniqueTokenCount;
+    public TokenStatistics getTokenStatistics(String field) {
+        TokenStatistics tokenStat = tokenStatistics.get(field);
+        if (tokenStat == null) {
+            return NULL_TOKEN_STAT;
+        }
+        return tokenStat;
     }
 
-    public int getTokenCount() {
-        return tokenCount;
+    public void setTopN(int topN) {
+        this.topN = topN;
     }
 
+    public void clear(String field) {
+        Map<String, Integer> tokenMap = map.get(field);
+        if (tokenMap != null) {
+            tokenMap.clear();
+        }
+        Map<String, Integer> commonMap = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
+        if (commonMap != null) {
+            commonMap.clear();
+        }
+
+        tokenStatistics.put(field+ALPHA_IDEOGRAPH_SUFFIX, NULL_TOKEN_STAT);
+    }
+
+    public Map<String, Integer> getAlphaTokens(String field) {
+        Map<String, Integer> ret = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
+        if (ret == null) {
+            return Collections.emptyMap();
+        }
+        return ret;
+    }
+
+    public Map<String,Integer> getTokens(String field) {
+        Map<String, Integer> ret = map.get(field);
+        if (ret == null) {
+            return Collections.emptyMap();
+        }
+        return ret;
+    }
 }

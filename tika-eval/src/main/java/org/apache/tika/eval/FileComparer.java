@@ -19,8 +19,6 @@ package org.apache.tika.eval;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.sql.Types;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,7 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
@@ -36,12 +33,16 @@ import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
-import org.apache.tika.eval.tokens.TokenCounter;
+import org.apache.tika.eval.tokens.ContrastStatistics;
+import org.apache.tika.eval.tokens.TokenContraster;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
 public class FileComparer extends AbstractProfiler {
+
+    private final static String FIELD_A = "fa";
+    private final static String FIELD_B = "fb";
 
     public static TableInfo REF_PAIR_NAMES = new TableInfo("pair_names",
             new ColInfo(Cols.DIR_NAME_A, Types.VARCHAR, 128),
@@ -108,6 +109,7 @@ public class FileComparer extends AbstractProfiler {
     private final long minJsonLength;
     private final long maxJsonLength;
 
+    private final TokenContraster tokenContraster = new TokenContraster();
 
     public FileComparer(ArrayBlockingQueue<FileResource> queue,
                         Path inputDir, Path extractDirA, Path extractDirB,
@@ -168,6 +170,7 @@ public class FileComparer extends AbstractProfiler {
 
     //protected for testing, should find better way so that this can be private!
     protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException {
+
         List<Metadata> metadataListA = getMetadata(fpsA.getExtractFile());
         List<Metadata> metadataListB = getMetadata(fpsB.getExtractFile());
 
@@ -230,18 +233,30 @@ public class FileComparer extends AbstractProfiler {
                 }
                 writeEmbeddedFilePathData(i, fileId, metadataA, metadataB);
                 //prep the token counting
-                Map<String, PairCount> tokens = new HashMap<>();
-                TokenCounter tokenCounterA = new CounterA(tokens);
-                TokenCounter tokenCounterB = new CounterB(tokens);
+                tokenCounter.clear(FIELD_A);
+                tokenCounter.clear(FIELD_B);
                 //write content
-                writeContentData(fileId, metadataA, tokenCounterA, CONTENTS_TABLE_A);
-                writeContentData(fileId, metadataB, tokenCounterB, CONTENTS_TABLE_B);
+                try {
+                    writeContentData(fileId, metadataA, FIELD_A, CONTENTS_TABLE_A);
+                    writeContentData(fileId, metadataB, FIELD_B, CONTENTS_TABLE_B);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
 
                 //now run comparisons
-                if (tokenCounterA.getTokenCount() > 0 && tokenCounterB.getTokenCount() > 0) {
+                if (tokenCounter.getTokenStatistics(FIELD_A).getTotalTokens() > 0
+                        && tokenCounter.getTokenStatistics(FIELD_B).getTotalTokens() > 0) {
                     Map<Cols, String> data = new HashMap<>();
                     data.put(Cols.ID, fileId);
-                    compareUnigramOverlap(tokens, tokenCounterA, tokenCounterB, data);
+
+                    ContrastStatistics contrastStatistics =
+                            tokenContraster.calculateContrastStatistics(
+                            tokenCounter.getTokens(FIELD_A),
+                            tokenCounter.getTokenStatistics(FIELD_A),
+                            tokenCounter.getTokens(FIELD_B),
+                            tokenCounter.getTokenStatistics(FIELD_B));
+
+                    writeContrasts(data, contrastStatistics);
                     writer.writeRow(CONTENT_COMPARISONS, data);
                 }
             }
@@ -253,16 +268,20 @@ public class FileComparer extends AbstractProfiler {
                 if (handledB.contains(i)) {
                     continue;
                 }
-                Metadata m = metadataListB.get(i);
+                Metadata metadataB = metadataListB.get(i);
                 String fileId = Integer.toString(ID.getAndIncrement());
-                writeProfileData(fpsB, i, m, fileId, containerID, numAttachmentsB, PROFILES_B);
-                writeEmbeddedFilePathData(i, fileId, null, m);
-                writeExceptionData(fileId, m, EXCEPTION_TABLE_B);
+                writeProfileData(fpsB, i, metadataB, fileId, containerID, numAttachmentsB, PROFILES_B);
+                writeEmbeddedFilePathData(i, fileId, null, metadataB);
+                writeExceptionData(fileId, metadataB, EXCEPTION_TABLE_B);
+
                 //prep the token counting
-                Map<String, PairCount> tokens = new HashMap<String, PairCount>();
-                TokenCounter counter = new CounterB(tokens);
-                countTokens(m, counter);
-                writeContentData(fileId, m, counter, CONTENTS_TABLE_B);
+                tokenCounter.clear(FIELD_B);
+                //write content
+                try {
+                    writeContentData(fileId, metadataB, FIELD_B, CONTENTS_TABLE_B);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
     }
@@ -281,7 +300,7 @@ public class FileComparer extends AbstractProfiler {
             pathB = mB.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH);
         }
         if (pathA != null) {
-            Map<Cols, String> d = new HashMap<Cols, String>();
+            Map<Cols, String> d = new HashMap<>();
             d.put(Cols.ID, fileId);
             d.put(Cols.EMBEDDED_FILE_PATH, pathA);
             try {
@@ -321,7 +340,6 @@ public class FileComparer extends AbstractProfiler {
      * @param metadataListB
      * @return
      */
-
     private int getMatch(int i,
                          List<Metadata> metadataListA,
                          List<Metadata> metadataListB) {
@@ -356,277 +374,28 @@ public class FileComparer extends AbstractProfiler {
     }
 
 
-    private void compareUnigramOverlap(Map<String, PairCount> tokens,
-                                       TokenCounter theseTokens, TokenCounter thoseTokens,
-                                       Map<Cols, String> data) throws IOException {
-
-        int diceDenom = theseTokens.getUniqueTokenCount() + thoseTokens.getUniqueTokenCount();
-        int diceNum = 0;
-        int overlapNum = 0;
-
-        for (PairCount p : tokens.values()) {
-            if (p.a > 0 && p.b > 0) {
-                diceNum += 2;
-                overlapNum += 2 * Math.min(p.a, p.b);
-            }
-        }
-
-        float dice = (float) diceNum / (float) diceDenom;
-        float overlap = (float) overlapNum / (float) (theseTokens.getTokenCount() + thoseTokens.getTokenCount());
-
-        data.put(Cols.DICE_COEFFICIENT,
-                Float.toString(dice));
-        data.put(Cols.OVERLAP, Float.toString(overlap));
 
 
-        handleUniques(data, tokens, true);
-        handleUniques(data, tokens, false);
-        handleDiffs(data, tokens);
+    private void writeContrasts(Map<Cols, String> data, ContrastStatistics contrastStatistics) {
+        writeContrastString(data, Cols.TOP_10_MORE_IN_A, contrastStatistics.getTopNMoreA());
+        writeContrastString(data, Cols.TOP_10_MORE_IN_B, contrastStatistics.getTopNMoreB());
+        writeContrastString(data, Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A, contrastStatistics.getTopNUniqueA());
+        writeContrastString(data, Cols.TOP_10_UNIQUE_TOKEN_DIFFS_B, contrastStatistics.getTopNUniqueB());
+        data.put(Cols.OVERLAP, Double.toString(contrastStatistics.getOverlap()));
+        data.put(Cols.DICE_COEFFICIENT, Double.toString(contrastStatistics.getDiceCoefficient()));
+
     }
 
-    private void handleDiffs(Map<Cols, String> data, Map<String, PairCount> tokens) {
-        if (tokens.size() == 0) {
-            return;
-        }
-        int topNDiffs = 10;
-        MutableValueAbsIntPriorityQueue bQueue = new MutableValueAbsIntPriorityQueue(topNDiffs);
-        MutableValueAbsIntPriorityQueue aQueue = new MutableValueAbsIntPriorityQueue(topNDiffs);
-        for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
-            int diff = e.getValue().b - e.getValue().a;
-            if (diff > 0) {
-                if (bQueue.top() == null || bQueue.size() < topNDiffs ||
-                        diff >= bQueue.top().getValue()) {
-                    bQueue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
-                }
-            } else if (diff < 0) {
-                diff = Math.abs(diff);
-                if (aQueue.top() == null || aQueue.size() < topNDiffs ||
-                        diff >= aQueue.top().getValue()) {
-                    aQueue.insertWithOverflow(new TokenIntPair(e.getKey(), diff));
-                }
-            }
-        }
-
-        List<TokenIntPair> tokenDiffs = new ArrayList<>();
-        //now we reverse the queue
-        TokenIntPair term = aQueue.pop();
-        while (term != null) {
-            tokenDiffs.add(0, term);
-            term = aQueue.pop();
-        }
+    private void writeContrastString(Map<Cols, String> data, Cols col, TokenIntPair[] tokenIntPairs) {
 
         int i = 0;
         StringBuilder sb = new StringBuilder();
-        for (TokenIntPair p : tokenDiffs) {
+        for (TokenIntPair p : tokenIntPairs) {
             if (i++ > 0) {
                 sb.append(" | ");
             }
             sb.append(p.getToken()).append(": ").append(p.getValue());
         }
-        data.put(Cols.TOP_10_MORE_IN_A, sb.toString());
-
-
-        tokenDiffs.clear();
-        //now we reverse the queue
-        term = bQueue.pop();
-        while (term != null) {
-            tokenDiffs.add(0, term);
-            term = bQueue.pop();
-        }
-
-        i = 0;
-        sb.setLength(0);
-        for (TokenIntPair p : tokenDiffs) {
-            if (i++ > 0) {
-                sb.append(" | ");
-            }
-            sb.append(p.getToken()).append(": ").append(p.getValue());
-        }
-        data.put(Cols.TOP_10_MORE_IN_B, sb.toString());
-    }
-
-    private void handleUniques(Map<Cols, String> data,
-                               Map<String, PairCount> tokens, boolean counterA) {
-        if (tokens.size() == 0) {
-            return;
-        }
-        int topNUniques = 10;
-        MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(topNUniques);
-
-        if (counterA) {
-            for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
-                if (e.getValue().b == 0) {
-                    if (queue.top() == null || queue.size() < topNUniques ||
-                            e.getValue().a >= queue.top().getValue()) {
-                        queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().a));
-                    }
-                }
-            }
-        } else {
-            for (Map.Entry<String, PairCount> e : tokens.entrySet()) {
-                if (e.getValue().a == 0) {
-                    if (queue.top() == null || queue.size() < topNUniques ||
-                            e.getValue().a >= queue.top().getValue()) {
-                        queue.insertWithOverflow(new TokenIntPair(e.getKey(), e.getValue().b));
-                    }
-                }
-            }
-        }
-        List<TokenIntPair> tokenCounts = new ArrayList<>();
-        //now we reverse the queue
-        TokenIntPair term = queue.pop();
-        while (term != null) {
-            tokenCounts.add(0, term);
-            term = queue.pop();
-        }
-
-        int i = 0;
-        StringBuilder sb = new StringBuilder();
-        for (TokenIntPair p : tokenCounts) {
-            if (i++ > 0) {
-                sb.append(" | ");
-            }
-            sb.append(p.getToken()).append(": ").append(p.getValue());
-        }
-        if (counterA) {
-            data.put(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A, sb.toString());
-        } else {
-            data.put(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_B, sb.toString());
-        }
-    }
-
-    class MutableValueAbsIntPriorityQueue extends PriorityQueue<TokenIntPair> {
-
-        MutableValueAbsIntPriorityQueue(int maxSize) {
-            super(maxSize);
-        }
-
-        @Override
-        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
-            int v1 = Math.abs(arg0.getValue());
-            int v2 = Math.abs(arg1.getValue());
-            if (v1 < v2) {
-                return true;
-            } else if (v1 == v2) {
-                if (arg0.getValue() < arg1.getValue()) {
-                    return true;
-                } else if (arg0.getToken().compareTo(arg1.getToken()) > 0) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-    }
-
-    class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
-
-        MutableValueIntPriorityQueue(int maxSize) {
-            super(maxSize);
-        }
-
-        @Override
-        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
-            if (arg0.getValue() < arg1.getValue()) {
-                return true;
-            } else if (arg0.getValue() == arg1.getValue() &&
-                    arg0.getToken().compareTo(arg1.getToken()) < 0) {
-                return true;
-            }
-            return false;
-        }
-    }
-
-
-    class CounterA extends TokenCounter {
-        private final Map<String, PairCount> m;
-
-        CounterA(Map<String, PairCount> m) {
-            this.m = m;
-        }
-
-        @Override
-        public void increment(String s) {
-            PairCount p = m.get(s);
-            if (p == null) {
-                p = new PairCount();
-                m.put(s, p);
-            }
-            incrementOverallCounts(p.a);
-            p.a++;
-        }
-
-        @Override
-        public Collection<String> getTokens() {
-            return m.keySet();
-        }
-
-        @Override
-        public int getCount(String token) {
-            PairCount p = m.get(token);
-            if (p == null) {
-                return 0;
-            }
-            return p.a;
-        }
-    }
-
-    class CounterB extends TokenCounter {
-
-        private final Map<String, PairCount> m;
-
-        CounterB(Map<String, PairCount> m) {
-            this.m = m;
-        }
-
-        @Override
-        public void increment(String s) {
-            PairCount p = m.get(s);
-            if (p == null) {
-                p = new PairCount();
-                m.put(s, p);
-            }
-            incrementOverallCounts(p.b);
-            p.b++;
-        }
-
-        @Override
-        public Collection<String> getTokens() {
-            return m.keySet();
-        }
-
-        @Override
-        public int getCount(String token) {
-            PairCount p = m.get(token);
-            if (p == null) {
-                return 0;
-            }
-            return p.b;
-        }
-    }
-
-    class PairCount {
-        int a = 0;
-        int b = 0;
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            PairCount pairCount = (PairCount) o;
-
-            if (a != pairCount.a) return false;
-            if (b != pairCount.b) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = a;
-            result = 31 * result + b;
-            return result;
-        }
+        data.put(col, sb.toString());
     }
 }

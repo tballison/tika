@@ -55,6 +55,7 @@ public class SimpleComparerTest extends TikaTest {
         comparer = new FileComparer(null, null,
                 Paths.get("extractA"), Paths.get("extractB"),
                 writer, -1, -1);
+        AbstractProfiler.loadCommonWords(this.getResourceAsFile("commonwords").toPath());
     }
 
     @Test
@@ -71,11 +72,32 @@ public class SimpleComparerTest extends TikaTest {
 
         List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
         Map<Cols, String> row = tableInfos.get(0);
-        //debugPrintRow(row);
         assertEquals("0", row.get(Cols.ID));
         assertTrue(
                 row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
                         .startsWith("over: 1"));
+
+        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_A);
+        row = tableInfos.get(0);
+        assertEquals("0", row.get(Cols.ID));
+        assertEquals("57", row.get(Cols.CONTENT_LENGTH));
+        assertEquals("8", row.get(Cols.UNIQUE_TOKEN_COUNT));
+        assertEquals("12", row.get(Cols.TOKEN_COUNT));
+        assertEquals("0", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("46", row.get(Cols.TOKEN_LENGTH_SUM));
+        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_B);
+
+        row = tableInfos.get(0);
+        assertEquals("0", row.get(Cols.ID));
+        assertEquals("76", row.get(Cols.CONTENT_LENGTH));
+        assertEquals("9", row.get(Cols.UNIQUE_TOKEN_COUNT));
+        assertEquals("13", row.get(Cols.TOKEN_COUNT));
+        assertEquals("0", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("64", row.get(Cols.TOKEN_LENGTH_SUM));
+
+
+        //debugPrintRow(row);
+
 
     }
 

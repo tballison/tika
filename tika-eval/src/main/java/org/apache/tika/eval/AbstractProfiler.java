@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,13 +48,8 @@ import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
-import org.apache.commons.math3.util.FastMath;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.util.PriorityQueue;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
@@ -65,9 +59,10 @@ import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.AnalyzerManager;
+import org.apache.tika.eval.tokens.CommonTokenCountManager;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
-import org.apache.tika.eval.tokens.TokenStats;
+import org.apache.tika.eval.tokens.TokenStatistics;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
@@ -116,11 +111,15 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     protected static final AtomicInteger CONTAINER_ID = new AtomicInteger();
     protected static final AtomicInteger ID = new AtomicInteger();
 
+
     private final static String UNKNOWN_EXTENSION = "unk";
     private final static String DIGEST_KEY = "X-TIKA:digest:MD5";
+
+    private static CommonTokenCountManager commonTokenCountManager;
     private String lastExtractExtension = null;
 
-    private final AnalyzerManager analyzerManager;
+    final AnalyzerManager analyzerManager;
+    final TokenCounter tokenCounter;
 
     public enum EXTRACT_ERROR_TYPE {
         //what do you see when you look at the extract file
@@ -154,7 +153,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     final static int FILE_PATH_MAX_LEN = 512;//max len for varchar for file_path
     final static int MAX_STRING_LENGTH = 1000000;
     final static int MAX_LEN_FOR_LANG_ID = 20000;
-    final static int TOP_N_WORDS = 10;
 
     //these remove runtime info from the stacktraces so
     //that actual causes can be counted.
@@ -171,18 +169,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     protected IDBWriter writer;
 
     public static void loadCommonWords(Path p) throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(p, StandardCharsets.UTF_16LE)) {
-            String line = reader.readLine();
-            while (line != null) {
-                if (line.startsWith("#")) {
-                    line = reader.readLine();
-                    continue;
-                }
-                COMMON_WORDS.add(line);
-
-                line = reader.readLine();
-            }
-        }
+        commonTokenCountManager = new CommonTokenCountManager(p);
     }
 
     public AbstractProfiler(ArrayBlockingQueue<FileResource> fileQueue,
@@ -192,10 +179,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         langIder = new LanguageIDWrapper();
         try {
             analyzerManager = AnalyzerManager.newInstance();
+            tokenCounter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
+                    analyzerManager.getCommonWordAnalyzer());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        ;
     }
 
     protected void writeError(TableInfo extractErrorTable, String containerId,
@@ -299,10 +287,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
      *
      * @param fileId
      * @param m
-     * @param counter
+     * @param fieldName
      * @param contentsTable
      */
-    protected void writeContentData(String fileId, Metadata m, TokenCounter counter, TableInfo contentsTable) {
+    protected void writeContentData(String fileId, Metadata m,
+                                    String fieldName, TableInfo contentsTable) throws IOException {
         if (m == null) {
             return;
         }
@@ -311,28 +300,37 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         if (content == null || content.trim().length() == 0) {
             return;
         }
+        tokenCounter.clear(fieldName);
+        tokenCounter.add(fieldName, content);
 
         Map<Cols, String> data = new HashMap<>();
         data.put(Cols.ID, fileId);
         data.put(Cols.CONTENT_LENGTH, Integer.toString(content.length()));
-        try {
-            countTokens(m, counter);
-            handleWordCounts(data, counter);
-            countCommonWords(data, counter);
-        } catch (IOException e) {
-            //should log
-            e.printStackTrace();
-        }
-        data.put(Cols.UNIQUE_TOKEN_COUNT,
-                Integer.toString(counter.getUniqueTokenCount()));
-        data.put(Cols.TOKEN_COUNT,
-                Integer.toString(counter.getTokenCount()));
+        langid(m, data);
+        String langid = data.get(Cols.LANG_ID_1);
+        langid = (langid == null) ? "" : langid;
 
-        TokenStats tokenStats = calcTokenStats(counter);
+        writeWordCounts(data, fieldName, tokenCounter);
+        int commonWordsOverlap = 0;
+        try {
+            commonWordsOverlap = commonTokenCountManager.countTokenOverlaps(langid,
+                    tokenCounter.getAlphaTokens(fieldName));
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+        }
+        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(commonWordsOverlap));
+
+        TokenStatistics tokenStatistics = tokenCounter.getTokenStatistics(fieldName);
+
+        data.put(Cols.UNIQUE_TOKEN_COUNT,
+                Integer.toString(tokenStatistics.getTotalUniqueTokens()));
+        data.put(Cols.TOKEN_COUNT,
+                Integer.toString(tokenStatistics.getTotalTokens()));
+
 
         data.put(Cols.TOKEN_ENTROPY_RATE,
-                Double.toString(tokenStats.getEntropy()));
-        SummaryStatistics summStats = tokenStats.getSummaryStatistics();
+                Double.toString(tokenStatistics.getEntropy()));
+        SummaryStatistics summStats = tokenStatistics.getSummaryStatistics();
         data.put(Cols.TOKEN_LENGTH_SUM,
                 Integer.toString((int) summStats.getSum()));
 
@@ -341,7 +339,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
 
         data.put(Cols.TOKEN_LENGTH_STD_DEV,
                 Double.toString(summStats.getStandardDeviation()));
-        langid(m, data);
         unicodeBlocks(m, data);
         try {
             writer.writeRow(contentsTable, data);
@@ -350,18 +347,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         }
     }
 
-    private void countCommonWords(Map<Cols, String> data, TokenCounter counter) {
-        if (counter == null) {
-            return;
-        }
-        int c = 0;
-        for (String t : counter.getTokens()) {
-            if (COMMON_WORDS.contains(t)) {
-                c += counter.getCount(t);
-            }
-        }
-        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(c));
-    }
 
     List<Metadata> getMetadata(Path thisFile) {
         List<Metadata> metadataList = null;
@@ -570,32 +555,16 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         output.put(Cols.MIME_TYPE_ID, Integer.toString(mimeId));
     }
 
-    void handleWordCounts(Map<Cols, String> data,
-                          TokenCounter tokens) {
-        MutableValueIntPriorityQueue queue = new MutableValueIntPriorityQueue(TOP_N_WORDS);
-        for (String t : tokens.getTokens()) {
-            int count = tokens.getCount(t);
-            if (count == 0) {
-                continue;
-            }
-            if (queue.top() == null || queue.size() < TOP_N_WORDS ||
-                    count >= queue.top().getValue()) {
-                queue.insertWithOverflow(new TokenIntPair(t, count));
-            }
-        }
+    void writeWordCounts(Map<Cols, String> data, String field,
+                          TokenCounter tokenCounter) {
 
-        StringBuilder sb = new StringBuilder();
-        List<TokenIntPair> terms = new ArrayList<TokenIntPair>();
-        //now we reverse the queue
-        TokenIntPair term = queue.pop();
-        while (term != null) {
-            terms.add(0, term);
-            term = queue.pop();
-        }
+
         CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
         int stops = 0;
         int i = 0;
-        for (TokenIntPair t : terms) {
+        StringBuilder sb = new StringBuilder();
+        TokenStatistics tokenStatistics = tokenCounter.getTokenStatistics(field);
+        for (TokenIntPair t : tokenStatistics.getTopN()) {
             if (i++ > 0) {
                 sb.append(" | ");
             }
@@ -609,85 +578,11 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         data.put(Cols.NUM_EN_STOPS_TOP_N, Integer.toString(stops));
     }
 
-    void countTokens(final Metadata metadata, final TokenCounter counter) throws IOException {
-        if (metadata == null) {
-            return;
-        }
-        Analyzer analyzer = analyzerManager.getGeneralAnalyzer();
-        String content = getContent(metadata, MAX_STRING_LENGTH);
-        addTokens(content, analyzer, counter);
-        return;
-    }
-
-    void addTokens(String s, Analyzer analyzer,
-                   final TokenCounter counter) throws IOException {
-        if (s == null || s.equals("")) {
-            return;
-        }
-
-        TokenStream stream = analyzer.tokenStream("", s);
-        stream.reset();
-        //look into: http://lucene.apache.org/core/4_10_3/core/index.html
-        //TermToBytesRefAttribute
-        CharTermAttribute attr = stream.getAttribute(CharTermAttribute.class);
-
-        while (stream.incrementToken()) {
-            String t = attr.toString();
-            counter.increment(t);
-        }
-        stream.end();
-        stream.close();
-        return;
-    }
-
-
-    private TokenStats calcTokenStats(TokenCounter counter) {
-        double ent = 0.0d;
-        double p = 0.0d;
-        double base = 2.0;
-        int tokenCount = counter.getTokenCount();
-        SummaryStatistics summStats = new SummaryStatistics();
-        for (String token : counter.getTokens()) {
-            int a = counter.getCount(token);
-            if (a < 1) {
-                //this can happen because of the way that tokens are stored
-                continue;
-            }
-            int len = token.length();
-            for (int i = 0; i < a; i++) {
-                summStats.addValue(len);
-            }
-            p = (double) a / (double) tokenCount;
-            ent += p * FastMath.log(base, p);
-        }
-
-        if (tokenCount > 0) {
-            ent = (-1.0d / (double) tokenCount) * ent;
-        }
-
-        return new TokenStats(ent, summStats);
-
-    }
 
     public void closeWriter() throws IOException {
         writer.close();
     }
 
-    class MutableValueIntPriorityQueue extends PriorityQueue<TokenIntPair> {
-
-        MutableValueIntPriorityQueue(int maxSize) {
-            super(maxSize);
-
-        }
-
-        @Override
-        protected boolean lessThan(TokenIntPair arg0, TokenIntPair arg1) {
-            if (arg0.getValue() < arg1.getValue()) {
-                return true;
-            }
-            return false;
-        }
-    }
 
     /**
      *

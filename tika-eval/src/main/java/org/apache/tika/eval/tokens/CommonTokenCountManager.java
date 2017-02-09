@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.tika.eval.tokens;
 
-import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Map;
 
+import org.apache.lucene.index.IndexReader;
 
-public class TokenStats {
-    private final double entropy;
-    private final SummaryStatistics summaryStatistics;
+public class CommonTokenCountManager {
 
-    public TokenStats(double entropy, SummaryStatistics summaryStatistics) {
-        this.entropy = entropy;
-        this.summaryStatistics = summaryStatistics;
+    IndexReader indexReader;
+    public CommonTokenCountManager(Path p) throws IOException {
     }
 
-    public SummaryStatistics getSummaryStatistics() {
-        return summaryStatistics;
+    public int countTokenOverlaps(String langIdField, Map<String, Integer> tokens) throws IOException {
+        int overlap = 0;
+        return overlap;
     }
 
-    public double getEntropy() {
-
-        return entropy;
+    public void close() throws IOException {
     }
 }

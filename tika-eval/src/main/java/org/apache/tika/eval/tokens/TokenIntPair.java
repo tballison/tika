@@ -17,7 +17,9 @@
 package org.apache.tika.eval.tokens;
 
 
-public class TokenIntPair {
+import org.jetbrains.annotations.NotNull;
+
+public class TokenIntPair implements Comparable<TokenIntPair> {
 
     final String token;
     final int value;
@@ -27,13 +29,14 @@ public class TokenIntPair {
         this.value = value;
     }
 
-    public int getValue() {
+    public long getValue() {
         return value;
     }
 
     public String getToken() {
         return token;
     }
+
 
     @Override
     public boolean equals(Object o) {
@@ -43,15 +46,37 @@ public class TokenIntPair {
         TokenIntPair that = (TokenIntPair) o;
 
         if (value != that.value) return false;
-        if (token != null ? !token.equals(that.token) : that.token != null) return false;
-
-        return true;
+        return token.equals(that.token);
     }
 
     @Override
     public int hashCode() {
-        int result = token != null ? token.hashCode() : 0;
+        int result = token.hashCode();
         result = 31 * result + value;
         return result;
+    }
+
+    /**
+     * Descending by value, ascending by token
+     *
+     * @param o other tokenlong pair
+     * @return comparison
+     */
+    @Override
+    public int compareTo(@NotNull TokenIntPair o) {
+        if (this.value > o.value) {
+            return -1;
+        } else if (this.value < o.value) {
+            return 1;
+        }
+        return this.token.compareTo(o.token);
+    }
+
+    @Override
+    public String toString() {
+        return "TokenIntPair{" +
+                "token='" + token + '\'' +
+                ", value=" + value +
+                '}';
     }
 }

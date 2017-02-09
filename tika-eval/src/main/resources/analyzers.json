@@ -51,7 +51,7 @@
           "params": {}
         },
         {
-          "factory": "org.apache.tika.eval.tokens.AlphaIdeogramFilterFactory",
+          "factory": "org.apache.tika.eval.tokens.AlphaIdeographFilterFactory",
           "params": {}
         }
 
