@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.ParseException;
 import org.apache.tika.batch.fs.FSBatchProcessCLI;
 import org.apache.tika.eval.reports.ResultsReporter;
 import org.h2.tools.Console;
@@ -54,7 +56,7 @@ public class TikaEvalCLI {
         } else if (tool.equals("StartDB")) {
             handleStartDB(subsetArgs);
         } else {
-            throw new RuntimeException(specifyTools());
+            System.out.println(specifyTools());
         }
     }
 
@@ -72,28 +74,68 @@ public class TikaEvalCLI {
     }
 
     private void handleProfile(String[] subsetArgs) throws Exception {
+        List<String> argList = new ArrayList(Arrays.asList(subsetArgs));
+
         boolean containsBC = false;
+        String inputDir = null;
+        String extractDir = null;
         //confirm there's a batch-config file
-        for (int i = 0; i < subsetArgs.length; i++) {
-            if (subsetArgs[i].equals("-bc")) {
+        for (int i = 0; i < argList.size(); i++) {
+            String arg = argList.get(i);
+            if (arg.equals("-bc")) {
                 containsBC = true;
-                break;
+            } else if (arg.equals("-inputDir")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -inputDir");
+                    ExtractProfiler.USAGE();
+                    return;
+                }
+                inputDir = argList.get(i+1);
+                i++;
+            } else if (arg.equals("-extractDir")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -extractDir");
+                    ExtractProfiler.USAGE();
+                    return;
+                }
+                extractDir = argList.get(i+1);
+                i++;
             }
+        }
+        //need to specify each in this commandline
+        //if only extractDir is passed to tika-batch,
+        //the crawler will see no inputDir and start crawling "input".
+        //this allows the user to specify either extractDir or inputDir
+        if (extractDir == null && inputDir != null) {
+            argList.add("-extractDir");
+            argList.add(inputDir);
+        } else if (inputDir == null && extractDir != null) {
+            argList.add("-inputDir");
+            argList.add(extractDir);
         }
 
         Path tmpBCConfig = null;
         try {
             tmpBCConfig = Files.createTempFile("tika-eval-profiler", ".xml");
             if (! containsBC) {
-                List<String> argList = new ArrayList(Arrays.asList(subsetArgs));
                 Files.copy(
                         this.getClass().getResourceAsStream("/tika-eval-profiler-config.xml"),
                         tmpBCConfig, StandardCopyOption.REPLACE_EXISTING);
                 argList.add("-bc");
                 argList.add(tmpBCConfig.toAbsolutePath().toString());
-                subsetArgs = argList.toArray(new String[argList.size()]);
             }
-            FSBatchProcessCLI.main(subsetArgs);
+
+            String[] updatedArgs = argList.toArray(new String[argList.size()]);
+            DefaultParser defaultCLIParser = new DefaultParser();
+            try {
+                defaultCLIParser.parse(ExtractProfiler.OPTIONS, updatedArgs);
+            } catch (ParseException e) {
+                System.out.println(e.getMessage()+"\n");
+                ExtractProfiler.USAGE();
+                return;
+            }
+
+            FSBatchProcessCLI.main(updatedArgs);
         } finally {
             if (tmpBCConfig != null && Files.isRegularFile(tmpBCConfig)) {
                 Files.delete(tmpBCConfig);
@@ -102,28 +144,75 @@ public class TikaEvalCLI {
     }
 
     private void handleCompare(String[] subsetArgs) throws Exception{
+        List<String> argList = new ArrayList(Arrays.asList(subsetArgs));
+
         boolean containsBC = false;
+        String inputDir = null;
+        String extractDirA = null;
+        String extractDirB = null;
         //confirm there's a batch-config file
-        for (int i = 0; i < subsetArgs.length; i++) {
-            if (subsetArgs[i].equals("-bc")) {
+        for (int i = 0; i < argList.size(); i++) {
+            String arg = argList.get(i);
+            if (arg.equals("-bc")) {
                 containsBC = true;
-                break;
+            } else if (arg.equals("-inputDir")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -inputDir");
+                    ExtractComparer.USAGE();
+                    return;
+                }
+                inputDir = argList.get(i+1);
+                i++;
+            } else if (arg.equals("-extractDirA")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -extractDirA");
+                    ExtractComparer.USAGE();
+                    return;
+                }
+                extractDirA = argList.get(i+1);
+                i++;
+            } else if (arg.equals("-extractDirB")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -extractDirB");
+                    ExtractComparer.USAGE();
+                    return;
+                }
+                extractDirB = argList.get(i+1);
+                i++;
             }
+        }
+
+        //need to specify each in the commandline that goes into tika-batch
+        //if only extractDir is passed to tika-batch,
+        //the crawler will see no inputDir and start crawling "input".
+        //if the user doesn't specify inputDir, crawl extractDirA
+        if (inputDir == null && extractDirA != null) {
+            argList.add("-inputDir");
+            argList.add(extractDirA);
         }
 
         Path tmpBCConfig = null;
         try {
             tmpBCConfig = Files.createTempFile("tika-eval", ".xml");
             if (! containsBC) {
-                List<String> argList = new ArrayList(Arrays.asList(subsetArgs));
                 Files.copy(
                         this.getClass().getResourceAsStream("/tika-eval-comparison-config.xml"),
                         tmpBCConfig, StandardCopyOption.REPLACE_EXISTING);
                 argList.add("-bc");
                 argList.add(tmpBCConfig.toAbsolutePath().toString());
-                subsetArgs = argList.toArray(new String[argList.size()]);
+
             }
-            FSBatchProcessCLI.main(subsetArgs);
+            String[] updatedArgs = argList.toArray(new String[argList.size()]);
+            DefaultParser defaultCLIParser = new DefaultParser();
+            try {
+                defaultCLIParser.parse(ExtractComparer.OPTIONS, updatedArgs);
+            } catch (ParseException e) {
+                System.out.println(e.getMessage()+"\n");
+                ExtractComparer.USAGE();
+                return;
+            }
+
+            FSBatchProcessCLI.main(updatedArgs);
         } finally {
             if (tmpBCConfig != null && Files.isRegularFile(tmpBCConfig)) {
                 Files.delete(tmpBCConfig);
@@ -138,7 +227,8 @@ public class TikaEvalCLI {
     public static void main(String[] args) throws Exception {
         TikaEvalCLI cli = new TikaEvalCLI();
         if (args.length == 0) {
-            throw new RuntimeException(specifyTools());
+            System.err.println(specifyTools());
+            return;
         }
         cli.execute(args);
     }

@@ -39,9 +39,9 @@ public abstract class DBUtil {
     public static Logger logger = Logger.getLogger(DBUtil.class);
     public abstract String getJDBCDriverClass();
     public abstract boolean dropTableIfExists(Connection conn, String tableName) throws SQLException;
-    private final Path dbFile;
-    public DBUtil(Path dbFile) {
-        this.dbFile = dbFile;
+    private final Path db;
+    public DBUtil(Path db) {
+        this.db = db;
     }
 
     /**
@@ -54,7 +54,7 @@ public abstract class DBUtil {
      * @throws IOException
      */
     public Connection getConnection() throws IOException {
-        String connectionString = getConnectionString(dbFile);
+        String connectionString = getConnectionString(db);
         Connection conn = null;
         try {
             try {
@@ -70,7 +70,7 @@ public abstract class DBUtil {
         return conn;
     }
 
-    abstract public String getConnectionString(Path dbFile);
+    abstract public String getConnectionString(Path db);
 
     /**
      *

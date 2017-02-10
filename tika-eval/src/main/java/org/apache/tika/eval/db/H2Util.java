@@ -29,8 +29,8 @@ import org.apache.commons.io.FilenameUtils;
 
 public class H2Util extends DBUtil {
 
-    public H2Util(Path dbFile) {
-        super(dbFile);
+    public H2Util(Path db) {
+        super(db);
     }
 
     @Override
@@ -48,8 +48,8 @@ public class H2Util extends DBUtil {
     }
 
     @Override
-    public String getConnectionString(Path dbFile) {
-        return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(dbFile.toAbsolutePath().toString());
+    public String getConnectionString(Path db) {
+        return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(db.toAbsolutePath().toString());
     }
 
     @Override

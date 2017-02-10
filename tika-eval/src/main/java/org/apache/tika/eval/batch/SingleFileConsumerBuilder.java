@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.AbstractProfiler;
-import org.apache.tika.eval.SingleFileProfiler;
+import org.apache.tika.eval.ExtractProfiler;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.DBWriter;
 import org.apache.tika.eval.io.ExtractReader;
@@ -86,7 +86,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         if (extractDir == null && inputDir != null) {
             extractDir = inputDir;
         }
-        return new SingleFileProfiler(queue, inputDir, extractDir, writer, alterMetadataList);
+        return new ExtractProfiler(queue, inputDir, extractDir, writer, alterMetadataList);
     }
 
     @Override
@@ -96,12 +96,12 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         tableInfos.add(AbstractProfiler.REF_PARSE_ERROR_TYPES);
         tableInfos.add(AbstractProfiler.REF_PARSE_EXCEPTION_TYPES);
         tableInfos.add(AbstractProfiler.REF_EXTRACT_ERROR_TYPES);
-        tableInfos.add(SingleFileProfiler.CONTAINER_TABLE);
-        tableInfos.add(SingleFileProfiler.PROFILE_TABLE);
-        tableInfos.add(SingleFileProfiler.ERROR_TABLE);
-        tableInfos.add(SingleFileProfiler.EXCEPTION_TABLE);
-        tableInfos.add(SingleFileProfiler.CONTENTS_TABLE);
-        tableInfos.add(SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE);
+        tableInfos.add(ExtractProfiler.CONTAINER_TABLE);
+        tableInfos.add(ExtractProfiler.PROFILE_TABLE);
+        tableInfos.add(ExtractProfiler.ERROR_TABLE);
+        tableInfos.add(ExtractProfiler.EXCEPTION_TABLE);
+        tableInfos.add(ExtractProfiler.CONTENTS_TABLE);
+        tableInfos.add(ExtractProfiler.EMBEDDED_FILE_PATH_TABLE);
         return tableInfos;
     }
 
@@ -116,6 +116,6 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         if (errorLog == null) {
             return;
         }
-        manager.addErrorLogTablePair(errorLog, SingleFileProfiler.ERROR_TABLE);
+        manager.addErrorLogTablePair(errorLog, ExtractProfiler.ERROR_TABLE);
     }
 }

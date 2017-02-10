@@ -25,6 +25,7 @@ import java.sql.Statement;
 
 import org.apache.tika.eval.db.H2Util;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class ResultsReporterTest {
@@ -50,9 +51,10 @@ public class ResultsReporterTest {
     }
 
     @Test
+    @Ignore("add a real test here")
     public void testBuilder() throws Exception {
         ResultsReporter r = ResultsReporter.build(configFile);
-        r.execute(connection);
+        r.execute(connection, Paths.get("reports"));
         System.out.println("finished: "+ tmpDir.toString());
     }
 }

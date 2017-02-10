@@ -42,7 +42,7 @@
             description="root directory for 'A' run"/>
     <option opt="rootDirB" hasArg="true"
             description="root directory for 'B' run for analysis"/>
-    <option opt="dbDir" hasArg="true"
+    <option opt="db" hasArg="true"
             description="name of db directory or file to which to write results"/>
     <option opt="includeFilePat" hasArg="true"
                 description="regex for files to include"/>

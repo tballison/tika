@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.AbstractProfiler;
-import org.apache.tika.eval.FileComparer;
+import org.apache.tika.eval.ExtractComparer;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.DBWriter;
 import org.apache.tika.eval.io.ExtractReader;
@@ -81,30 +81,30 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
             throw new RuntimeException("Must specify an -inputDir");
         }
 
-        return new FileComparer(queue, inputRootDir, thisRootDir, thatRootDir, writer,
+        return new ExtractComparer(queue, inputRootDir, thisRootDir, thatRootDir, writer,
                 minJsonLength, maxJsonLength, alterMetadataList);
     }
 
     @Override
     protected List<TableInfo> getTableInfo() {
         List<TableInfo> tableInfos = new ArrayList<>();
-        tableInfos.add(FileComparer.COMPARISON_CONTAINERS);
-        tableInfos.add(FileComparer.PROFILES_A);
-        tableInfos.add(FileComparer.PROFILES_B);
-        tableInfos.add(FileComparer.ERROR_TABLE_A);
-        tableInfos.add(FileComparer.ERROR_TABLE_B);
-        tableInfos.add(FileComparer.EXCEPTION_TABLE_A);
-        tableInfos.add(FileComparer.EXCEPTION_TABLE_B);
-        tableInfos.add(FileComparer.ERROR_TABLE_A);
-        tableInfos.add(FileComparer.ERROR_TABLE_B);
-        tableInfos.add(FileComparer.CONTENTS_TABLE_A);
-        tableInfos.add(FileComparer.CONTENTS_TABLE_B);
-        tableInfos.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_A);
-        tableInfos.add(FileComparer.EMBEDDED_FILE_PATH_TABLE_B);
+        tableInfos.add(ExtractComparer.COMPARISON_CONTAINERS);
+        tableInfos.add(ExtractComparer.PROFILES_A);
+        tableInfos.add(ExtractComparer.PROFILES_B);
+        tableInfos.add(ExtractComparer.ERROR_TABLE_A);
+        tableInfos.add(ExtractComparer.ERROR_TABLE_B);
+        tableInfos.add(ExtractComparer.EXCEPTION_TABLE_A);
+        tableInfos.add(ExtractComparer.EXCEPTION_TABLE_B);
+        tableInfos.add(ExtractComparer.ERROR_TABLE_A);
+        tableInfos.add(ExtractComparer.ERROR_TABLE_B);
+        tableInfos.add(ExtractComparer.CONTENTS_TABLE_A);
+        tableInfos.add(ExtractComparer.CONTENTS_TABLE_B);
+        tableInfos.add(ExtractComparer.EMBEDDED_FILE_PATH_TABLE_A);
+        tableInfos.add(ExtractComparer.EMBEDDED_FILE_PATH_TABLE_B);
 
-        tableInfos.add(FileComparer.CONTENT_COMPARISONS);
+        tableInfos.add(ExtractComparer.CONTENT_COMPARISONS);
         tableInfos.add(AbstractProfiler.MIME_TABLE);
-        tableInfos.add(FileComparer.REF_PAIR_NAMES);
+        tableInfos.add(ExtractComparer.REF_PAIR_NAMES);
         tableInfos.add(AbstractProfiler.REF_PARSE_ERROR_TYPES);
         tableInfos.add(AbstractProfiler.REF_PARSE_EXCEPTION_TYPES);
         tableInfos.add(AbstractProfiler.REF_EXTRACT_ERROR_TYPES);
@@ -122,12 +122,12 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         if (errorLogA == null) {
             return;
         }
-        manager.addErrorLogTablePair(errorLogA, FileComparer.ERROR_TABLE_A);
+        manager.addErrorLogTablePair(errorLogA, ExtractComparer.ERROR_TABLE_A);
         Path errorLogB = PropsUtil.getPath(localAttrs.get("errorLogFileB"), null);
         if (errorLogB == null) {
             return;
         }
-        manager.addErrorLogTablePair(errorLogB, FileComparer.ERROR_TABLE_B);
+        manager.addErrorLogTablePair(errorLogB, ExtractComparer.ERROR_TABLE_B);
 
     }
 

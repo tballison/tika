@@ -53,8 +53,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
     private static Connection conn;
 
     private final static String compJoinCont = "";
-    /*FileComparer.COMPARISONS_TABLE+" cmp " +
-            "join "+FileComparer.CONTAINERS_TABLE + " cnt "+
+    /*ExtractComparer.COMPARISONS_TABLE+" cmp " +
+            "join "+ExtractComparer.CONTAINERS_TABLE + " cnt "+
             "on cmp."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID+
             " = cnt."+AbstractProfiler.CONTAINER_HEADERS.CONTAINER_ID;*/
 
@@ -64,8 +64,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
         File inputRoot = new File(new ComparerBatchTest().getClass().getResource("/test-dirs").toURI());
         dbDir = Files.createTempDirectory(inputRoot.toPath(), "tika-test-db-dir-");
         Map<String, String> args = new HashMap<>();
-        Path dbFile = FileSystems.getDefault().getPath(dbDir.toString(), "comparisons_test");
-        args.put("-dbDir", dbFile.toString());
+        Path db = FileSystems.getDefault().getPath(dbDir.toString(), "comparisons_test");
+        args.put("-db", db.toString());
 
         //for debugging, you can use this to select only one file pair to load
         //args.put("-includeFilePat", "file8.*");
@@ -75,7 +75,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
         StreamStrings streamStrings = ex.execute();
         System.out.println(streamStrings.getErrString());
         System.out.println(streamStrings.getOutString());*/
-        H2Util dbUtil = new H2Util(dbFile);
+        H2Util dbUtil = new H2Util(db);
         conn = dbUtil.getConnection();
     }
 
@@ -93,13 +93,13 @@ public class ComparerBatchTest extends FSBatchTestBase {
         Set<String> set = new HashSet<>();
         //filenames
         List<String> list = getColStrings(Cols.FILE_NAME.name(),
-                FileComparer.PROFILES_A.getName(), "");
+                ExtractComparer.PROFILES_A.getName(), "");
         assertEquals(7, list.size());
         assertTrue(list.contains("file1.pdf"));
 
         //container ids in comparisons table
         list = getColStrings(Cols.CONTAINER_ID.name(),
-                FileComparer.COMPARISON_CONTAINERS.getName(),"");
+                ExtractComparer.COMPARISON_CONTAINERS.getName(),"");
         assertEquals(10, list.size());
         set.clear(); set.addAll(list);
         assertEquals(10, set.size());
@@ -116,49 +116,49 @@ public class ComparerBatchTest extends FSBatchTestBase {
     public void testFile1PDFRow() throws Exception {
         String where = fp+"='file1.pdf'";
         Map<String, String> data = getRow(compJoinCont, where);
-        String result = data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_A");
+        String result = data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_A");
         assertTrue(result.startsWith("over: 1"));
 
-        result = data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_B");
+        result = data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS + "_B");
         assertTrue(result.startsWith("aardvark: 3 | bear: 2"));
 
 
         assertEquals("aardvark: 3 | bear: 2",
-                data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.toString()));
+                data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.toString()));
         assertEquals("fox: 2 | lazy: 1 | over: 1",
-                data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.toString()));
-        assertEquals("12", data.get(FileComparer.HEADERS.TOKEN_COUNT+"_A"));
-        assertEquals("13", data.get(FileComparer.HEADERS.TOKEN_COUNT+"_B"));
-        assertEquals("8", data.get(FileComparer.HEADERS.NUM_UNIQUE_TOKENS+"_A"));
-        assertEquals("9", data.get(FileComparer.HEADERS.NUM_UNIQUE_TOKENS+"_B"));
+                data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.toString()));
+        assertEquals("12", data.get(ExtractComparer.HEADERS.TOKEN_COUNT+"_A"));
+        assertEquals("13", data.get(ExtractComparer.HEADERS.TOKEN_COUNT+"_B"));
+        assertEquals("8", data.get(ExtractComparer.HEADERS.NUM_UNIQUE_TOKENS+"_A"));
+        assertEquals("9", data.get(ExtractComparer.HEADERS.NUM_UNIQUE_TOKENS+"_B"));
 
-        assertEquals(FileComparer.COMPARISON_HEADERS.OVERLAP.name(),
+        assertEquals(ExtractComparer.COMPARISON_HEADERS.OVERLAP.name(),
                 0.64f, Float.parseFloat(data.get("OVERLAP")), 0.0001f);
 
-        assertEquals(FileComparer.COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
+        assertEquals(ExtractComparer.COMPARISON_HEADERS.DICE_COEFFICIENT.name(),
                 0.8235294f, Float.parseFloat(data.get("DICE_COEFFICIENT")), 0.0001f);
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A", 3.83333d,
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A", 3.83333d,
                 Double.parseDouble(
-                        data.get(FileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A")), 0.0001d);
+                        data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_MEAN+"_A")), 0.0001d);
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B", 4.923d,
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B", 4.923d,
                 Double.parseDouble(
-                        data.get(FileComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B")), 0.0001d);
+                        data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_MEAN+"_B")), 0.0001d);
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A", 1.0298d,
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A", 1.0298d,
                 Double.parseDouble(
-                        data.get(FileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A")), 0.0001d);
+                        data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_A")), 0.0001d);
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B", 1.9774d,
-                Double.parseDouble(data.get(FileComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B")), 0.0001d);
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B", 1.9774d,
+                Double.parseDouble(data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_STD_DEV+"_B")), 0.0001d);
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_SUM+"_A", 46,
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_SUM+"_A", 46,
                 Integer.parseInt(
-                        data.get(FileComparer.HEADERS.TOKEN_LENGTH_SUM+"_A")));
+                        data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_SUM+"_A")));
 
-        assertEquals(FileComparer.HEADERS.TOKEN_LENGTH_SUM+"_B", 64,
-                Integer.parseInt(data.get(FileComparer.HEADERS.TOKEN_LENGTH_SUM+"_B")));
+        assertEquals(ExtractComparer.HEADERS.TOKEN_LENGTH_SUM+"_B", 64,
+                Integer.parseInt(data.get(ExtractComparer.HEADERS.TOKEN_LENGTH_SUM+"_B")));
 
         assertEquals("TOKEN_ENTROPY_RATE_A", 0.237949,
                 Double.parseDouble(data.get("TOKEN_ENTROPY_RATE_A")), 0.0001d);
@@ -174,16 +174,16 @@ public class ComparerBatchTest extends FSBatchTestBase {
         String where = fp+"='file4_emptyB.pdf'";
         Map<String, String> data = getRow(contTable, where);
         assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.aExtension));
+                ExtractComparer.aExtension));
         assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.bExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
+                ExtractComparer.bExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
 
         where = fp+"='file5_emptyA.pdf'";
         data = getRow(contTable, where);
         assertNull(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX +
-                FileComparer.bExtension));
+                ExtractComparer.bExtension));
         assertTrue(data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+
-                FileComparer.aExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
+                ExtractComparer.aExtension).equals(AbstractProfiler.JSON_PARSE_EXCEPTION));
     }
 
         @Test
@@ -191,12 +191,12 @@ public class ComparerBatchTest extends FSBatchTestBase {
             String where = fp+"='file2_attachANotB.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
                     "='inner.txt'";
             Map<String, String> data = getRow(compJoinCont, where);
-            assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
-            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
-            assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                    FileComparer.bExtension));
-            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                    FileComparer.bExtension));
+            assertContains("attachment: 1", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
+            assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
+            assertNull(data.get(ExtractComparer.HEADERS.TOP_N_WORDS +
+                    ExtractComparer.bExtension));
+            assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
+                    ExtractComparer.bExtension));
 
             assertEquals("3", data.get("NUM_METADATA_VALUES_A"));
             assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
@@ -208,12 +208,12 @@ public class ComparerBatchTest extends FSBatchTestBase {
             where = fp+"='file3_attachBNotA.doc' and "+AbstractProfiler.HEADERS.EMBEDDED_FILE_PATH+
                     "='inner.txt'";
             data = getRow(compJoinCont, where);
-            assertContains("attachment: 1", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
-            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
-            assertNull(data.get(FileComparer.HEADERS.TOP_N_WORDS +
-                    FileComparer.aExtension));
-            assertNotContained("fox", data.get(FileComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
-                    FileComparer.aExtension));
+            assertContains("attachment: 1", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
+            assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
+            assertNull(data.get(ExtractComparer.HEADERS.TOP_N_WORDS +
+                    ExtractComparer.aExtension));
+            assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
+                    ExtractComparer.aExtension));
 
             assertEquals("3", data.get("NUM_METADATA_VALUES_B"));
             assertNull(data.get("DIFF_NUM_ATTACHMENTS"));
@@ -230,9 +230,9 @@ public class ComparerBatchTest extends FSBatchTestBase {
             String where = fp+"='file7_badJson.pdf'";
             Map<String, String> data = getRow(contTable, where);
             assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.aExtension));
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ ExtractComparer.aExtension));
             assertEquals(AbstractProfiler.JSON_PARSE_EXCEPTION,
-                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ FileComparer.bExtension));
+                    data.get(AbstractProfiler.CONTAINER_HEADERS.JSON_EX+ ExtractComparer.bExtension));
             assertEquals("file7_badJson.pdf",
                     data.get(AbstractProfiler.CONTAINER_HEADERS.FILE_PATH.name()));
             assertEquals("61", data.get("JSON_FILE_LENGTH_A"));
@@ -246,8 +246,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
             String sql = "select "+
                     AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
                     " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
-                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
-                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    " join " + ExtractComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
+                    " join " + ExtractComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
                     " where "+fp+"='file6_accessEx.pdf'";
             Statement st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
@@ -261,8 +261,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
             sql = "select "+
                     AbstractProfiler.EXCEPTION_HEADERS.ACCESS_PERMISSION_EXCEPTION.name() +
                     " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_B exB "+
-                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exB.ID "+
-                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    " join " + ExtractComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exB.ID "+
+                    " join " + ExtractComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
                     " where "+fp+"='file6_accessEx.pdf'";
             st = conn.createStatement();
             rs = st.executeQuery(sql);
@@ -279,8 +279,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
         public void testContainerException() throws Exception {
             String sql = "select * "+
                     " from " + AbstractProfiler.EXCEPTIONS_TABLE+"_A exA "+
-                    " join " + FileComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
-                    " join " + FileComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
+                    " join " + ExtractComparer.COMPARISONS_TABLE + " cmp on cmp.ID=exA.ID "+
+                    " join " + ExtractComparer.CONTAINERS_TABLE + " cont on cmp.CONTAINER_ID=cont.CONTAINER_ID "+
                     "where "+fp+"='file8_IOEx.pdf'";
             Statement st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
@@ -375,7 +375,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
     //return the string representations of the column values for one column
     //as a list of strings
     private List<String> getColStrings(String colName) throws Exception {
-        return getColStrings(colName, FileComparer.CONTENT_COMPARISONS.getName(), null);
+        return getColStrings(colName, ExtractComparer.CONTENT_COMPARISONS.getName(), null);
     }
 
     private List<String> getColStrings(String colName, String table, String where) throws Exception {

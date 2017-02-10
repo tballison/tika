@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
@@ -41,7 +44,41 @@ import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
-public class FileComparer extends AbstractProfiler {
+public class ExtractComparer extends AbstractProfiler {
+
+    static Options OPTIONS;
+    static {
+        Option extractDirA = new Option("extractDirA", "directory for extractA files");
+        extractDirA.setRequired(true);
+
+        Option extractDirB = new Option("extractDirB", "directory for extractB files");
+        extractDirB.setRequired(true);
+
+        Option db = new Option("db", "db file to which to write results");
+        db.setRequired(true);
+
+        Option inputDir = new Option("inputDir",
+                "optional: directory of original binary input files if it exists " +
+                        "or can be the same as -extractDirA or -extractDirB. If not specified, -inputDir=-extractDirA");
+        inputDir.setRequired(true);
+
+        OPTIONS = new Options()
+                .addOption(extractDirA)
+                .addOption(extractDirB)
+                .addOption(db)
+                .addOption(inputDir)
+                .addOption("bc", "optional: tika-batch config file");
+    }
+
+    public static void USAGE() {
+        HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.printHelp(
+                80,
+                "java -jar tika-eval-x.y.jar Compare -extractDirA extractsA -extractDirB extractsB -db mydb",
+                "Tool: Compare",
+                ExtractComparer.OPTIONS,
+                "Note: for h2 db, do not include the .mv.db at the end of the db name.");
+    }
 
     private final static String FIELD_A = "fa";
     private final static String FIELD_B = "fb";
@@ -71,34 +108,34 @@ public class FileComparer extends AbstractProfiler {
     );
 
     public static TableInfo PROFILES_A = new TableInfo( "profiles_a",
-            SingleFileProfiler.PROFILE_TABLE.getColInfos());
+            ExtractProfiler.PROFILE_TABLE.getColInfos());
 
     public static TableInfo PROFILES_B = new TableInfo( "profiles_b",
-            SingleFileProfiler.PROFILE_TABLE.getColInfos());
+            ExtractProfiler.PROFILE_TABLE.getColInfos());
 
     public static TableInfo EMBEDDED_FILE_PATH_TABLE_A = new TableInfo( "emb_path_a",
-            SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
+            ExtractProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
 
     public static TableInfo EMBEDDED_FILE_PATH_TABLE_B = new TableInfo( "emb_path_b",
-            SingleFileProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
+            ExtractProfiler.EMBEDDED_FILE_PATH_TABLE.getColInfos());
 
 
     public static TableInfo CONTENTS_TABLE_A = new TableInfo( "contents_a",
-            SingleFileProfiler.CONTENTS_TABLE.getColInfos());
+            ExtractProfiler.CONTENTS_TABLE.getColInfos());
 
     public static TableInfo CONTENTS_TABLE_B = new TableInfo( "contents_b",
-            SingleFileProfiler.CONTENTS_TABLE.getColInfos());
+            ExtractProfiler.CONTENTS_TABLE.getColInfos());
 
     public static TableInfo EXCEPTION_TABLE_A = new TableInfo ("exceptions_a",
-            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
+            ExtractProfiler.EXCEPTION_TABLE.getColInfos());
 
     public static TableInfo EXCEPTION_TABLE_B = new TableInfo ("exceptions_b",
-            SingleFileProfiler.EXCEPTION_TABLE.getColInfos());
+            ExtractProfiler.EXCEPTION_TABLE.getColInfos());
 
     public static TableInfo ERROR_TABLE_A = new TableInfo("extract_errors_a",
-            SingleFileProfiler.ERROR_TABLE.getColInfos());
+            ExtractProfiler.ERROR_TABLE.getColInfos());
     public static TableInfo ERROR_TABLE_B = new TableInfo("extract_errors_b",
-            SingleFileProfiler.ERROR_TABLE.getColInfos());
+            ExtractProfiler.ERROR_TABLE.getColInfos());
 
 
     //need to parameterize?
@@ -115,10 +152,10 @@ public class FileComparer extends AbstractProfiler {
     private final TokenContraster tokenContraster = new TokenContraster();
     private final ExtractReader extractReader = new ExtractReader();
 
-    public FileComparer(ArrayBlockingQueue<FileResource> queue,
-                        Path inputDir, Path extractDirA, Path extractDirB,
-                        IDBWriter writer, long minJsonLength,
-                        long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
+    public ExtractComparer(ArrayBlockingQueue<FileResource> queue,
+                           Path inputDir, Path extractDirA, Path extractDirB,
+                           IDBWriter writer, long minJsonLength,
+                           long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
         super(queue, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;

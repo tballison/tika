@@ -39,13 +39,19 @@ import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.XMLLogMsgHandler;
 import org.apache.tika.eval.io.XMLLogReader;
+import org.apache.tika.eval.reports.ResultsReporter;
 import org.apache.tika.io.IOExceptionWithCause;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is a very task specific class that reads a log file and updates
  * the "comparisons" table.  It should not be run in a multithreaded environment.
  */
 public class XMLErrorLogUpdater {
+
+    protected static Logger LOGGER = LoggerFactory.getLogger(ResultsReporter.class);
+
     private Statement statement;
 
     public static void main(String[] args) throws Exception {
@@ -53,11 +59,11 @@ public class XMLErrorLogUpdater {
         XMLErrorLogUpdater writer = new XMLErrorLogUpdater();
         Path xmlLogFileA = Paths.get(args[0]);
         Path xmlLogFileB = Paths.get(args[1]);
-        Path dbFile = Paths.get(args[2]);
-        DBUtil dbUtil = new H2Util(dbFile);
+        Path db = Paths.get(args[2]);
+        DBUtil dbUtil = new H2Util(db);
         Connection connection = dbUtil.getConnection();
-        writer.update(connection, FileComparer.ERROR_TABLE_A, xmlLogFileA);
-        writer.update(connection, FileComparer.ERROR_TABLE_B, xmlLogFileB);
+        writer.update(connection, ExtractComparer.ERROR_TABLE_A, xmlLogFileA);
+        writer.update(connection, ExtractComparer.ERROR_TABLE_B, xmlLogFileB);
         connection.commit();
         connection.close();
     }
@@ -168,16 +174,16 @@ public class XMLErrorLogUpdater {
             int updated = statement.executeUpdate(sql);
             if (updated == 0) {
                 //TODO: log
-                System.err.println("made no updates in xmlerrorlogupdater!");
+                LOGGER.warn("made no updates in xmlerrorlogupdater!");
             } else if (updated > 1) {
-                System.err.println("made too many updates");
+                LOGGER.warn("made too many updates");
             }
         }
 
         private int getContainerId(String resourceId) throws SQLException {
             int containerId = -1;
             String sql = "SELECT " + Cols.CONTAINER_ID.name() +
-                    " from " + SingleFileProfiler.CONTAINER_TABLE.getName()+
+                    " from " + ExtractProfiler.CONTAINER_TABLE.getName()+
                     " where " + Cols.FILE_PATH +
                     " ='"+resourceId+"'";
             ResultSet rs = statement.executeQuery(sql);
@@ -189,16 +195,15 @@ public class XMLErrorLogUpdater {
             rs.close();
 
             if (resultCount == 0) {
-                //TODO: log
-                //log doh!
+                LOGGER.warn("Should have found a container for: "+resourceId);
             } else if (resultCount > 1) {
-                //this should _NEVER_ happen
+                LOGGER.error("Records ids should be unique:"+resourceId);
             }
 /*
             if (containerId < 0) {
                 System.err.println("CONTAINER ID < 0!!!");
                 sql = "SELECT MAX("+ Cols.CONTAINER_ID.name() +
-                        ") from "+SingleFileProfiler.CONTAINER_TABLE.getName();
+                        ") from "+ExtractProfiler.CONTAINER_TABLE.getName();
                 rs = statement.executeQuery(sql);
                 while (rs.next()) {
                     containerId = rs.getInt(1);

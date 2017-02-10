@@ -20,16 +20,21 @@ package org.apache.tika.eval;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TikaEvalCLITest {
 
     @Test
+    @Ignore
     public void testBasic() throws Exception {
         List<String> args = new ArrayList<>();
-
+        args.add("Report");
+        args.add("-db");
+        args.add("mydb");
+        args.add("-rf");
+        args.add("profile-reports.xml");
         TikaEvalCLI.main(args.toArray(new String[args.size()]));
-        Thread.sleep(10000);
     }
 
 }

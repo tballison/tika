@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -33,18 +34,60 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.poi.common.usermodel.Hyperlink;
-import org.apache.tika.eval.FileComparer;
-import org.apache.tika.eval.SingleFileProfiler;
+import org.apache.tika.eval.ExtractComparer;
+import org.apache.tika.eval.ExtractProfiler;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.parser.ParseContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 public class ResultsReporter {
+
+    protected static Logger LOGGER = LoggerFactory.getLogger(ResultsReporter.class);
+
+    private static Options OPTIONS;
+
+    static {
+        OPTIONS = new Options();
+
+        Option db = new Option("db", "database");
+        db.setRequired(true);
+        db.setArgs(1);
+
+        OPTIONS.addOption(db)
+                .addOption("rd", "reportsDir", true, "directory for the reports. " +
+                                "If not specified, will write to 'reports'" +
+                        "BEWARE: Will overwrite existing reports without warning!"
+                )
+                .addOption("rf", "reportsFile", true, "xml specifying sql to call for the reports." +
+                        "If not specified, will use default reports in resources/tika-eval-*-config.xml");
+
+    }
+
+    public static void USAGE() {
+        HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.printHelp(
+                80,
+                "java -jar tika-eval-x.y.jar Report -db mydb [-rd myreports] [-rf myreports.xml]",
+                "Tool: Report",
+                ResultsReporter.OPTIONS,
+                "Note: for h2 db, do not include the .mv.db at the end of the db name.");
+
+    }
+
+
     List<String> before = new ArrayList<>();
     List<String> after = new ArrayList<>();
     List<Report> reports = new ArrayList<>();
@@ -99,7 +142,6 @@ public class ResultsReporter {
         NamedNodeMap attrs = n.getAttributes();
 
         r.includeSql = Boolean.parseBoolean(attrs.getNamedItem("includeSql").getNodeValue());
-        r.reportDirectory = attrs.getNamedItem("reportDirectory").getNodeValue();
         r.reportFilename = attrs.getNamedItem("reportFilename").getNodeValue();
         r.reportName = attrs.getNamedItem("reportName").getNodeValue();
 
@@ -176,25 +218,37 @@ public class ResultsReporter {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length == 0) {
-            throw new IllegalArgumentException("Must at least specify database file: my_db.mv.db");
+
+        DefaultParser defaultCLIParser = new DefaultParser();
+        CommandLine commandLine = null;
+        try {
+            commandLine = defaultCLIParser.parse(OPTIONS, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            USAGE();
+            return;
         }
-
-
-        Path dbFile = Paths.get(args[0]);
-        DBUtil dbUtil = new H2Util(dbFile);
+        Path db = Paths.get(commandLine.getOptionValue("db"));
+        DBUtil dbUtil = new H2Util(db);
 
         try (Connection c = dbUtil.getConnection()) {
             Path tmpReportsFile = null;
             try {
                 ResultsReporter resultsReporter = null;
-                if (args.length == 1) {
+                String reportsFile = commandLine.getOptionValue("rf");
+                if (reportsFile == null) {
                     tmpReportsFile = getDefaultReportsConfig(c);
                     resultsReporter = ResultsReporter.build(tmpReportsFile);
                 } else {
-                    resultsReporter = ResultsReporter.build(Paths.get(args[1]));
+                    resultsReporter = ResultsReporter.build(Paths.get(reportsFile));
                 }
-                resultsReporter.execute(c);
+
+                Path reportsRootDirectory = Paths.get(commandLine.getOptionValue("rd", "reports"));
+                if (Files.isDirectory(reportsRootDirectory)) {
+                    LOGGER.warn("'Reports' directory exists.  Will overwrite existing reports.");
+                }
+
+                resultsReporter.execute(c, reportsRootDirectory);
             } finally {
                 if (tmpReportsFile != null) {
                     Files.delete(tmpReportsFile);
@@ -209,11 +263,11 @@ public class ResultsReporter {
         try (ResultSet rs = md.getTables(null, null, "%", null)) {
             while (rs.next()) {
                 String tName = rs.getString(3);
-                if (FileComparer.CONTENTS_TABLE_B.getName().equalsIgnoreCase(tName)) {
+                if (ExtractComparer.CONTENTS_TABLE_B.getName().equalsIgnoreCase(tName)) {
                     internalPath = "/comparison-reports.xml";
                     break;
-                } else if (SingleFileProfiler.PROFILE_TABLE.getName().equalsIgnoreCase(tName)) {
-                    internalPath = "/single-dir-profile-reports.xml";
+                } else if (ExtractProfiler.PROFILE_TABLE.getName().equalsIgnoreCase(tName)) {
+                    internalPath = "/profile-reports.xml";
                     break;
                 }
             }
@@ -223,17 +277,17 @@ public class ResultsReporter {
             throw new RuntimeException("Couldn't determine if this database was a 'profiler' or 'comparison' db");
         }
         Path tmp = Files.createTempFile("tmp-tika-reports", ".xml");
-        Files.copy(ResultsReporter.class.getResourceAsStream(internalPath), tmp);
+        Files.copy(ResultsReporter.class.getResourceAsStream(internalPath), tmp, StandardCopyOption.REPLACE_EXISTING);
         return tmp;
     }
 
-    public void execute(Connection c) throws IOException, SQLException {
+    public void execute(Connection c, Path reportsDirectory) throws IOException, SQLException {
         Statement st = c.createStatement();
         for (String sql : before) {
             st.execute(sql);
         }
         for (Report r : reports) {
-            r.writeReport(c);
+            r.writeReport(c, reportsDirectory);
         }
         for (String sql : after) {
             st.execute(sql);

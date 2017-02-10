@@ -52,7 +52,7 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
 
 
-        Path dbDir = getPath(localAttrs, "dbDir");
+        Path db = getPath(localAttrs, "db");
         Path langModelDir = getPath(localAttrs, "langModelDir");
 
         try {
@@ -74,11 +74,11 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
 
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
-        if (dbDir == null) {
-            throw new RuntimeException("Must specify: -dbDir");
+        if (db == null) {
+            throw new RuntimeException("Must specify: -db");
         }
         //parameterize which db util to use
-        DBUtil util = new H2Util(dbDir);
+        DBUtil util = new H2Util(db);
         EvalConsumerBuilder consumerBuilder = ClassLoaderUtil.buildClass(EvalConsumerBuilder.class,
                 PropsUtil.getString(localAttrs.get("consumerBuilderClass"), null));
         if (consumerBuilder == null) {

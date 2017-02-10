@@ -48,13 +48,13 @@ import org.junit.Test;
 
 public class SimpleComparerTest extends TikaTest {
 
-    private FileComparer comparer = null;
+    private ExtractComparer comparer = null;
     private MockDBWriter writer = null;
 
     @Before
     public void setUp() throws Exception {
         writer = new MockDBWriter();
-        comparer = new FileComparer(null, null,
+        comparer = new ExtractComparer(null, null,
                 Paths.get("extractA"), Paths.get("extractB"),
                 writer, -1, -1,
                 ExtractReader.ALTER_METADATA_LIST.AS_IS);
@@ -74,14 +74,14 @@ public class SimpleComparerTest extends TikaTest {
 
         comparer.compareFiles(fpsA, fpsB);
 
-        List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
+        List<Map<Cols, String>> tableInfos = writer.getTable(ExtractComparer.CONTENT_COMPARISONS);
         Map<Cols, String> row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
         assertTrue(
                 row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
                         .startsWith("over: 1"));
 
-        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_A);
+        tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_A);
         row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
         assertEquals("57", row.get(Cols.CONTENT_LENGTH));
@@ -92,7 +92,7 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
         debugPrintRow(row);
 
-        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_B);
+        tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_B);
         row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
         assertEquals("76", row.get(Cols.CONTENT_LENGTH));
@@ -115,14 +115,14 @@ public class SimpleComparerTest extends TikaTest {
 
         comparer.compareFiles(fpsA, fpsB);
 
-        List<Map<Cols, String>> tableInfos = writer.getTable(FileComparer.CONTENT_COMPARISONS);
+        List<Map<Cols, String>> tableInfos = writer.getTable(ExtractComparer.CONTENT_COMPARISONS);
         Map<Cols, String> row = tableInfos.get(0);
         assertEquals("4", row.get(Cols.ID));
        // assertTrue(
          //       row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
            //             .startsWith("over: 1"));
 
-        tableInfos = writer.getTable(FileComparer.CONTENTS_TABLE_A);
+        tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_A);
         row = tableInfos.get(0);
 //        debugPrintRow(row);
         assertEquals("4", row.get(Cols.ID));
@@ -147,7 +147,7 @@ public class SimpleComparerTest extends TikaTest {
                 getResourceAsFile("/test-dirs/extractB/file4_emptyB.pdf.json").toPath()
         );
         comparer.compareFiles(fpsA, fpsB);
-        List<Map<Cols, String>> table = writer.getTable(FileComparer.ERROR_TABLE_B);
+        List<Map<Cols, String>> table = writer.getTable(ExtractComparer.ERROR_TABLE_B);
         Map<Cols, String> row = table.get(0);
         debugPrintRow(row);
         assertEquals(Integer.toString(EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal()),
@@ -186,7 +186,7 @@ public class SimpleComparerTest extends TikaTest {
                 getResourceAsFile("/test-dirs/extractB/file6_accessEx.pdf.json").toPath()
         );
         comparer.compareFiles(fpsA, fpsB);
-        for (TableInfo t : new TableInfo[]{FileComparer.EXCEPTION_TABLE_A, FileComparer.EXCEPTION_TABLE_B}) {
+        for (TableInfo t : new TableInfo[]{ExtractComparer.EXCEPTION_TABLE_A, ExtractComparer.EXCEPTION_TABLE_B}) {
             List<Map<Cols, String>> table = writer.getTable(t);
 
             Map<Cols, String> rowA = table.get(0);
@@ -249,16 +249,16 @@ public class SimpleComparerTest extends TikaTest {
         );
         comparer.compareFiles(fpsA, fpsB);
         for (TableInfo t : new TableInfo[]{
-                FileComparer.COMPARISON_CONTAINERS,
-                FileComparer.ERROR_TABLE_A,
-                FileComparer.ERROR_TABLE_B,
-                FileComparer.EXCEPTION_TABLE_A,
-                FileComparer.EXCEPTION_TABLE_B,
-                FileComparer.PROFILES_A,
-                FileComparer.PROFILES_B,
-                FileComparer.CONTENTS_TABLE_A,
-                FileComparer.CONTENTS_TABLE_B,
-                FileComparer.CONTENT_COMPARISONS}) {
+                ExtractComparer.COMPARISON_CONTAINERS,
+                ExtractComparer.ERROR_TABLE_A,
+                ExtractComparer.ERROR_TABLE_B,
+                ExtractComparer.EXCEPTION_TABLE_A,
+                ExtractComparer.EXCEPTION_TABLE_B,
+                ExtractComparer.PROFILES_A,
+                ExtractComparer.PROFILES_B,
+                ExtractComparer.CONTENTS_TABLE_A,
+                ExtractComparer.CONTENTS_TABLE_B,
+                ExtractComparer.CONTENT_COMPARISONS}) {
             debugPrintTable(t);
         }
     }

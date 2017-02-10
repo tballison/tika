@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+
 <reports>
 
 
@@ -84,7 +104,6 @@
 
     <!-- MIMES -->
     <report reportName="All Mimes In A"
-            reportDirectory="reports"
             reportFilename="mimes/all_mimes_A.xlsx"
             format="xlsx"
             includeSql="true">
@@ -99,7 +118,6 @@
     </report>
 
     <report reportName="All Mimes In B"
-            reportDirectory="reports"
             reportFilename="mimes/all_mimes_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -113,7 +131,6 @@
         </sql>
     </report>
     <report reportName="Container Mimes In A"
-            reportDirectory="reports"
             reportFilename="mimes/container_mimes_A.xlsx"
             format="xlsx"
             includeSql="true">
@@ -129,7 +146,6 @@
     </report>
 
     <report reportName="Container Mimes In B"
-            reportDirectory="reports"
             reportFilename="mimes/container_mimes_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -144,7 +160,6 @@
         </sql>
     </report>
     <report reportName="Embedded Mimes In A"
-            reportDirectory="reports"
             reportFilename="mimes/embedded_mimes_A.xlsx"
             format="xlsx"
             includeSql="true">
@@ -160,7 +175,6 @@
     </report>
 
     <report reportName="Embedded Mimes In B"
-            reportDirectory="reports"
             reportFilename="mimes/embedded_mimes_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -175,7 +189,6 @@
         </sql>
     </report>
     <report reportName="Mime Differences A -> B"
-            reportDirectory="reports"
             reportFilename="mimes/mime_diffs_A_to_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -194,7 +207,6 @@
     </report>
 
 	<report reportName="Mime Differences A -> B Details"
-            reportDirectory="reports"
             reportFilename="mimes/mime_diffs_A_to_B_details.xlsx"
             format="xlsx"
             includeSql="true">
@@ -213,7 +225,6 @@
     </report>
 
     <report reportName="AllExceptionsByMimeA"
-            reportDirectory="reports"
             reportFilename="exceptions/exceptions_by_mime_A.xlsx"
             format="xlsx"
             includeSql="true">
@@ -228,7 +239,6 @@
         </sql>
     </report>
     <report reportName="AllExceptionsByMimeB"
-            reportDirectory="reports"
             reportFilename="exceptions/exceptions_by_mime_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -244,7 +254,6 @@
     </report>
 
     <report reportName="ContainerExceptionsByMimeA"
-            reportDirectory="reports"
             reportFilename="exceptions/container_exceptions_by_mime_A.xlsx"
             format="xlsx"
             includeSql="true">
@@ -262,7 +271,6 @@
     </report>
 
     <report reportName="ContainerExceptionsByMimeB"
-            reportDirectory="reports"
             reportFilename="exceptions/container_exceptions_by_mime_B.xlsx"
             format="xlsx"
             includeSql="true">
@@ -279,7 +287,6 @@
         </sql>
     </report>
     <report reportName="AllExceptionsByMimeByTypeA"
-            reportDirectory="reports"
             reportFilename="exceptions/exceptions_by_mime_by_typeA.xlsx"
             format="xlsx"
             includeSql="true">
@@ -299,7 +306,6 @@
     </report>
 
     <report reportName="AllExceptionsByMimeByTypeB"
-            reportDirectory="reports"
             reportFilename="exceptions/exceptions_by_mime_by_typeB.xlsx"
             format="xlsx"
             includeSql="true">
@@ -319,7 +325,6 @@
     </report>
 
     <report reportName="TextLostFromACausedByNewExceptionsInB"
-            reportDirectory="reports"
             reportFilename="exceptions/textLostFromACausedByNewExceptionsInB.xlsx"
             format="xlsx"
             includeSql="true">
@@ -348,7 +353,6 @@
     </report>
 
     <report reportName="FixedExceptionsInBByMimeType"
-            reportDirectory="reports"
             reportFilename="exceptions/fixedExceptionsInBByMimeType.xlsx"
             format="xlsx"
             includeSql="true">
@@ -368,7 +372,6 @@
     </report>
 
     <report reportName="FixedExceptionsInByDetails"
-            reportDirectory="exceptions"
             reportFilename="exceptions/fixedExceptionsInBDetails.xlsx"
             format="xlsx"
             includeSql="true">
@@ -387,7 +390,6 @@
         </sql>
     </report>
     <report reportName="ContentsOfFixedExceptionsInB"
-            reportDirectory="reports"
             reportFilename="exceptions/contentsOfFixedExceptionsInB.xlsx"
             format="xlsx"
             includeSql="true">
@@ -409,7 +411,6 @@
     </report>
 
     <report reportName="NewExceptionsByMimeType"
-            reportDirectory="reports"
             reportFilename="exceptions/newExceptionsInBByMimeType.xlsx"
             format="xlsx"
             includeSql="true">
@@ -430,7 +431,6 @@
     </report>
 
     <report reportName="NewExceptionsInBByMimeTypeByStackTrace"
-            reportDirectory="reports"
             reportFilename="exceptions/newExceptionsInBByMimeTypeByStackTrace.xlsx"
             format="xlsx"
             includeSql="true">
@@ -450,7 +450,6 @@
     </report>
 
     <report reportName="NewExceptionsInBDetails"
-            reportDirectory="reports"
             reportFilename="exceptions/newExceptionsInBDetails.xlsx"
             format="xlsx"
             includeSql="true">
@@ -470,7 +469,6 @@
     </report>
 
     <report reportName="StackTracesByMimeInA"
-            reportDirectory="reports"
             reportFilename="exceptions/stackTracesByMimeInA.xlsx"
             format="xlsx"
             includeSql="true">
@@ -488,7 +486,6 @@
     </report>
 
     <report reportName="AllStackTracesInA"
-            reportDirectory="reports"
             reportFilename="exceptions/stackTracesInA.xlsx"
             format="xlsx"
             includeSql="true">
@@ -506,7 +503,6 @@
         </sql>
     </report>
     <report reportName="AllStackTracesInB"
-            reportDirectory="reports"
             reportFilename="exceptions/stackTracesInB.xlsx"
             format="xlsx"
             includeSql="true">
@@ -525,7 +521,6 @@
     </report>
 
     <report reportName="StackTracesByMimeInB"
-            reportDirectory="reports"
             reportFilename="exceptions/stackTracesByMimeInB.xlsx"
             format="xlsx"
             includeSql="true">
@@ -542,7 +537,6 @@
         </sql>
     </report>
     <report reportName="extractErrorsA"
-            reportDirectory="reports"
             reportFilename="exceptions/extract_errors_a.xlsx"
             format="xlsx"
             includeSql="true">
@@ -554,7 +548,6 @@
         </sql>
     </report>
     <report reportName="extractErrorsB"
-            reportDirectory="reports"
             reportFilename="exceptions/extract_errors_b.xlsx"
             format="xlsx"
             includeSql="true">
@@ -566,7 +559,6 @@
         </sql>
     </report>
     <report reportName="parseExceptionTypesA"
-            reportDirectory="reports"
             reportFilename="exceptions/overall_exception_types_a.xlsx"
             format="xlsx"
             includeSql="true">
@@ -579,7 +571,6 @@
         </sql>
     </report>
     <report reportName="parseExceptionTypesB"
-            reportDirectory="reports"
             reportFilename="exceptions/overall_exception_types_b.xlsx"
             format="xlsx"
             includeSql="true">
@@ -593,7 +584,6 @@
     </report>
 
     <report reportName="contentDiffsWExceptions"
-            reportDirectory="reports"
             reportFilename="contents/content_diffs_with_exceptions.xlsx"
             format="xlsx"
             includeSql="true">
@@ -637,7 +627,6 @@
         </sql>
     </report>
     <report reportName="contentDiffsIgnoreExceptions"
-            reportDirectory="reports"
             reportFilename="contents/content_diffs_ignore_exceptions.xlsx"
             format="xlsx"
             includeSql="true">
@@ -679,7 +668,6 @@
         </sql>
     </report>
     <!--    <report reportName="MD5 Duplicate Counts A"
-                reportDirectory="reports"
                 reportFilename="md5/md5_duplicate_counts_A.xlsx"
                 format="xlsx"
                             includeSql="true">
@@ -693,7 +681,6 @@
         </report>
 
         <report reportName="MD5 Duplicate Counts B"
-                reportDirectory="reports"
                 reportFilename="md5/md5_duplicate_counts_B.xlsx"
                 format="xlsx"
                             includeSql="true">
@@ -708,7 +695,6 @@
         </report>
 
         <report reportName="MD5 Duplicates A"
-                reportDirectory="reports"
                 reportFilename="md5/md5_duplicates_A.xlsx"
                 format="xlsx"
                             includeSql="true">
@@ -724,7 +710,6 @@
         </report>
 
         <report reportName="MD5 Duplicates B"
-                reportDirectory="reports"
                 reportFilename="md5/md5_duplicates_B.xlsx"
                 format="xlsx"
                             includeSql="true">
@@ -741,7 +726,6 @@
     -->
 
     <report reportName="Attachment Diffs"
-            reportDirectory="reports"
             reportFilename="attachments/attachment_diffs.xlsx"
             format="xlsx"
             includeSql="true">
@@ -772,7 +756,6 @@
 
     <!-- metadata values -->
     <report reportName="Metadata Value Diffs"
-            reportDirectory="reports"
             reportFilename="metadata/metadata_value_count_diffs.xlsx"
             format="xlsx"
             includeSql="true">

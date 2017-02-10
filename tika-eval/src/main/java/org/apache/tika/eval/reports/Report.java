@@ -20,12 +20,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.SQLType;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.HashMap;
@@ -35,8 +33,10 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -51,26 +51,31 @@ public class Report {
     Map<String, XSLXCellFormatter> cellFormatters = new HashMap<>();
     private XLSXNumFormatter defaultDoubleFormatter = new XLSXNumFormatter("0.000");
     private XLSXNumFormatter defaultIntegerFormatter = new XLSXNumFormatter("0");
+    private CellStyle sqlCellStyle;
+
     String sql;
     String reportFilename;
-    String reportDirectory;
-    //only for html
-    boolean includeSql;
+    boolean includeSql = true;
+
     String reportName;
 
-    public void writeReport(Connection c) throws SQLException, IOException {
-         dumpXLSX(c);
+    public void writeReport(Connection c, Path reportsRoot) throws SQLException, IOException {
+         dumpXLSX(c, reportsRoot);
     }
 
-    private void dumpXLSX(Connection c) throws IOException, SQLException {
+    private void dumpXLSX(Connection c, Path reportsRoot) throws IOException, SQLException {
         Statement st = c.createStatement();
-        Path out = Paths.get(reportDirectory, reportFilename);
+        Path out = reportsRoot.resolve(reportFilename);
         Files.createDirectories(out.getParent());
 
         SXSSFWorkbook wb = new SXSSFWorkbook(new XSSFWorkbook(), 100, true, true);
         wb.setCompressTempFiles(true);
         defaultIntegerFormatter.reset(wb.getXSSFWorkbook());
         defaultDoubleFormatter.reset(wb.getXSSFWorkbook());
+        sqlCellStyle = wb.createCellStyle();
+        sqlCellStyle.setVerticalAlignment(VerticalAlignment.TOP);
+        sqlCellStyle.setWrapText(true);
+
 
         try {
             dumpReportToWorkbook(st, wb);
@@ -86,7 +91,9 @@ public class Report {
     private void dumpReportToWorkbook(Statement st, SXSSFWorkbook wb) throws IOException, SQLException {
         ResultSet rs = st.executeQuery(sql);
 
-        Sheet sheet = wb.createSheet("tika-eval Report");
+        SXSSFSheet sheet = wb.createSheet("tika-eval Report");
+        sheet.trackColumnForAutoSizing(0);
+
         int rowCount = 0;
         ResultSetMetaData meta = rs.getMetaData();
         Set<String> colNames = new HashSet<>();
@@ -115,6 +122,21 @@ public class Report {
                 }
             }
         }
+        sheet.autoSizeColumn(0);
+
+        if (!includeSql) {
+            return;
+        }
+
+        SXSSFSheet sqlSheet = wb.createSheet("tika-eval SQL");
+        sqlSheet.setColumnWidth(0, 100*250);
+        Row sqlRow = sqlSheet.createRow(0);
+        short height = 5000;
+        sqlRow.setHeight(height);
+        Cell cell = sqlRow.createCell(0);
+        cell.setCellStyle(sqlCellStyle);
+
+        cell.setCellValue(sql.trim());//.replaceAll("[\r\n]+", "\r\n"));
     }
 
     private XSLXCellFormatter getDefaultFormatter(int columnType) {

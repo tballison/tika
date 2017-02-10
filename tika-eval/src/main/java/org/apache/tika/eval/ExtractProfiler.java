@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
@@ -34,7 +37,38 @@ import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 
-public class SingleFileProfiler extends AbstractProfiler {
+public class ExtractProfiler extends AbstractProfiler {
+
+    static Options OPTIONS;
+    static {
+        Option db = new Option("db", "db file to which to write results");
+        db.setRequired(true);
+
+        //By the time this commandline is parsed, there should be both an extractDir and an inputDir
+        Option extractDir = new Option("extractDir", "directory for extract files");
+        extractDir.setRequired(true);
+
+        Option inputDir = new Option("inputDir",
+                "optional: directory for original binary input documents."+
+        " If not specified, -extractDir is crawled as is.");
+        inputDir.setRequired(true);
+
+        OPTIONS = new Options()
+                .addOption(db)
+                .addOption(extractDir)
+                .addOption(inputDir)
+                .addOption("bc", "optional: tika-batch config file");
+    }
+
+    public static void USAGE() {
+        HelpFormatter helpFormatter = new HelpFormatter();
+        helpFormatter.printHelp(
+                80,
+                "java -jar tika-eval-x.y.jar Profile -extractDir extracts -db mydb [-inputDir input]",
+                "Tool: Profile",
+                ExtractProfiler.OPTIONS,
+                "Note: for h2 db, do not include the .mv.db at the end of the db name.");
+    }
 
     private final static String FIELD = "f";
 
@@ -105,9 +139,9 @@ public class SingleFileProfiler extends AbstractProfiler {
     private final ExtractReader.ALTER_METADATA_LIST alterMetadataList;
     private final ExtractReader extractReader = new ExtractReader();
 
-    public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
-                              Path inputDir, Path extractDir,
-                              IDBWriter dbWriter, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
+    public ExtractProfiler(ArrayBlockingQueue<FileResource> queue,
+                           Path inputDir, Path extractDir,
+                           IDBWriter dbWriter, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
         super(queue, dbWriter);
         this.inputDir = inputDir;
         this.extractDir = extractDir;

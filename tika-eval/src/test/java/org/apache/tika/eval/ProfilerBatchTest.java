@@ -50,8 +50,8 @@ public class ProfilerBatchTest {
     private static Path dbDir;
     private static Connection conn;
 
-    private final static String profileTable = SingleFileProfiler.PROFILE_TABLE.getName();
-    private final static String exTable = SingleFileProfiler.EXCEPTION_TABLE.getName();
+    private final static String profileTable = ExtractProfiler.PROFILE_TABLE.getName();
+    private final static String exTable = ExtractProfiler.EXCEPTION_TABLE.getName();
     private final static String fpCol = Cols.FILE_PATH.name();
 
     @BeforeClass
@@ -60,8 +60,8 @@ public class ProfilerBatchTest {
         Path inputRoot = Paths.get(new ComparerBatchTest().getClass().getResource("/test-dirs/extractA").toURI());
         dbDir = Files.createTempDirectory(inputRoot, "tika-test-db-dir-");
         Map<String, String> args = new HashMap<>();
-        Path dbFile = dbDir.resolve("profiler_test");
-        args.put("-dbDir", dbFile.toString());
+        Path db = dbDir.resolve("profiler_test");
+        args.put("-db", db.toString());
 
         //for debugging, you can use this to select only one file pair to load
         //args.put("-includeFilePat", "file8.*");
@@ -71,7 +71,7 @@ public class ProfilerBatchTest {
         StreamStrings streamStrings = ex.execute();
         System.out.println(streamStrings.getErrString());
         System.out.println(streamStrings.getOutString());*/
-        H2Util dbUtil = new H2Util(dbFile);
+        H2Util dbUtil = new H2Util(db);
         conn = dbUtil.getConnection();
     }
     @AfterClass
@@ -100,7 +100,7 @@ public class ProfilerBatchTest {
         Statement st = null;
         List<String> fNameList = new ArrayList<>();
         try {
-            String sql = "select * from "+SingleFileProfiler.CONTAINER_TABLE.getName();
+            String sql = "select * from "+ ExtractProfiler.CONTAINER_TABLE.getName();
             st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
             while (rs.next()) {
@@ -112,11 +112,11 @@ public class ProfilerBatchTest {
                 st.close();
             }
         }
-        debugTable(SingleFileProfiler.CONTAINER_TABLE);
-        debugTable(SingleFileProfiler.PROFILE_TABLE);
-        debugTable(SingleFileProfiler.CONTENTS_TABLE);
-        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
-        debugTable(SingleFileProfiler.ERROR_TABLE);
+        debugTable(ExtractProfiler.CONTAINER_TABLE);
+        debugTable(ExtractProfiler.PROFILE_TABLE);
+        debugTable(ExtractProfiler.CONTENTS_TABLE);
+        debugTable(ExtractProfiler.EXCEPTION_TABLE);
+        debugTable(ExtractProfiler.ERROR_TABLE);
         assertEquals(10, fNameList.size());
         assertTrue("file1.pdf", fNameList.contains("file1.pdf"));
         assertTrue("file2_attachANotB.doc", fNameList.contains("file2_attachANotB.doc"));
@@ -133,11 +133,11 @@ public class ProfilerBatchTest {
 
         assertEquals("missing extract: file9_noextract.txt", "0",
                 getSingleResult(sql));
-        debugTable(SingleFileProfiler.CONTAINER_TABLE);
-        debugTable(SingleFileProfiler.PROFILE_TABLE);
-        debugTable(SingleFileProfiler.CONTENTS_TABLE);
-        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
-        debugTable(SingleFileProfiler.ERROR_TABLE);
+        debugTable(ExtractProfiler.CONTAINER_TABLE);
+        debugTable(ExtractProfiler.PROFILE_TABLE);
+        debugTable(ExtractProfiler.CONTENTS_TABLE);
+        debugTable(ExtractProfiler.EXCEPTION_TABLE);
+        debugTable(ExtractProfiler.ERROR_TABLE);
 
         sql = "select EXTRACT_ERROR_TYPE_ID from errors e" +
                 " join containers c on c.container_id = e.container_id "+
@@ -155,7 +155,7 @@ public class ProfilerBatchTest {
 
     @Test
     public void testParseErrors() throws Exception {
-        debugTable(SingleFileProfiler.ERROR_TABLE);
+        debugTable(ExtractProfiler.ERROR_TABLE);
         String sql = "select file_path from errors where container_id is null";
         assertEquals("file10_permahang.txt",
                 getSingleResult(sql));
@@ -176,7 +176,7 @@ public class ProfilerBatchTest {
 
     @Test
     public void testParseExceptions() throws Exception {
-        debugTable(SingleFileProfiler.EXCEPTION_TABLE);
+        debugTable(ExtractProfiler.EXCEPTION_TABLE);
     }
 
     private String getSingleResult(String sql) throws Exception {
