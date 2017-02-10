@@ -24,6 +24,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -32,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.poi.common.usermodel.Hyperlink;
+import org.apache.tika.eval.FileComparer;
+import org.apache.tika.eval.SingleFileProfiler;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
 import org.apache.tika.parser.ParseContext;
@@ -172,12 +176,55 @@ public class ResultsReporter {
     }
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 0) {
+            throw new IllegalArgumentException("Must at least specify database file: my_db.mv.db");
+        }
+
+
         Path dbFile = Paths.get(args[0]);
         DBUtil dbUtil = new H2Util(dbFile);
-        ResultsReporter r = ResultsReporter.build(Paths.get(args[1]));
+
         try (Connection c = dbUtil.getConnection()) {
-            r.execute(c);
+            Path tmpReportsFile = null;
+            try {
+                ResultsReporter resultsReporter = null;
+                if (args.length == 1) {
+                    tmpReportsFile = getDefaultReportsConfig(c);
+                    resultsReporter = ResultsReporter.build(tmpReportsFile);
+                } else {
+                    resultsReporter = ResultsReporter.build(Paths.get(args[1]));
+                }
+                resultsReporter.execute(c);
+            } finally {
+                if (tmpReportsFile != null) {
+                    Files.delete(tmpReportsFile);
+                }
+            }
         }
+    }
+
+    private static Path getDefaultReportsConfig(Connection c) throws IOException, SQLException {
+        DatabaseMetaData md = c.getMetaData();
+        String internalPath = null;
+        try (ResultSet rs = md.getTables(null, null, "%", null)) {
+            while (rs.next()) {
+                String tName = rs.getString(3);
+                if (FileComparer.CONTENTS_TABLE_B.getName().equalsIgnoreCase(tName)) {
+                    internalPath = "/comparison-reports.xml";
+                    break;
+                } else if (SingleFileProfiler.PROFILE_TABLE.getName().equalsIgnoreCase(tName)) {
+                    internalPath = "/single-dir-profile-reports.xml";
+                    break;
+                }
+            }
+        }
+
+        if (internalPath == null) {
+            throw new RuntimeException("Couldn't determine if this database was a 'profiler' or 'comparison' db");
+        }
+        Path tmp = Files.createTempFile("tmp-tika-reports", ".xml");
+        Files.copy(ResultsReporter.class.getResourceAsStream(internalPath), tmp);
+        return tmp;
     }
 
     public void execute(Connection c) throws IOException, SQLException {

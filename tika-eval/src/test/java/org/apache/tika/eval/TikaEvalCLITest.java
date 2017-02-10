@@ -14,24 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.tika.eval.tokens;
 
+package org.apache.tika.eval;
 
-public class CommonTokenResult {
+import java.util.ArrayList;
+import java.util.List;
 
-    private final String langCode;
-    private final int tokens;
+import org.junit.Test;
 
-    public CommonTokenResult(String langCode, int tokens) {
-        this.langCode = langCode;
-        this.tokens = tokens;
+public class TikaEvalCLITest {
+
+    @Test
+    public void testBasic() throws Exception {
+        List<String> args = new ArrayList<>();
+
+        TikaEvalCLI.main(args.toArray(new String[args.size()]));
+        Thread.sleep(10000);
     }
 
-    public String getLangCode() {
-        return langCode;
-    }
-
-    public int getTokens() {
-        return tokens;
-    }
 }

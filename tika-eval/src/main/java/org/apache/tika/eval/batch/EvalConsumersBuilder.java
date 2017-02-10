@@ -32,9 +32,9 @@ import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.builders.AbstractConsumersBuilder;
 import org.apache.tika.batch.builders.BatchProcessBuilder;
 import org.apache.tika.eval.AbstractProfiler;
-import org.apache.tika.eval.LanguageIDWrapper;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.H2Util;
+import org.apache.tika.eval.util.LanguageIDWrapper;
 import org.apache.tika.util.ClassLoaderUtil;
 import org.apache.tika.util.PropsUtil;
 import org.apache.tika.util.XMLDOMUtil;
@@ -50,6 +50,7 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
         int numConsumers = BatchProcessBuilder.getNumConsumers(runtimeAttributes);
 
         Map<String, String> localAttrs = XMLDOMUtil.mapifyAttrs(node, runtimeAttributes);
+
 
         Path dbDir = getPath(localAttrs, "dbDir");
         Path langModelDir = getPath(localAttrs, "langModelDir");
@@ -73,6 +74,9 @@ public class EvalConsumersBuilder extends AbstractConsumersBuilder {
 
         boolean append = PropsUtil.getBoolean(localAttrs.get("dbAppend"), false);
 
+        if (dbDir == null) {
+            throw new RuntimeException("Must specify: -dbDir");
+        }
         //parameterize which db util to use
         DBUtil util = new H2Util(dbDir);
         EvalConsumerBuilder consumerBuilder = ClassLoaderUtil.buildClass(EvalConsumerBuilder.class,

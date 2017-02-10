@@ -76,7 +76,10 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
             throw new RuntimeException("Can't populate ref tables", e);
         }
 
-
+        if (inputRootDir == null) {
+            //this is for the sake of the crawler
+            throw new RuntimeException("Must specify an -inputDir");
+        }
 
         return new FileComparer(queue, inputRootDir, thisRootDir, thatRootDir, writer,
                 minJsonLength, maxJsonLength, alterMetadataList);

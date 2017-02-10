@@ -23,10 +23,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +38,12 @@ public class CommonTokenCountManager {
 
     private final Path commonWordsDir;
 
-    Map<String, Set<String>> commonWordMap = new HashMap<>();
+    Map<String, Set<String>> commonWordMap = new ConcurrentHashMap<>();
     Set<String> alreadyTriedToLoad = new HashSet<>();
 
-    String defaultLangCode = "en";//if we have no model or if no langid is passed in
+    //if we have no model or if no langid is passed in
+    //make this configurable
+    String defaultLangCode = "en";
 
     public CommonTokenCountManager(Path commonWordsDir) throws IOException {
         this.commonWordsDir = commonWordsDir;
@@ -89,13 +91,19 @@ public class CommonTokenCountManager {
         commonWordMap.clear();
     }
 
-    private void tryToLoad(String langCode) {
+    private synchronized void tryToLoad(String langCode) {
         if (alreadyTriedToLoad.contains(langCode)) {
+            return;
+        }
+        //check once more now that we're in a
+        //synchronized block
+        if (commonWordMap.get(langCode) != null) {
             return;
         }
         Path p = commonWordsDir.resolve(langCode);
         if (!Files.isRegularFile(p)) {
-            LOGGER.warn("Couldn't find common words file for: '"+langCode+"'");
+            LOGGER.warn("Couldn't find common words file for: '"+langCode+"': "+
+            p.toAbsolutePath());
             alreadyTriedToLoad.add(langCode);
             return;
         }

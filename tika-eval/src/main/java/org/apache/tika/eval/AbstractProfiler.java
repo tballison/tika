@@ -58,6 +58,7 @@ import org.apache.tika.eval.tokens.CommonTokenResult;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStatistics;
+import org.apache.tika.eval.util.LanguageIDWrapper;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.RecursiveParserWrapper;
@@ -231,7 +232,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             data.put(Cols.IS_EMBEDDED, TRUE);
             data.put(Cols.FILE_NAME, FilenameUtils.getName(m.get(RecursiveParserWrapper.EMBEDDED_RESOURCE_PATH)));
         }
-        data.put(Cols.FILE_EXTENSION, FilenameUtils.getExtension(fps.getRelativeSourceFilePath().getFileName().toString()));
+        data.put(Cols.FILE_EXTENSION,
+                FilenameUtils.getExtension(fps.getRelativeSourceFilePath().getFileName().toString()));
         long srcFileLen = getSourceFileLength(m);
         if (srcFileLen > NON_EXISTENT_FILE_LENGTH) {
             data.put(Cols.LENGTH, Long.toString(srcFileLen));

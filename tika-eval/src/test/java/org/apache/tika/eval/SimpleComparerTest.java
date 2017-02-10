@@ -36,6 +36,7 @@ import org.apache.tika.TikaTest;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.ExtractReader;
+import org.apache.tika.eval.util.LanguageIDWrapper;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Before;

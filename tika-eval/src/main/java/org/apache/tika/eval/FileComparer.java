@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.fs.FSProperties;
 import org.apache.tika.config.TikaConfig;
@@ -192,7 +193,9 @@ public class FileComparer extends AbstractProfiler {
         contData.put(Cols.LENGTH,
                 srcFileLength > NON_EXISTENT_FILE_LENGTH ?
                     Long.toString(srcFileLength) : "");
-        contData.put(Cols.FILE_EXTENSION, fpsA.getRelativeSourceFilePath().getFileName().toString());
+        contData.put(Cols.FILE_EXTENSION,
+                FilenameUtils.getExtension(fpsA.getRelativeSourceFilePath().getFileName().toString()));
+
         long extractFileLengthA = getFileLength(fpsA.getExtractFile());
         contData.put(Cols.EXTRACT_FILE_LENGTH_A, extractFileLengthA > NON_EXISTENT_FILE_LENGTH ?
                 Long.toString(extractFileLengthA) : "");

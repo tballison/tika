@@ -116,7 +116,7 @@ public abstract class DBUtil {
                 case Types.VARCHAR:
                     if (value != null && value.length() > colInfo.getPrecision()) {
                         value = value.substring(0, colInfo.getPrecision());
-                        logger.info("truncated varchar value in " + colInfo.getName());
+                        logger.warn("truncated varchar value in " + colInfo.getName() + " : "+value);
                     }
                     st.setString(dbColOffset, value);
                     break;
@@ -142,7 +142,9 @@ public abstract class DBUtil {
                     throw new UnsupportedOperationException("Don't yet support type: " + colInfo.getType());
             }
         } catch (NumberFormatException e) {
-            logger.warn("number format exception: "+colInfo.getName()+ " : " + value);
+            if (! "".equals(value)) {
+                logger.warn("number format exception: " + colInfo.getName() + " : " + value);
+            }
             st.setNull(dbColOffset, colInfo.getType());
         } catch (SQLException e) {
             logger.warn("sqlexception: "+colInfo+ " : " + value);

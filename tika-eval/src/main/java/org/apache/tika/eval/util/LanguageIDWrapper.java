@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.tika.eval;
+package org.apache.tika.eval.util;
 
 import java.io.IOException;
 import java.nio.file.Path;
