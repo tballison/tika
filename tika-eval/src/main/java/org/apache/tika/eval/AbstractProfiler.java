@@ -140,7 +140,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
             new ColInfo(Cols.FILE_EXTENSION, Types.VARCHAR, 12)
     );
 
-    private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.json(\\.(bz2|gz|zip))?$");
+    private static Pattern FILE_NAME_CLEANER = Pattern.compile("\\.(json|txt)(\\.(bz2|gz|zip))?$");
 
 
     final static int FILE_PATH_MAX_LEN = 512;//max len for varchar for file_path

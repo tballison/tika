@@ -61,7 +61,7 @@ public class XMLErrorLogUpdater {
         Path xmlLogFileB = Paths.get(args[1]);
         Path db = Paths.get(args[2]);
         DBUtil dbUtil = new H2Util(db);
-        Connection connection = dbUtil.getConnection();
+        Connection connection = dbUtil.getConnection(true);
         writer.update(connection, ExtractComparer.ERROR_TABLE_A, xmlLogFileA);
         writer.update(connection, ExtractComparer.ERROR_TABLE_B, xmlLogFileB);
         connection.commit();

@@ -48,8 +48,12 @@ public class H2Util extends DBUtil {
     }
 
     @Override
-    public String getConnectionString(Path db) {
-        return "jdbc:h2:"+ FilenameUtils.separatorsToUnix(db.toAbsolutePath().toString());
+    public String getConnectionString(Path db, boolean createIfDoesntExist) {
+        String s = "jdbc:h2:"+ FilenameUtils.separatorsToUnix(db.toAbsolutePath().toString());
+        if (! createIfDoesntExist) {
+            s += ";IFEXISTS=TRUE";
+        }
+        return s;
     }
 
     @Override

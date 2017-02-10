@@ -29,11 +29,13 @@ public class TikaEvalCLITest {
     @Ignore("TODO: add real tests")
     public void testBasic() throws Exception {
         List<String> args = new ArrayList<>();
-        args.add("Report");
+        args.add("Profile");
+        args.add("-extractDir");
+        args.add("tika");
         args.add("-db");
         args.add("mydb");
-        args.add("-rf");
-        args.add("profile-reports.xml");
+        args.add("-alterExtract");
+        args.add("first_only");
         TikaEvalCLI.main(args.toArray(new String[args.size()]));
     }
 

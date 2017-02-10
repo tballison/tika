@@ -53,8 +53,8 @@ public abstract class DBUtil {
      * @return
      * @throws IOException
      */
-    public Connection getConnection() throws IOException {
-        String connectionString = getConnectionString(db);
+    public Connection getConnection(boolean createIfDoesntExist) throws IOException {
+        String connectionString = getConnectionString(db, createIfDoesntExist);
         Connection conn = null;
         try {
             try {
@@ -70,7 +70,7 @@ public abstract class DBUtil {
         return conn;
     }
 
-    abstract public String getConnectionString(Path db);
+    abstract public String getConnectionString(Path db, boolean createIfDoesntExist);
 
     /**
      *
@@ -153,7 +153,7 @@ public abstract class DBUtil {
     }
 
     public void createDB(List<TableInfo> tableInfos, boolean append) throws SQLException, IOException {
-        Connection conn = getConnection();
+        Connection conn = getConnection(true);
         Set<String> tables = getTables(conn);
 
         for (TableInfo tableInfo : tableInfos) {

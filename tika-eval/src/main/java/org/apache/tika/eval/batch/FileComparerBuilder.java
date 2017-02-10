@@ -54,7 +54,7 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
 
-        ExtractReader.ALTER_METADATA_LIST alterMetadataList = getAlterMetadata(localAttrs);
+        ExtractReader.ALTER_METADATA_LIST alterExtractList = getAlterMetadata(localAttrs);
 
 
         IDBWriter writer = getDBWriter();
@@ -71,7 +71,7 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         }
 
         return new ExtractComparer(queue, inputRootDir, thisRootDir, thatRootDir, writer,
-                minJsonLength, maxJsonLength, alterMetadataList);
+                minJsonLength, maxJsonLength, alterExtractList);
     }
 
     @Override

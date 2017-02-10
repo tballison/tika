@@ -69,7 +69,7 @@ public class ExtractComparer extends AbstractProfiler {
                 .addOption(db)
                 .addOption(inputDir)
                 .addOption("bc", "optional: tika-batch config file")
-                .addOption(new Option("alterMetadata", true,
+                .addOption(new Option("alterExtract", true,
                         "for json-formatted extract files, " +
                                 "process full metadata list ('as_is'=default), " +
                                 "take just the first/container document ('first_only'), " +
@@ -154,7 +154,7 @@ public class ExtractComparer extends AbstractProfiler {
 
     private final long minJsonLength;
     private final long maxJsonLength;
-    private final ExtractReader.ALTER_METADATA_LIST alterMetadataList;
+    private final ExtractReader.ALTER_METADATA_LIST alterExtractList;
 
     private final TokenContraster tokenContraster = new TokenContraster();
     private final ExtractReader extractReader = new ExtractReader();
@@ -162,14 +162,14 @@ public class ExtractComparer extends AbstractProfiler {
     public ExtractComparer(ArrayBlockingQueue<FileResource> queue,
                            Path inputDir, Path extractDirA, Path extractDirB,
                            IDBWriter writer, long minJsonLength,
-                           long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
+                           long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterExtractList) {
         super(queue, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
         this.inputDir = inputDir;
         this.extractDirA = extractDirA;
         this.extractDirB = extractDirB;
-        this.alterMetadataList = alterMetadataList;
+        this.alterExtractList = alterExtractList;
     }
 
     @Override
@@ -221,9 +221,9 @@ public class ExtractComparer extends AbstractProfiler {
     protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException {
 
         List<Metadata> metadataListA =
-                extractReader.loadExtract(fpsA.getExtractFile(), alterMetadataList);
+                extractReader.loadExtract(fpsA.getExtractFile(), alterExtractList);
         List<Metadata> metadataListB =
-                extractReader.loadExtract(fpsB.getExtractFile(), alterMetadataList);
+                extractReader.loadExtract(fpsB.getExtractFile(), alterExtractList);
 
         //array indices for those metadata items handled in
         //"that"

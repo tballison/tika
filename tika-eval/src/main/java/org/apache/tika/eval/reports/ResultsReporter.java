@@ -230,7 +230,7 @@ public class ResultsReporter {
         Path db = Paths.get(commandLine.getOptionValue("db"));
         DBUtil dbUtil = new H2Util(db);
 
-        try (Connection c = dbUtil.getConnection()) {
+        try (Connection c = dbUtil.getConnection(true)) {
             Path tmpReportsFile = null;
             try {
                 ResultsReporter resultsReporter = null;

@@ -52,7 +52,7 @@ public class ExtractReader {
     private final static Logger LOGGER = LoggerFactory.getLogger(ExtractReader.class);
     TikaConfig tikaConfig = TikaConfig.getDefaultConfig();
 
-    public List<Metadata> loadExtract(Path thisFile, ALTER_METADATA_LIST alterMetadataList) {
+    public List<Metadata> loadExtract(Path thisFile, ALTER_METADATA_LIST alterExtractList) {
         List<Metadata> metadataList = null;
         if (thisFile == null || !Files.isRegularFile(thisFile)) {
             return metadataList;
@@ -82,11 +82,11 @@ public class ExtractReader {
 
             if (fileSuffixes.txtOrJson.equals("json")) {
                 metadataList = JsonMetadataList.fromJson(reader);
-                if (alterMetadataList.equals(ALTER_METADATA_LIST.FIRST_ONLY) && metadataList.size() > 1) {
+                if (alterExtractList.equals(ALTER_METADATA_LIST.FIRST_ONLY) && metadataList.size() > 1) {
                     while (metadataList.size() > 1) {
                         metadataList.remove(metadataList.size()-1);
                     }
-                } else if (alterMetadataList.equals(ALTER_METADATA_LIST.AS_IS.CONCATENATE_CONTENT_INTO_FIRST) &&
+                } else if (alterExtractList.equals(ALTER_METADATA_LIST.AS_IS.CONCATENATE_CONTENT_INTO_FIRST) &&
                         metadataList.size() > 1) {
                     StringBuilder sb = new StringBuilder();
                     Metadata containerMetadata = metadataList.get(0);

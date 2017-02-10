@@ -39,7 +39,7 @@ public class DBConsumersManager extends ConsumersManager {
     public DBConsumersManager(DBUtil dbUtil, List<FileResourceConsumer> consumers)
             throws IOException {
         super(consumers);
-        this.conn = dbUtil.getConnection();
+        this.conn = dbUtil.getConnection(true);
     }
 
 

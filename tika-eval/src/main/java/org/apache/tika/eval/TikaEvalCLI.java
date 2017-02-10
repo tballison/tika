@@ -79,7 +79,7 @@ public class TikaEvalCLI {
         boolean containsBC = false;
         String inputDir = null;
         String extractDir = null;
-        String alterMetadata = null;
+        String alterExtract = null;
         //confirm there's a batch-config file
         for (int i = 0; i < argList.size(); i++) {
             String arg = argList.get(i);
@@ -101,21 +101,21 @@ public class TikaEvalCLI {
                 }
                 extractDir = argList.get(i+1);
                 i++;
-            } else if (arg.equals("-alterMetadata")) {
+            } else if (arg.equals("-alterExtract")) {
                 if (i+1 >= argList.size()) {
                     System.err.println("Must specify directory after -extractDirB");
                     ExtractComparer.USAGE();
                     return;
                 }
-                alterMetadata = argList.get(i+1);
+                alterExtract = argList.get(i+1);
                 i++;
             }
         }
 
-        if (alterMetadata != null && !alterMetadata.equals("as_is") &&
-                !alterMetadata.equals("concatenate_content") &&
-                !alterMetadata.equals("first_only")) {
-            System.out.println("Sorry, I don't understand:"+alterMetadata+
+        if (alterExtract != null && !alterExtract.equals("as_is") &&
+                !alterExtract.equals("concatenate_content") &&
+                !alterExtract.equals("first_only")) {
+            System.out.println("Sorry, I don't understand:"+alterExtract+
                     ". The values must be one of: as_is, first_only, concatenate_content");
             ExtractProfiler.USAGE();
             return;
@@ -168,7 +168,7 @@ public class TikaEvalCLI {
         boolean containsBC = false;
         String inputDir = null;
         String extractDirA = null;
-        String alterMetadata = null;
+        String alterExtract = null;
         //confirm there's a batch-config file
         for (int i = 0; i < argList.size(); i++) {
             String arg = argList.get(i);
@@ -190,20 +190,20 @@ public class TikaEvalCLI {
                 }
                 extractDirA = argList.get(i+1);
                 i++;
-            } else if (arg.equals("-alterMetadata")) {
+            } else if (arg.equals("-alterExtract")) {
                 if (i+1 >= argList.size()) {
                     System.err.println("Must specify directory after -extractDirB");
                     ExtractComparer.USAGE();
                     return;
                 }
-                alterMetadata = argList.get(i+1);
+                alterExtract = argList.get(i+1);
                 i++;
             }
         }
-        if (alterMetadata != null && !alterMetadata.equals("as_is") &&
-                !alterMetadata.equals("concatenate_content") &&
-                !alterMetadata.equals("first_only")) {
-            System.out.println("Sorry, I don't understand:"+alterMetadata+
+        if (alterExtract != null && !alterExtract.equals("as_is") &&
+                !alterExtract.equals("concatenate_content") &&
+                !alterExtract.equals("first_only")) {
+            System.out.println("Sorry, I don't understand:"+alterExtract+
             ". The values must be one of: as_is, first_only, concatenate_content");
             ExtractComparer.USAGE();
             return;

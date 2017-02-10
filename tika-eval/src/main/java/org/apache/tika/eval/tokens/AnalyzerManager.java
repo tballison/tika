@@ -41,7 +41,7 @@ public class AnalyzerManager {
     }
 
     public static AnalyzerManager newInstance() throws IOException {
-        InputStream is = AnalyzerManager.class.getClassLoader().getResourceAsStream("analyzers.json");
+        InputStream is = AnalyzerManager.class.getClassLoader().getResourceAsStream("lucene-analyzers.json");
         Reader reader = new InputStreamReader(is, "UTF-8");
         GsonBuilder builder = new GsonBuilder();
         builder.registerTypeHierarchyAdapter(Map.class, new AnalyzerDeserializer());

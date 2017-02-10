@@ -49,7 +49,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
 
         Path inputDir = PropsUtil.getPath(localAttrs.get("inputDir"), null);
 
-        ExtractReader.ALTER_METADATA_LIST alterMetadataList = getAlterMetadata(localAttrs);
+        ExtractReader.ALTER_METADATA_LIST alterExtractList = getAlterMetadata(localAttrs);
 
         IDBWriter writer = null;
         try {
@@ -73,7 +73,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         if (extractDir == null && inputDir != null) {
             extractDir = inputDir;
         }
-        return new ExtractProfiler(queue, inputDir, extractDir, writer, alterMetadataList);
+        return new ExtractProfiler(queue, inputDir, extractDir, writer, alterExtractList);
     }
 
     @Override

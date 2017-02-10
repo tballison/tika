@@ -58,7 +58,7 @@ public class DBWriter implements IDBWriter {
     public DBWriter(List<TableInfo> tableInfos, TikaConfig tikaConfig, DBUtil dbUtil)
             throws IOException, SQLException {
 
-        this.conn = dbUtil.getConnection();
+        this.conn = dbUtil.getConnection(true);
         if (mimeBuffer == null) {
             mimeBuffer = new MimeBuffer(conn, tikaConfig);
         }

@@ -58,7 +58,7 @@ public class ExtractProfiler extends AbstractProfiler {
                 .addOption(extractDir)
                 .addOption(inputDir)
                 .addOption("bc", "optional: tika-batch config file")
-                .addOption(new Option("alterMetadata", true,
+                .addOption(new Option("alterExtract", true,
                         "for json-formatted extract files, " +
                                 "process full metadata list ('as_is'=default), " +
                                 "take just the first/container document ('first_only'), " +
@@ -142,16 +142,16 @@ public class ExtractProfiler extends AbstractProfiler {
 
     private final Path inputDir;
     private final Path extractDir;
-    private final ExtractReader.ALTER_METADATA_LIST alterMetadataList;
+    private final ExtractReader.ALTER_METADATA_LIST alterExtractList;
     private final ExtractReader extractReader = new ExtractReader();
 
     public ExtractProfiler(ArrayBlockingQueue<FileResource> queue,
                            Path inputDir, Path extractDir,
-                           IDBWriter dbWriter, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
+                           IDBWriter dbWriter, ExtractReader.ALTER_METADATA_LIST alterExtractList) {
         super(queue, dbWriter);
         this.inputDir = inputDir;
         this.extractDir = extractDir;
-        this.alterMetadataList = alterMetadataList;
+        this.alterExtractList = alterExtractList;
     }
 
     @Override
@@ -165,7 +165,7 @@ public class ExtractProfiler extends AbstractProfiler {
         } else {
             fps = getPathsFromSrcCrawl(metadata, inputDir, extractDir);
         }
-        List<Metadata> metadataList = extractReader.loadExtract(fps.getExtractFile(), alterMetadataList);
+        List<Metadata> metadataList = extractReader.loadExtract(fps.getExtractFile(), alterExtractList);
 
         Map<Cols, String> contOutput = new HashMap<>();
         String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());

@@ -39,7 +39,7 @@ public class ResultsReporterTest {
         configFile = Paths.get(this.getClass().getResource("/reports.xml").toURI());
         tmpDir = Files.createTempDirectory("tika-eval-report-test-");
 
-        connection = new H2Util(tmpDir.resolve(dbName)).getConnection();
+        connection = new H2Util(tmpDir.resolve(dbName)).getConnection(true);
         String sql = "CREATE TABLE test_table (ID LONG PRIMARY KEY, STRING VARCHAR(32))";
         Statement st = connection.createStatement();
         st.execute(sql);
