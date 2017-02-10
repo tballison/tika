@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,13 +58,14 @@ public class CommonTokenCountManager {
         }
     }
 
-    public CommonTokenResult countTokenOverlaps(String langCode, Map<String, Integer> tokens) throws IOException {
+    public CommonTokenResult countTokenOverlaps(String langCode,
+                                                Map<String, MutableInt> tokens) throws IOException {
         String actualLangCode = getActualLangCode(langCode);
         int overlap = 0;
         Set<String> commonWords = commonWordMap.get(actualLangCode);
-        for (Map.Entry<String, Integer> e : tokens.entrySet()) {
+        for (Map.Entry<String, MutableInt> e : tokens.entrySet()) {
             if (commonWords.contains(e.getKey())) {
-                overlap += e.getValue();
+                overlap += e.getValue().intValue();
             }
         }
         return new CommonTokenResult(actualLangCode, overlap);

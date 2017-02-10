@@ -26,7 +26,7 @@ import org.junit.Test;
 public class TikaEvalCLITest {
 
     @Test
-    @Ignore
+    @Ignore("TODO: add real tests")
     public void testBasic() throws Exception {
         List<String> args = new ArrayList<>();
         args.add("Report");

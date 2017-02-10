@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.lucene.analysis.Analyzer;
@@ -34,7 +35,7 @@ public class TokenCounter {
     private static final String ALPHA_IDEOGRAPH_SUFFIX = "_a";
 
 
-    Map<String, Map<String, Integer>> map = new HashMap<>(); //Map<field, Map<token, count>>
+    Map<String, Map<String, MutableInt>> map = new HashMap<>(); //Map<field, Map<token, count>>
     Map<String, TokenStatistics> tokenStatistics = new HashMap<>();
 
     private final TokenStatistics NULL_TOKEN_STAT = new TokenStatistics(
@@ -61,20 +62,20 @@ public class TokenCounter {
         TokenStream ts = generalAnalyzer.tokenStream(field, content);
         CharTermAttribute termAtt = ts.getAttribute(CharTermAttribute.class);
         ts.reset();
-        Map<String, Integer> tokenMap = map.get(field);
+        Map<String, MutableInt> tokenMap = map.get(field);
         if (tokenMap == null) {
             tokenMap = new HashMap<>();
             map.put(field, tokenMap);
         }
         while (ts.incrementToken()) {
             String token = termAtt.toString();
-            Integer cnt = tokenMap.get(token);
+            MutableInt cnt = tokenMap.get(token);
             if (cnt == null) {
-                cnt = 1;
+                cnt = new MutableInt(1);
+                tokenMap.put(token, cnt);
             } else {
-                cnt++;
+                cnt.increment();
             }
-            tokenMap.put(token, cnt);
             totalTokens++;
         }
         ts.close();
@@ -90,14 +91,14 @@ public class TokenCounter {
 
         List<TokenIntPair> allTokens = new ArrayList<>();
         SummaryStatistics summaryStatistics = new SummaryStatistics();
-        for (Map.Entry<String, Integer> e : tokenMap.entrySet()) {
+        for (Map.Entry<String, MutableInt> e : tokenMap.entrySet()) {
             String token = e.getKey();
-            int termFreq = e.getValue();
+            int termFreq = e.getValue().intValue();
 
             p = (double) termFreq / (double) totalTokens;
             ent += p * FastMath.log(base, p);
             int len = token.codePointCount(0, token.length());
-            for (int i = 0; i < e.getValue(); i++) {
+            for (int i = 0; i < e.getValue().intValue(); i++) {
                 summaryStatistics.addValue(len);
             }
             if (queue.top() == null || queue.size() < topN ||
@@ -131,11 +132,11 @@ public class TokenCounter {
     }
 
     public void clear(String field) {
-        Map<String, Integer> tokenMap = map.get(field);
+        Map<String, MutableInt> tokenMap = map.get(field);
         if (tokenMap != null) {
             tokenMap.clear();
         }
-        Map<String, Integer> commonMap = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
+        Map<String, MutableInt> commonMap = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
         if (commonMap != null) {
             commonMap.clear();
         }
@@ -144,16 +145,16 @@ public class TokenCounter {
         tokenStatistics.put(field, NULL_TOKEN_STAT);
     }
 
-    public Map<String, Integer> getAlphaTokens(String field) {
-        Map<String, Integer> ret = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
+    public Map<String, MutableInt> getAlphaTokens(String field) {
+        Map<String, MutableInt> ret = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
         if (ret == null) {
             return Collections.emptyMap();
         }
         return ret;
     }
 
-    public Map<String,Integer> getTokens(String field) {
-        Map<String, Integer> ret = map.get(field);
+    public Map<String, MutableInt> getTokens(String field) {
+        Map<String, MutableInt> ret = map.get(field);
         if (ret == null) {
             return Collections.emptyMap();
         }

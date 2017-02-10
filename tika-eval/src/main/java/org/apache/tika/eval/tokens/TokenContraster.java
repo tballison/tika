@@ -19,6 +19,7 @@ package org.apache.tika.eval.tokens;
 
 import java.util.Map;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.lucene.util.PriorityQueue;
 
 /**
@@ -47,23 +48,25 @@ public class TokenContraster {
     private double overlap = 0.0;
 
 
-    public ContrastStatistics calculateContrastStatistics(Map<String, Integer> mapA, TokenStatistics tokenStatisticsA,
-                                                    Map<String, Integer> mapB, TokenStatistics tokenStatisticsB) {
+    public ContrastStatistics calculateContrastStatistics(Map<String, MutableInt> mapA,
+                                                          TokenStatistics tokenStatisticsA,
+                                                          Map<String, MutableInt> mapB,
+                                                          TokenStatistics tokenStatisticsB) {
         reset();
         this.tokenStatisticsA = tokenStatisticsA;
         this.tokenStatisticsB = tokenStatisticsB;
 
-        for (Map.Entry<String, Integer> e : mapA.entrySet()) {
-            Integer bVal = mapB.get(e.getKey());
-            int b = (bVal == null) ? 0 : bVal;
-            add(e.getKey(), e.getValue(), b);
+        for (Map.Entry<String, MutableInt> e : mapA.entrySet()) {
+            MutableInt bVal = mapB.get(e.getKey());
+            int b = (bVal == null) ? 0 : bVal.intValue();
+            add(e.getKey(), e.getValue().intValue(), b);
         }
 
-        for (Map.Entry<String, Integer> e : mapB.entrySet()) {
+        for (Map.Entry<String, MutableInt> e : mapB.entrySet()) {
             if (mapA.containsKey(e.getKey())) {
                 continue;
             }
-            add(e.getKey(), 0, e.getValue());
+            add(e.getKey(), 0, e.getValue().intValue());
         }
         finishComputing();
         ContrastStatistics contrastStatistics = new ContrastStatistics();

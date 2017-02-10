@@ -48,26 +48,33 @@ public class ExtractComparer extends AbstractProfiler {
 
     static Options OPTIONS;
     static {
-        Option extractDirA = new Option("extractDirA", "directory for extractA files");
+        Option extractDirA = new Option("extractDirA", true, "directory for extractA files");
         extractDirA.setRequired(true);
 
-        Option extractDirB = new Option("extractDirB", "directory for extractB files");
+        Option extractDirB = new Option("extractDirB", true, "directory for extractB files");
         extractDirB.setRequired(true);
 
-        Option db = new Option("db", "db file to which to write results");
+        Option db = new Option("db", true, "db file to which to write results");
         db.setRequired(true);
 
-        Option inputDir = new Option("inputDir",
+        Option inputDir = new Option("inputDir", true,
                 "optional: directory of original binary input files if it exists " +
                         "or can be the same as -extractDirA or -extractDirB. If not specified, -inputDir=-extractDirA");
         inputDir.setRequired(true);
+
 
         OPTIONS = new Options()
                 .addOption(extractDirA)
                 .addOption(extractDirB)
                 .addOption(db)
                 .addOption(inputDir)
-                .addOption("bc", "optional: tika-batch config file");
+                .addOption("bc", "optional: tika-batch config file")
+                .addOption(new Option("alterMetadata", true,
+                        "for json-formatted extract files, " +
+                                "process full metadata list ('as_is'=default), " +
+                                "take just the first/container document ('first_only'), " +
+                                "concatenate all content into the first metadata item ('concatenate_content')")
+                );
     }
 
     public static void USAGE() {

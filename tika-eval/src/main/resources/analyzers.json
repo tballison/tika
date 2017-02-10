@@ -6,7 +6,7 @@
         {
           "factory": "oala.charfilter.MappingCharFilterFactory",
           "params": {
-            "mapping" : "/mapping.txt"
+            "mapping" : "/lucene-char-mapping.txt"
           }
         }
       ],
@@ -33,7 +33,7 @@
         {
           "factory": "oala.charfilter.MappingCharFilterFactory",
           "params": {
-            "mapping" : "/mapping.txt"
+            "mapping" : "/lucene-char-mapping.txt"
           }
         }
       ],

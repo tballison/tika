@@ -150,7 +150,6 @@ public class ResultsReporter {
             if (child.getNodeType() != 1) {
                 continue;
             }
-            System.out.println(child.getNodeName());
             if ("sql".equals(child.getNodeName())) {
                 if (r.sql != null) {
                     throw new IllegalArgumentException("Can only have one sql statement per report");

@@ -79,6 +79,7 @@ public class TikaEvalCLI {
         boolean containsBC = false;
         String inputDir = null;
         String extractDir = null;
+        String alterMetadata = null;
         //confirm there's a batch-config file
         for (int i = 0; i < argList.size(); i++) {
             String arg = argList.get(i);
@@ -100,8 +101,26 @@ public class TikaEvalCLI {
                 }
                 extractDir = argList.get(i+1);
                 i++;
+            } else if (arg.equals("-alterMetadata")) {
+                if (i+1 >= argList.size()) {
+                    System.err.println("Must specify directory after -extractDirB");
+                    ExtractComparer.USAGE();
+                    return;
+                }
+                alterMetadata = argList.get(i+1);
+                i++;
             }
         }
+
+        if (alterMetadata != null && !alterMetadata.equals("as_is") &&
+                !alterMetadata.equals("concatenate_content") &&
+                !alterMetadata.equals("first_only")) {
+            System.out.println("Sorry, I don't understand:"+alterMetadata+
+                    ". The values must be one of: as_is, first_only, concatenate_content");
+            ExtractProfiler.USAGE();
+            return;
+        }
+
         //need to specify each in this commandline
         //if only extractDir is passed to tika-batch,
         //the crawler will see no inputDir and start crawling "input".
@@ -149,7 +168,7 @@ public class TikaEvalCLI {
         boolean containsBC = false;
         String inputDir = null;
         String extractDirA = null;
-        String extractDirB = null;
+        String alterMetadata = null;
         //confirm there's a batch-config file
         for (int i = 0; i < argList.size(); i++) {
             String arg = argList.get(i);
@@ -171,15 +190,23 @@ public class TikaEvalCLI {
                 }
                 extractDirA = argList.get(i+1);
                 i++;
-            } else if (arg.equals("-extractDirB")) {
+            } else if (arg.equals("-alterMetadata")) {
                 if (i+1 >= argList.size()) {
                     System.err.println("Must specify directory after -extractDirB");
                     ExtractComparer.USAGE();
                     return;
                 }
-                extractDirB = argList.get(i+1);
+                alterMetadata = argList.get(i+1);
                 i++;
             }
+        }
+        if (alterMetadata != null && !alterMetadata.equals("as_is") &&
+                !alterMetadata.equals("concatenate_content") &&
+                !alterMetadata.equals("first_only")) {
+            System.out.println("Sorry, I don't understand:"+alterMetadata+
+            ". The values must be one of: as_is, first_only, concatenate_content");
+            ExtractComparer.USAGE();
+            return;
         }
 
         //need to specify each in the commandline that goes into tika-batch

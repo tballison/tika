@@ -40,6 +40,12 @@
                 description="this dir for analysis" required="false"/>
         <option opt="db" hasArg="true"
                 description="name of db directory or file to which to write results"/>
+        <option opt="alterMetadata" hasArg="true"
+                description="for json-formatted extract files
+                process full metadata list ('as_is'=default),
+                take just the first/container document ('first_only'),
+                concatenate all content into the first metadata item ('concatenate_content')"/>
+
     </commandline>
 
 

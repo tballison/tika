@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
@@ -53,19 +54,7 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
         long minJsonLength = PropsUtil.getLong(localAttrs.get("minJsonFileSizeBytes"), -1L);
         long maxJsonLength = PropsUtil.getLong(localAttrs.get("maxJsonFileSizeBytes"), -1L);
 
-        ExtractReader.ALTER_METADATA_LIST alterMetadataList =
-                ExtractReader.ALTER_METADATA_LIST.AS_IS;
-        String alterExtractString = localAttrs.get("alterExtract");
-        if (alterExtractString == null || alterExtractString.equalsIgnoreCase("as_is")) {
-            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.AS_IS;
-        } else if (alterExtractString.equalsIgnoreCase("first_only")) {
-            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.FIRST_ONLY;
-        } else if (alterExtractString.equalsIgnoreCase("concatenate_content")) {
-            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.CONCATENATE_CONTENT_INTO_FIRST;
-        } else {
-            throw new RuntimeException("options for alterExtract: as_is, first_only, concatenate_content." +
-                    " I don't understand:"+alterExtractString);
-        }
+        ExtractReader.ALTER_METADATA_LIST alterMetadataList = getAlterMetadata(localAttrs);
 
 
         IDBWriter writer = getDBWriter();

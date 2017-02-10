@@ -31,6 +31,7 @@ import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.DBUtil;
 import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.ExtractReader;
 import org.apache.tika.eval.io.IDBWriter;
 
 public abstract class EvalConsumerBuilder {
@@ -83,6 +84,24 @@ public abstract class EvalConsumerBuilder {
         }
 
     }
+
+    ExtractReader.ALTER_METADATA_LIST getAlterMetadata(Map<String, String> localAttrs) {
+
+        String alterExtractString = localAttrs.get("alterExtract");
+        ExtractReader.ALTER_METADATA_LIST alterMetadataList = ExtractReader.ALTER_METADATA_LIST.AS_IS;
+        if (alterExtractString == null || alterExtractString.equalsIgnoreCase("as_is")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.AS_IS;
+        } else if (alterExtractString.equalsIgnoreCase("first_only")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.FIRST_ONLY;
+        } else if (alterExtractString.equalsIgnoreCase("concatenate_content")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.CONCATENATE_CONTENT_INTO_FIRST;
+        } else {
+            throw new RuntimeException("options for alterExtract: as_is, first_only, concatenate_content." +
+                    " I don't understand:" + alterExtractString);
+        }
+        return alterMetadataList;
+    }
+
 
 /*
     public abstract Map<String, String> getIndexInfo();

@@ -41,14 +41,14 @@ public class ExtractProfiler extends AbstractProfiler {
 
     static Options OPTIONS;
     static {
-        Option db = new Option("db", "db file to which to write results");
+        Option db = new Option("db", true, "db file to which to write results");
         db.setRequired(true);
 
         //By the time this commandline is parsed, there should be both an extractDir and an inputDir
-        Option extractDir = new Option("extractDir", "directory for extract files");
+        Option extractDir = new Option("extractDir", true, "directory for extract files");
         extractDir.setRequired(true);
 
-        Option inputDir = new Option("inputDir",
+        Option inputDir = new Option("inputDir", true,
                 "optional: directory for original binary input documents."+
         " If not specified, -extractDir is crawled as is.");
         inputDir.setRequired(true);
@@ -57,7 +57,13 @@ public class ExtractProfiler extends AbstractProfiler {
                 .addOption(db)
                 .addOption(extractDir)
                 .addOption(inputDir)
-                .addOption("bc", "optional: tika-batch config file");
+                .addOption("bc", "optional: tika-batch config file")
+                .addOption(new Option("alterMetadata", true,
+                        "for json-formatted extract files, " +
+                                "process full metadata list ('as_is'=default), " +
+                                "take just the first/container document ('first_only'), " +
+                                "concatenate all content into the first metadata item ('concatenate_content')"));
+
     }
 
     public static void USAGE() {

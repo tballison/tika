@@ -23,8 +23,10 @@ import java.sql.Types;
 
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.AbstractProfiler;
-import org.apache.tika.eval.util.MimeUtil;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.mime.MimeType;
 import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 
 
 public class MimeBuffer extends AbstractDBBuffer {
@@ -33,10 +35,10 @@ public class MimeBuffer extends AbstractDBBuffer {
     private final TikaConfig config;
 
     public MimeBuffer(Connection connection, TikaConfig config) throws SQLException {
-        st = connection.prepareStatement("insert into "+ AbstractProfiler.MIME_TABLE.getName() + "( "+
+        st = connection.prepareStatement("insert into " + AbstractProfiler.MIME_TABLE.getName() + "( " +
                 Cols.MIME_TYPE_ID.name() + ", " +
-                Cols.MIME_STRING+", "+
-                Cols.FILE_EXTENSION+") values (?,?,?);");
+                Cols.MIME_STRING + ", " +
+                Cols.FILE_EXTENSION + ") values (?,?,?);");
         this.config = config;
     }
 
@@ -68,5 +70,75 @@ public class MimeBuffer extends AbstractDBBuffer {
         st.close();
     }
 
+    private static class MimeUtil {
+        //TODO: see if MimeType now works for these
+        private static final String APPLICATION = "application";
+        private static final String TEXT = "text";
+        private static final String HTML = "html";
+        private static final String XML = "xml";
+        private static final String XHTML_XML = "xhtml+xml";
+        private static final String CSS = "css";
+        private static final String CSV = "csv";
+        private static final String PLAIN = "plain";
+        private static final String EMPTY_STRING = "";
+
+        /**
+         * Utility method to convert from a string value representing a content type
+         * (e.g. "application/pdf") into the most common extension for that file type
+         * (e.g. "pdf").
+         * <p>
+         * This will has special handling for texty filetypes whose MimeTypes
+         * don't currently return anything for {@link org.apache.tika.mime.MimeType#getExtension};
+         *
+         * @param contentType string representing a content type, for example: "application/pdf"
+         * @param config      config from which to get MimeRepository
+         * @return extension or empty string
+         * @throws org.apache.tika.mime.MimeTypeException thrown if MimeTypes can't parse the contentType
+         */
+        public static String getExtension(String contentType, TikaConfig config)
+                throws MimeTypeException {
+            MimeTypes types = config.getMimeRepository();
+            MimeType mime = types.forName(contentType);
+            return getExtension(mime);
+        }
+
+        public static String getExtension(MimeType mime) {
+
+            String ext = mime.getExtension();
+            if (ext.startsWith(".")) {
+                ext = ext.substring(1);
+            }
+
+            //special handling for text/html/xml
+            if (ext.length() == 0) {
+                ext = tryTextyTypes(mime.getType());
+            }
+            return ext;
+        }
+
+        private static String tryTextyTypes(MediaType mediaType) {
+
+            String type = mediaType.getType();
+            String subtype = mediaType.getSubtype();
+            if (type.equals(TEXT)) {
+                if (subtype.equals(HTML)) {
+                    return HTML;
+                } else if (subtype.equals(PLAIN)) {
+                    return "txt";
+                } else if (subtype.equals(CSS)) {
+                    return CSS;
+                } else if (subtype.equals(CSV)) {
+                    return CSV;
+                }
+            } else if (type.equals(APPLICATION)) {
+                if (subtype.equals(XML)) {
+                    return XML;
+                } else if (subtype.equals(XHTML_XML)) {
+                    return "html";
+                }
+            }
+            return EMPTY_STRING;
+        }
+    }
 
 }

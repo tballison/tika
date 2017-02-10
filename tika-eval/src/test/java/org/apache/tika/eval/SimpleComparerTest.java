@@ -40,6 +40,7 @@ import org.apache.tika.eval.util.LanguageIDWrapper;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 //These tests ensure that the comparer is extracting the right information
@@ -90,7 +91,7 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("6", row.get(Cols.NUM_COMMON_WORDS));
         assertEquals("46", row.get(Cols.TOKEN_LENGTH_SUM));
         assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
-        debugPrintRow(row);
+        //debugPrintRow(row);
 
         tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_B);
         row = tableInfos.get(0);
@@ -115,17 +116,9 @@ public class SimpleComparerTest extends TikaTest {
 
         comparer.compareFiles(fpsA, fpsB);
 
-        List<Map<Cols, String>> tableInfos = writer.getTable(ExtractComparer.CONTENT_COMPARISONS);
-        Map<Cols, String> row = tableInfos.get(0);
-        assertEquals("4", row.get(Cols.ID));
-       // assertTrue(
-         //       row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
-           //             .startsWith("over: 1"));
+        List<Map<Cols, String>> tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_A);
 
-        tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_A);
-        row = tableInfos.get(0);
-//        debugPrintRow(row);
-        assertEquals("4", row.get(Cols.ID));
+        Map<Cols, String> row = tableInfos.get(0);
         assertEquals("133", row.get(Cols.CONTENT_LENGTH));
         assertEquals("7", row.get(Cols.UNIQUE_TOKEN_COUNT));
         assertEquals("24", row.get(Cols.TOKEN_COUNT));
@@ -149,7 +142,7 @@ public class SimpleComparerTest extends TikaTest {
         comparer.compareFiles(fpsA, fpsB);
         List<Map<Cols, String>> table = writer.getTable(ExtractComparer.ERROR_TABLE_B);
         Map<Cols, String> row = table.get(0);
-        debugPrintRow(row);
+        //debugPrintRow(row);
         assertEquals(Integer.toString(EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal()),
                 row.get(Cols.EXTRACT_ERROR_TYPE_ID));
     }
@@ -190,7 +183,7 @@ public class SimpleComparerTest extends TikaTest {
             List<Map<Cols, String>> table = writer.getTable(t);
 
             Map<Cols, String> rowA = table.get(0);
-            debugPrintRow(rowA);
+            //debugPrintRow(rowA);
             assertEquals(Integer.toString(EXCEPTION_TYPE.ACCESS_PERMISSION.ordinal()),
                     rowA.get(Cols.PARSE_EXCEPTION_TYPE_ID));
             assertNull(rowA.get(Cols.ORIG_STACK_TRACE));
@@ -236,6 +229,7 @@ public class SimpleComparerTest extends TikaTest {
 
 
     @Test
+    @Ignore
     public void testDebug() throws Exception {
         Path commonWords = Paths.get(getResourceAsFile("/common_words_short.txt").toURI());
         AbstractProfiler.loadCommonWords(commonWords);
@@ -259,7 +253,7 @@ public class SimpleComparerTest extends TikaTest {
                 ExtractComparer.CONTENTS_TABLE_A,
                 ExtractComparer.CONTENTS_TABLE_B,
                 ExtractComparer.CONTENT_COMPARISONS}) {
-            debugPrintTable(t);
+            //debugPrintTable(t);
         }
     }
 
