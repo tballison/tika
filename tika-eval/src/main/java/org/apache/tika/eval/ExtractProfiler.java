@@ -112,6 +112,7 @@ public class ExtractProfiler extends AbstractProfiler {
             new ColInfo(Cols.ELAPSED_TIME_MILLIS, Types.INTEGER),
             new ColInfo(Cols.NUM_ATTACHMENTS, Types.INTEGER),
             new ColInfo(Cols.NUM_METADATA_VALUES, Types.INTEGER),
+            new ColInfo(Cols.NUM_PAGES, Types.INTEGER),
             new ColInfo(Cols.HAS_CONTENT, Types.BOOLEAN)
     );
 

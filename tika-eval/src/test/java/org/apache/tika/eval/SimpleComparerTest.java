@@ -102,6 +102,11 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("4", row.get(Cols.NUM_COMMON_WORDS));
         assertEquals("64", row.get(Cols.TOKEN_LENGTH_SUM));
         assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
+
+        tableInfos = writer.getTable(ExtractComparer.PROFILES_A);
+        row = tableInfos.get(0);
+        assertEquals("2", row.get(Cols.NUM_PAGES));
+
     }
 
     @Test

@@ -56,6 +56,7 @@ public enum Cols {
     TOKEN_LENGTH_MEAN,
     TOKEN_LENGTH_STD_DEV,
     UNICODE_CHAR_BLOCKS,
+    NUM_PAGES, //number of pages a document alleges it has
 
     //content comparisons
     TOP_10_UNIQUE_TOKEN_DIFFS_A,

@@ -40,10 +40,109 @@
             order by cnt desc
         </sql>
     </report>
+    <report reportName="Container Mimes"
+            reportFilename="mimes/container_mimes.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select mime_string, count(1) cnt from
+            profiles p
+            join mimes m on m.mime_type_id = p.mime_type_id
+            where is_embedded=false
+            group by mime_string
+            order by cnt desc
+        </sql>
+    </report>
+
+    <report reportName="Embedded Mimes"
+            reportFilename="mimes/embedded_mimes.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select mime_string, count(1) cnt from
+            profiles p
+            join mimes m on m.mime_type_id = p.mime_type_id
+            where is_embedded=true
+            group by mime_string
+            order by cnt desc
+        </sql>
+    </report>
+
+    <!-- content -->
+    <report reportName="Common Words by Lang"
+            reportFilename="content/common_words_by_lang.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select common_words_lang, sum(num_common_words) as cnt
+            from contents
+            group by common_words_lang
+            order by cnt desc;
+        </sql>
+    </report>
+
+    <report reportName="Detected Languages"
+            reportFilename="content/detected_langs.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select LANG_ID_1 as DetectedLang, count(1) as cnt
+            from contents
+            group by LANG_ID_1
+            order by cnt desc
+        </sql>
+    </report>
 
 
+
+    <report reportName="Token Count by Detected Language"
+            reportFilename="content/token_count_by_detected_langs.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select LANG_ID_1 as DetectedLang, sum(token_count) as cnt
+            from contents
+            group by LANG_ID_1
+            order by cnt desc;
+        </sql>
+    </report>
+    <report reportName="Exceptions by Type"
+            reportFilename="exceptions/exceptions_by_type.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select LANG_ID_1 as DetectedLang, count(1) as cnt
+            from contents
+            group by LANG_ID_1
+            order by cnt desc
+        </sql>
+    </report>
+
+
+    <report reportName="Embedded Exceptions by Type"
+            reportFilename="exceptions/exceptions_by_type_embedded.xlsx"
+            format="xlsx"
+            includeSql="true">
+
+        <sql>
+            select parse_exception_description, count(1) cnt
+            from parse_exceptions e
+            join profiles p on p.id = e.id
+            join ref_parse_exception_types et on et.parse_exception_type_id=e.parse_exception_type_id
+            where is_embedded=true
+            group by parse_exception_description
+            order by cnt desc;
+        </sql>
+    </report>
     <after>
 
         <!--<sql>drop index on x</sql>
-        -->    </after>
+        -->
+    </after>
 </reports>

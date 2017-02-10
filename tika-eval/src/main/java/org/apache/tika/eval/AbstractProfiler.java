@@ -60,6 +60,7 @@ import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStatistics;
 import org.apache.tika.eval.util.LanguageIDWrapper;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.PagedText;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.utils.ExceptionUtils;
@@ -221,7 +222,10 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         data.put(Cols.NUM_METADATA_VALUES,
                 Integer.toString(countMetadataValues(m)));
 
-
+        Integer nPages = m.getInt(PagedText.N_PAGES);
+        if (nPages != null) {
+            data.put(Cols.NUM_PAGES, Integer.toString(nPages));
+        }
 
         //if the outer wrapper document
         if (i == 0) {
