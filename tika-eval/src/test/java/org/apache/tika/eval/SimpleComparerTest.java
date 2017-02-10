@@ -35,6 +35,7 @@ import org.apache.tika.MockDBWriter;
 import org.apache.tika.TikaTest;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.ExtractReader;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.junit.Before;
@@ -54,7 +55,8 @@ public class SimpleComparerTest extends TikaTest {
         writer = new MockDBWriter();
         comparer = new FileComparer(null, null,
                 Paths.get("extractA"), Paths.get("extractB"),
-                writer, -1, -1);
+                writer, -1, -1,
+                ExtractReader.ALTER_METADATA_LIST.AS_IS);
         AbstractProfiler.loadCommonWords(this.getResourceAsFile("/commonwords").toPath());
         LanguageIDWrapper.loadBuiltInModels();
     }

@@ -13,6 +13,7 @@ import org.apache.tika.eval.AbstractProfiler;
 import org.apache.tika.eval.SingleFileProfiler;
 import org.apache.tika.eval.db.TableInfo;
 import org.apache.tika.eval.io.DBWriter;
+import org.apache.tika.eval.io.ExtractReader;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.util.PropsUtil;
 
@@ -32,6 +33,21 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
 
         Path inputDir = PropsUtil.getPath(localAttrs.get("inputDir"), null);
 
+        ExtractReader.ALTER_METADATA_LIST alterMetadataList =
+                ExtractReader.ALTER_METADATA_LIST.AS_IS;
+        String alterExtractString = localAttrs.get("alterExtract");
+        if (alterExtractString == null || alterExtractString.equalsIgnoreCase("as_is")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.AS_IS;
+        } else if (alterExtractString.equalsIgnoreCase("first_only")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.FIRST_ONLY;
+        } else if (alterExtractString.equalsIgnoreCase("concatenate_content")) {
+            alterMetadataList = ExtractReader.ALTER_METADATA_LIST.CONCATENATE_CONTENT_INTO_FIRST;
+        } else {
+            throw new RuntimeException("options for alterExtract: as_is, first_only, concatenate_content." +
+                    " I don't understand:"+alterExtractString);
+        }
+
+
         IDBWriter writer = null;
         try {
             writer = getDBWriter();
@@ -45,7 +61,7 @@ public class SingleFileConsumerBuilder extends EvalConsumerBuilder {
         } catch (SQLException e) {
             throw new RuntimeException("Can't populate ref tables", e);
         }
-        return new SingleFileProfiler(queue, inputDir, extractDir, writer);
+        return new SingleFileProfiler(queue, inputDir, extractDir, writer, alterMetadataList);
     }
 
     @Override

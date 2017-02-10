@@ -32,6 +32,7 @@ import org.apache.tika.config.TikaConfig;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.ExtractReader;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.eval.tokens.ContrastStatistics;
 import org.apache.tika.eval.tokens.TokenContraster;
@@ -108,19 +109,22 @@ public class FileComparer extends AbstractProfiler {
 
     private final long minJsonLength;
     private final long maxJsonLength;
+    private final ExtractReader.ALTER_METADATA_LIST alterMetadataList;
 
     private final TokenContraster tokenContraster = new TokenContraster();
+    private final ExtractReader extractReader = new ExtractReader();
 
     public FileComparer(ArrayBlockingQueue<FileResource> queue,
                         Path inputDir, Path extractDirA, Path extractDirB,
                         IDBWriter writer, long minJsonLength,
-                        long maxJsonLength) {
+                        long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
         super(queue, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
         this.inputDir = inputDir;
         this.extractDirA = extractDirA;
         this.extractDirB = extractDirB;
+        this.alterMetadataList = alterMetadataList;
     }
 
     @Override
@@ -171,8 +175,10 @@ public class FileComparer extends AbstractProfiler {
     //protected for testing, should find better way so that this can be private!
     protected void compareFiles(EvalFilePaths fpsA, EvalFilePaths fpsB) throws IOException {
 
-        List<Metadata> metadataListA = getMetadata(fpsA.getExtractFile());
-        List<Metadata> metadataListB = getMetadata(fpsB.getExtractFile());
+        List<Metadata> metadataListA =
+                extractReader.loadExtract(fpsA.getExtractFile(), alterMetadataList);
+        List<Metadata> metadataListB =
+                extractReader.loadExtract(fpsB.getExtractFile(), alterMetadataList);
 
         //array indices for those metadata items handled in
         //"that"

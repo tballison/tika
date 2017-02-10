@@ -18,10 +18,7 @@
 package org.apache.tika.eval;
 
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.nio.file.Files;
@@ -42,9 +39,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.optimaize.langdetect.DetectedLanguage;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
@@ -64,11 +58,8 @@ import org.apache.tika.eval.tokens.CommonTokenResult;
 import org.apache.tika.eval.tokens.TokenCounter;
 import org.apache.tika.eval.tokens.TokenIntPair;
 import org.apache.tika.eval.tokens.TokenStatistics;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.io.IOUtils;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
-import org.apache.tika.metadata.serialization.JsonMetadataList;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.utils.ExceptionUtils;
 
@@ -347,47 +338,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-
-    List<Metadata> getMetadata(Path thisFile) {
-        List<Metadata> metadataList = null;
-        if (thisFile == null || ! Files.isRegularFile(thisFile)) {
-            return metadataList;
-        }
-        Reader reader = null;
-        InputStream is= null;
-        try {
-            is = Files.newInputStream(thisFile);
-            if (thisFile.getFileName().toString().endsWith("bz2")) {
-                is = new BZip2CompressorInputStream(is);
-            } else if (thisFile.getFileName().toString().endsWith("gz")) {
-                is = new GzipCompressorInputStream(is);
-            } else if (thisFile.getFileName().toString().endsWith("zip")) {
-                is = new ZCompressorInputStream(is);
-            }
-            reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-            metadataList = JsonMetadataList.fromJson(reader);
-        } catch (IOException e) {
-            logger.warn("couldn't open:"+thisFile.toAbsolutePath(), e);
-        } catch (TikaException e) {
-            logger.warn("couldn't open:"+thisFile.toAbsolutePath(), e);
-        } finally {
-            IOUtils.closeQuietly(reader);
-            IOUtils.closeQuietly(is);
-        }
-        return metadataList;
-    }
-
-    String getOriginalFileExtension(String fName) {
-        if (fName == null) {
-            return "";
-        }
-        Matcher m = Pattern.compile("\\.([^\\.]+)\\.json(?:\\.(?:bz2|gz(?:ip)?|zip))?$").matcher(fName);
-        if (m.find()) {
-            return m.group(1);
-        }
-        return "";
     }
 
     String getTime(Metadata m) {

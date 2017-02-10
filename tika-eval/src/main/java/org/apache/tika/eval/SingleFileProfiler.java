@@ -29,6 +29,7 @@ import org.apache.tika.batch.FileResource;
 import org.apache.tika.eval.db.ColInfo;
 import org.apache.tika.eval.db.Cols;
 import org.apache.tika.eval.db.TableInfo;
+import org.apache.tika.eval.io.ExtractReader;
 import org.apache.tika.eval.io.IDBWriter;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.RecursiveParserWrapper;
@@ -101,13 +102,16 @@ public class SingleFileProfiler extends AbstractProfiler {
 
     private final Path inputDir;
     private final Path extractDir;
+    private final ExtractReader.ALTER_METADATA_LIST alterMetadataList;
+    private final ExtractReader extractReader = new ExtractReader();
 
     public SingleFileProfiler(ArrayBlockingQueue<FileResource> queue,
                               Path inputDir, Path extractDir,
-                              IDBWriter dbWriter) {
+                              IDBWriter dbWriter, ExtractReader.ALTER_METADATA_LIST alterMetadataList) {
         super(queue, dbWriter);
         this.inputDir = inputDir;
         this.extractDir = extractDir;
+        this.alterMetadataList = alterMetadataList;
     }
 
     @Override
@@ -121,7 +125,7 @@ public class SingleFileProfiler extends AbstractProfiler {
         } else {
             fps = getPathsFromSrcCrawl(metadata, inputDir, extractDir);
         }
-        List<Metadata> metadataList = getMetadata(fps.getExtractFile());
+        List<Metadata> metadataList = extractReader.loadExtract(fps.getExtractFile(), alterMetadataList);
 
         Map<Cols, String> contOutput = new HashMap<>();
         String containerId = Integer.toString(CONTAINER_ID.incrementAndGet());
