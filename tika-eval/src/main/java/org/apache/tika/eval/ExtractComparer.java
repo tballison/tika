@@ -69,6 +69,7 @@ public class ExtractComparer extends AbstractProfiler {
                 .addOption(db)
                 .addOption(inputDir)
                 .addOption("bc", "optional: tika-batch config file")
+                .addOption("numConsumers", true, "optional: number of consumer threads")
                 .addOption(new Option("alterExtract", true,
                         "for json-formatted extract files, " +
                                 "process full metadata list ('as_is'=default), " +

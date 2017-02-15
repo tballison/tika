@@ -29,10 +29,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -42,8 +40,6 @@ import com.optimaize.langdetect.DetectedLanguage;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
-import org.apache.lucene.analysis.CharArraySet;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.tika.batch.FileResource;
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.batch.fs.FSProperties;
@@ -100,13 +96,13 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     public static final String TRUE = Boolean.toString(true);
     public static final String FALSE = Boolean.toString(false);
 
-    private static final Set<String> COMMON_WORDS = new HashSet<>();
 
     protected static final AtomicInteger CONTAINER_ID = new AtomicInteger();
     protected static final AtomicInteger ID = new AtomicInteger();
 
 
     private final static String UNKNOWN_EXTENSION = "unk";
+    //make this configurable
     private final static String DIGEST_KEY = "X-TIKA:digest:MD5";
 
     private static CommonTokenCountManager commonTokenCountManager;
@@ -316,16 +312,16 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
         }
-        data.put(Cols.COMMON_WORDS_LANG, commonTokenResult.getLangCode());
-        data.put(Cols.NUM_COMMON_WORDS, Integer.toString(commonTokenResult.getTokens()));
-
+        data.put(Cols.COMMON_TOKENS_LANG, commonTokenResult.getLangCode());
+        data.put(Cols.NUM_COMMON_TOKENS, Integer.toString(commonTokenResult.getTokens()));
         TokenStatistics tokenStatistics = tokenCounter.getTokenStatistics(fieldName);
-
-        data.put(Cols.UNIQUE_TOKEN_COUNT,
+        TokenStatistics alphaTokenStatistics = tokenCounter.getAlphaTokenStatistics(fieldName);
+        data.put(Cols.NUM_UNIQUE_TOKENS,
                 Integer.toString(tokenStatistics.getTotalUniqueTokens()));
-        data.put(Cols.TOKEN_COUNT,
+        data.put(Cols.NUM_TOKENS,
                 Integer.toString(tokenStatistics.getTotalTokens()));
-
+        data.put(Cols.NUM_ALPHABETIC_TOKENS,
+                Integer.toString(alphaTokenStatistics.getTotalTokens()));
 
         data.put(Cols.TOKEN_ENTROPY_RATE,
                 Double.toString(tokenStatistics.getEntropy()));
@@ -517,7 +513,6 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                           TokenCounter tokenCounter) {
 
 
-        CharArraySet en_stops = StandardAnalyzer.STOP_WORDS_SET;
         int stops = 0;
         int i = 0;
         StringBuilder sb = new StringBuilder();
@@ -527,13 +522,9 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
                 sb.append(" | ");
             }
             sb.append(t.getToken() + ": " + t.getValue());
-            if (en_stops.contains(t.getToken())) {
-                stops++;
-            }
         }
 
-        data.put(Cols.TOP_N_WORDS, sb.toString());
-        data.put(Cols.NUM_EN_STOPS_TOP_N, Integer.toString(stops));
+        data.put(Cols.TOP_N_TOKENS, sb.toString());
     }
 
 

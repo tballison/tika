@@ -80,28 +80,28 @@ public class SimpleComparerTest extends TikaTest {
         assertEquals("0", row.get(Cols.ID));
         assertTrue(
                 row.get(Cols.TOP_10_UNIQUE_TOKEN_DIFFS_A)
-                        .startsWith("over: 1"));
+                        .startsWith("1,200: 1 | 120000: 1 | over: 1"));
 
         tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_A);
         row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
-        assertEquals("57", row.get(Cols.CONTENT_LENGTH));
-        assertEquals("8", row.get(Cols.UNIQUE_TOKEN_COUNT));
-        assertEquals("12", row.get(Cols.TOKEN_COUNT));
-        assertEquals("6", row.get(Cols.NUM_COMMON_WORDS));
-        assertEquals("46", row.get(Cols.TOKEN_LENGTH_SUM));
-        assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
-        //debugPrintRow(row);
+        assertEquals("70", row.get(Cols.CONTENT_LENGTH));
+        assertEquals("10", row.get(Cols.NUM_UNIQUE_TOKENS));
+        assertEquals("14", row.get(Cols.NUM_TOKENS));
+        assertEquals("12", row.get(Cols.NUM_ALPHABETIC_TOKENS));
+        assertEquals("6", row.get(Cols.NUM_COMMON_TOKENS));
+        assertEquals("57", row.get(Cols.TOKEN_LENGTH_SUM));
+        assertEquals("en", row.get(Cols.COMMON_TOKENS_LANG));
 
         tableInfos = writer.getTable(ExtractComparer.CONTENTS_TABLE_B);
         row = tableInfos.get(0);
         assertEquals("0", row.get(Cols.ID));
         assertEquals("76", row.get(Cols.CONTENT_LENGTH));
-        assertEquals("9", row.get(Cols.UNIQUE_TOKEN_COUNT));
-        assertEquals("13", row.get(Cols.TOKEN_COUNT));
-        assertEquals("4", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("9", row.get(Cols.NUM_UNIQUE_TOKENS));
+        assertEquals("13", row.get(Cols.NUM_TOKENS));
+        assertEquals("4", row.get(Cols.NUM_COMMON_TOKENS));
         assertEquals("64", row.get(Cols.TOKEN_LENGTH_SUM));
-        assertEquals("en", row.get(Cols.COMMON_WORDS_LANG));
+        assertEquals("en", row.get(Cols.COMMON_TOKENS_LANG));
 
         tableInfos = writer.getTable(ExtractComparer.PROFILES_A);
         row = tableInfos.get(0);
@@ -125,11 +125,12 @@ public class SimpleComparerTest extends TikaTest {
 
         Map<Cols, String> row = tableInfos.get(0);
         assertEquals("133", row.get(Cols.CONTENT_LENGTH));
-        assertEquals("7", row.get(Cols.UNIQUE_TOKEN_COUNT));
-        assertEquals("24", row.get(Cols.TOKEN_COUNT));
-        assertEquals("3", row.get(Cols.NUM_COMMON_WORDS));
+        assertEquals("7", row.get(Cols.NUM_UNIQUE_TOKENS));
+        assertEquals("24", row.get(Cols.NUM_TOKENS));
+        assertEquals("3", row.get(Cols.NUM_COMMON_TOKENS));
         assertEquals("108", row.get(Cols.TOKEN_LENGTH_SUM));
-        assertEquals("es", row.get(Cols.COMMON_WORDS_LANG));
+        assertEquals("es", row.get(Cols.COMMON_TOKENS_LANG));
+        assertEquals("24", row.get(Cols.NUM_ALPHABETIC_TOKENS));
 
     }
 

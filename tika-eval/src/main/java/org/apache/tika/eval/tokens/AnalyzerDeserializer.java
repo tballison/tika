@@ -139,6 +139,10 @@ class AnalyzerDeserializer implements JsonDeserializer<Map<String, Analyzer>> {
                 break;
             }
         }
+        if (spiName.equals("")) {
+            throw new IllegalArgumentException("A API class of type org.apache.lucene.analysis.util.TokenizerFactory with name"+
+            "'"+factoryName+"' does not exist.");
+        }
         try {
             TokenizerFactory tokenizerFactory = TokenizerFactory.forName(spiName, params);
             if (tokenizerFactory instanceof ResourceLoaderAware) {

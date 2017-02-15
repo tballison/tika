@@ -58,6 +58,7 @@ public class ExtractProfiler extends AbstractProfiler {
                 .addOption(extractDir)
                 .addOption(inputDir)
                 .addOption("bc", "optional: tika-batch config file")
+                .addOption("numConsumers", true, "optional: number of consumer threads")
                 .addOption(new Option("alterExtract", true,
                         "for json-formatted extract files, " +
                                 "process full metadata list ('as_is'=default), " +
@@ -124,12 +125,12 @@ public class ExtractProfiler extends AbstractProfiler {
     public static TableInfo CONTENTS_TABLE = new TableInfo("contents",
             new ColInfo(Cols.ID, Types.INTEGER, "PRIMARY KEY"),
             new ColInfo(Cols.CONTENT_LENGTH, Types.INTEGER),
-            new ColInfo(Cols.TOKEN_COUNT, Types.INTEGER),
-            new ColInfo(Cols.UNIQUE_TOKEN_COUNT, Types.INTEGER),
-            new ColInfo(Cols.COMMON_WORDS_LANG, Types.VARCHAR, 12),
-            new ColInfo(Cols.NUM_COMMON_WORDS, Types.INTEGER),
-            new ColInfo(Cols.TOP_N_WORDS, Types.VARCHAR, 1024),
-            new ColInfo(Cols.NUM_EN_STOPS_TOP_N, Types.INTEGER),
+            new ColInfo(Cols.NUM_TOKENS, Types.INTEGER),
+            new ColInfo(Cols.NUM_UNIQUE_TOKENS, Types.INTEGER),
+            new ColInfo(Cols.COMMON_TOKENS_LANG, Types.VARCHAR, 12),
+            new ColInfo(Cols.NUM_COMMON_TOKENS, Types.INTEGER),
+            new ColInfo(Cols.TOP_N_TOKENS, Types.VARCHAR, 1024),
+            new ColInfo(Cols.NUM_ALPHABETIC_TOKENS, Types.INTEGER),
             new ColInfo(Cols.LANG_ID_1, Types.VARCHAR, 12),
             new ColInfo(Cols.LANG_ID_PROB_1, Types.FLOAT),
             new ColInfo(Cols.LANG_ID_2, Types.VARCHAR, 12),

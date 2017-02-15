@@ -11,7 +11,7 @@
         }
       ],
       "tokenizer": {
-        "factory": "oala.standard.StandardTokenizerFactory",
+        "factory": "oala.standard.UAX29URLEmailTokenizerFactory",
         "params": {}
       },
       "tokenfilters": [
@@ -38,13 +38,29 @@
         }
       ],
       "tokenizer": {
-        "factory": "oala.standard.StandardTokenizerFactory",
+        "factory": "oala.standard.UAX29URLEmailTokenizerFactory",
         "params": {}
       },
       "tokenfilters": [
         {
           "factory": "oala.icu.ICUFoldingFilterFactory",
           "params": {}
+        },
+        {
+          "factory": "oala.pattern.PatternReplaceFilterFactory",
+          "params": {
+            "pattern": "^[\\w+\\.]{1,30}@(?:\\w+\\.){1,10}\\w+$",
+            "replacement": "___email___",
+            "replace": "all"
+          }
+        },
+        {
+          "factory": "oala.pattern.PatternReplaceFilterFactory",
+          "params": {
+            "pattern": "^(?:(?:ftp|https?):\\/\\/)?(?:\\w+\\.){1,10}\\w+$",
+            "replacement": "___url___",
+            "replace": "all"
+          }
         },
         {
           "factory": "oala.cjk.CJKBigramFilterFactory",
@@ -54,7 +70,6 @@
           "factory": "org.apache.tika.eval.tokens.AlphaIdeographFilterFactory",
           "params": {}
         }
-
       ]
 
     }

@@ -41,12 +41,12 @@ public enum Cols {
 
     //content
     CONTENT_LENGTH,
-    UNIQUE_TOKEN_COUNT,
-    TOKEN_COUNT,
-    COMMON_WORDS_LANG, //which language was used for the common words metric?
-    NUM_COMMON_WORDS,
-    TOP_N_WORDS,
-    NUM_EN_STOPS_TOP_N,
+    NUM_UNIQUE_TOKENS,
+    NUM_TOKENS,
+    NUM_ALPHABETIC_TOKENS, //alphabetic or ideographic tokens
+    COMMON_TOKENS_LANG, //which language was used for the common tokens metric?
+    NUM_COMMON_TOKENS,
+    TOP_N_TOKENS,
     LANG_ID_1,
     LANG_ID_PROB_1,
     LANG_ID_2,

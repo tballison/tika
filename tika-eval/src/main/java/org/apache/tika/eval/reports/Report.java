@@ -60,7 +60,8 @@ public class Report {
     String reportName;
 
     public void writeReport(Connection c, Path reportsRoot) throws SQLException, IOException {
-         dumpXLSX(c, reportsRoot);
+        logger.info("Writing report: "+reportName + " to "+reportFilename);
+        dumpXLSX(c, reportsRoot);
     }
 
     private void dumpXLSX(Connection c, Path reportsRoot) throws IOException, SQLException {

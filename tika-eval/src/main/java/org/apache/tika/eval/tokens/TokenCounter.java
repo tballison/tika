@@ -17,10 +17,8 @@
 package org.apache.tika.eval.tokens;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -52,14 +50,14 @@ public class TokenCounter {
     }
 
     public void add(String field, String content) throws IOException {
-        _add(field, content);
-        _add(field+ALPHA_IDEOGRAPH_SUFFIX, content);
+        _add(field, generalAnalyzer, content);
+        _add(field+ALPHA_IDEOGRAPH_SUFFIX, commonAnalyzer, content);
     }
 
-    private void _add(String field, String content) throws IOException {
+    private void _add(String field, Analyzer analyzer, String content) throws IOException {
         int totalTokens = 0;
 
-        TokenStream ts = generalAnalyzer.tokenStream(field, content);
+        TokenStream ts = analyzer.tokenStream(field, content);
         CharTermAttribute termAtt = ts.getAttribute(CharTermAttribute.class);
         ts.reset();
         Map<String, MutableInt> tokenMap = map.get(field);
@@ -89,7 +87,6 @@ public class TokenCounter {
 
         TokenCountPriorityQueue queue = new TokenCountPriorityQueue(topN);
 
-        List<TokenIntPair> allTokens = new ArrayList<>();
         SummaryStatistics summaryStatistics = new SummaryStatistics();
         for (Map.Entry<String, MutableInt> e : tokenMap.entrySet()) {
             String token = e.getKey();
@@ -159,5 +156,9 @@ public class TokenCounter {
             return Collections.emptyMap();
         }
         return ret;
+    }
+
+    public TokenStatistics getAlphaTokenStatistics(String fieldName) {
+        return getTokenStatistics(fieldName+ALPHA_IDEOGRAPH_SUFFIX);
     }
 }

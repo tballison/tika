@@ -22,8 +22,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Map;
 import java.util.Random;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -78,7 +80,19 @@ public class TokenCounterTest {
         //System.out.println("SIMPLE: " + simple + " lucene: "+lucene);
     }
 
+    @Test
+    public void testCommonWords() throws Exception {
+        TokenCounter tokenCounter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
+                analyzerManager.getCommonWordAnalyzer());
+        String s = "the http://www.cnn.com and blahdeblah@apache.org are in valuable www.sites.org";
+        tokenCounter.add(FIELD, s);
+        Map<String, MutableInt> tokens = tokenCounter.getAlphaTokens(FIELD);
+        assertEquals(new MutableInt(2), tokens.get("___url___"));
+        assertEquals(new MutableInt(1), tokens.get("___email___"));
+    }
+
     private String generateString() {
+
         Random r = new Random();
         int len = r.nextInt(1000);
         int uniqueVocabTerms = 10000;
@@ -89,5 +103,4 @@ public class TokenCounterTest {
         }
         return sb.toString();
     }
-
 }

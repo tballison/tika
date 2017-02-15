@@ -129,8 +129,8 @@ public class ComparerBatchTest extends FSBatchTestBase {
                     data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.toString()));
             assertEquals("fox: 2 | lazy: 1 | over: 1",
                     data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.toString()));
-            assertEquals("12", data.get(ExtractComparer.HEADERS.TOKEN_COUNT+"_A"));
-            assertEquals("13", data.get(ExtractComparer.HEADERS.TOKEN_COUNT+"_B"));
+            assertEquals("12", data.get(ExtractComparer.HEADERS.NUM_TOKENS+"_A"));
+            assertEquals("13", data.get(ExtractComparer.HEADERS.NUM_TOKENS+"_B"));
             assertEquals("8", data.get(ExtractComparer.HEADERS.NUM_UNIQUE_TOKENS+"_A"));
             assertEquals("9", data.get(ExtractComparer.HEADERS.NUM_UNIQUE_TOKENS+"_B"));
 
@@ -195,7 +195,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
                 Map<String, String> data = getRow(compJoinCont, where);
                 assertContains("attachment: 1", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
                 assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
-                assertNull(data.get(ExtractComparer.HEADERS.TOP_N_WORDS +
+                assertNull(data.get(ExtractComparer.HEADERS.TOP_N_TOKENS +
                         ExtractComparer.bExtension));
                 assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
                         ExtractComparer.bExtension));
@@ -212,7 +212,7 @@ public class ComparerBatchTest extends FSBatchTestBase {
                 data = getRow(compJoinCont, where);
                 assertContains("attachment: 1", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_B.name()));
                 assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_MORE_IN_A.name()));
-                assertNull(data.get(ExtractComparer.HEADERS.TOP_N_WORDS +
+                assertNull(data.get(ExtractComparer.HEADERS.TOP_N_TOKENS +
                         ExtractComparer.aExtension));
                 assertNotContained("fox", data.get(ExtractComparer.COMPARISON_HEADERS.TOP_10_UNIQUE_TOKEN_DIFFS +
                         ExtractComparer.aExtension));

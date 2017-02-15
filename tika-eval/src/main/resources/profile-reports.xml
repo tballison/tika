@@ -72,14 +72,14 @@
 
     <!-- content -->
     <report reportName="Common Words by Lang"
-            reportFilename="content/common_words_by_lang.xlsx"
+            reportFilename="content/common_tokens_by_lang.xlsx"
             format="xlsx"
             includeSql="true">
 
         <sql>
-            select common_words_lang, sum(num_common_words) as cnt
+            select common_tokens_lang, sum(num_common_tokens) as cnt
             from contents
-            group by common_words_lang
+            group by common_tokens_lang
             order by cnt desc;
         </sql>
     </report>
@@ -100,12 +100,12 @@
 
 
     <report reportName="Token Count by Detected Language"
-            reportFilename="content/token_count_by_detected_langs.xlsx"
+            reportFilename="content/num_tokens_by_detected_langs.xlsx"
             format="xlsx"
             includeSql="true">
 
         <sql>
-            select LANG_ID_1 as DetectedLang, sum(token_count) as cnt
+            select LANG_ID_1 as DetectedLang, sum(num_tokens) as cnt
             from contents
             group by LANG_ID_1
             order by cnt desc;
