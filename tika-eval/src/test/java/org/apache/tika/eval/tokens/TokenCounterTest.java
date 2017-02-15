@@ -22,10 +22,14 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -45,11 +49,11 @@ public class TokenCounterTest {
     public void testBasic() throws Exception {
         String s = " bde cde def abc efg f f f f ghijklmnop a a a a a a a a a a a a a a a a a b b b b b b b b b b b b b";
         TokenCounter counter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
-                analyzerManager.getCommonWordAnalyzer());
+                analyzerManager.getAlphaIdeoAnalyzer());
         counter.add(FIELD, s);
         TokenStatistics simpleTokenStatistics = counter.getTokenStatistics(FIELD);
         LuceneTokenCounter tokenCounter = new LuceneTokenCounter(analyzerManager.getGeneralAnalyzer(),
-                analyzerManager.getCommonWordAnalyzer());
+                analyzerManager.getAlphaIdeoAnalyzer());
         tokenCounter.add(FIELD, s);
         assertEquals(simpleTokenStatistics, tokenCounter.getTokenStatistics(FIELD));
     }
@@ -64,14 +68,14 @@ public class TokenCounterTest {
             String s = generateString();
             long start = new Date().getTime();
             TokenCounter counter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
-                    analyzerManager.getCommonWordAnalyzer());
+                    analyzerManager.getAlphaIdeoAnalyzer());
             counter.add(FIELD, s);
             simple += new Date().getTime()-start;
             TokenStatistics simpleTokenStatistics = counter.getTokenStatistics(FIELD);
 
             start = new Date().getTime();
             LuceneTokenCounter tokenCounter = new LuceneTokenCounter(analyzerManager.getGeneralAnalyzer(),
-                    analyzerManager.getCommonWordAnalyzer());
+                    analyzerManager.getAlphaIdeoAnalyzer());
             tokenCounter.add(FIELD, s);
             lucene += new Date().getTime()-start;
             assertEquals(s, simpleTokenStatistics, tokenCounter.getTokenStatistics(FIELD));
@@ -83,12 +87,33 @@ public class TokenCounterTest {
     @Test
     public void testCommonWords() throws Exception {
         TokenCounter tokenCounter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
-                analyzerManager.getCommonWordAnalyzer());
-        String s = "the http://www.cnn.com and blahdeblah@apache.org are in valuable www.sites.org";
+                analyzerManager.getAlphaIdeoAnalyzer());
+        String s = "the http://www.cnn.com and blahdeblah@apache.org are in valuable www.sites.org 普林斯顿大学";
         tokenCounter.add(FIELD, s);
         Map<String, MutableInt> tokens = tokenCounter.getAlphaTokens(FIELD);
         assertEquals(new MutableInt(2), tokens.get("___url___"));
         assertEquals(new MutableInt(1), tokens.get("___email___"));
+    }
+
+    @Test
+    public void testCJKFilter() throws Exception {
+        String s = "then quickbrownfoxjumpedoverthelazy dogss dog 普林斯顿大学";
+        Analyzer analyzer = analyzerManager.getCommonTokensAnalyzer();
+        TokenStream ts = analyzer.tokenStream(FIELD, s);
+        CharTermAttribute termAtt = ts.getAttribute(CharTermAttribute.class);
+        ts.reset();
+        Map<String, Integer> tokens = new HashMap<>();
+        while (ts.incrementToken()) {
+            String t = termAtt.toString();
+            Integer count = tokens.get(t);
+            count = (count == null) ? count = 0 : count;
+            count++;
+            tokens.put(t, count);
+        }
+        ts.end();
+        ts.close();
+        assertEquals(7, tokens.size());
+        assertEquals(new Integer(1), tokens.get("林斯"));
     }
 
     private String generateString() {

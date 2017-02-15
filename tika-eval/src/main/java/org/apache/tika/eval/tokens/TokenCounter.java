@@ -40,18 +40,18 @@ public class TokenCounter {
             0, 0, new TokenIntPair[0], 0.0d, new SummaryStatistics());
 
     private final Analyzer generalAnalyzer;
-    private final Analyzer commonAnalyzer;
+    private final Analyzer alphaIdeoAnalyzer;
 
     private int topN = 10;
 
-    public TokenCounter(Analyzer generalAnalyzer, Analyzer commonAnalyzer) throws IOException {
+    public TokenCounter(Analyzer generalAnalyzer, Analyzer alphaIdeoAnalyzer) throws IOException {
         this.generalAnalyzer = generalAnalyzer;
-        this.commonAnalyzer = commonAnalyzer;
+        this.alphaIdeoAnalyzer = alphaIdeoAnalyzer;
     }
 
     public void add(String field, String content) throws IOException {
         _add(field, generalAnalyzer, content);
-        _add(field+ALPHA_IDEOGRAPH_SUFFIX, commonAnalyzer, content);
+        _add(field+ALPHA_IDEOGRAPH_SUFFIX, alphaIdeoAnalyzer, content);
     }
 
     private void _add(String field, Analyzer analyzer, String content) throws IOException {
@@ -133,9 +133,9 @@ public class TokenCounter {
         if (tokenMap != null) {
             tokenMap.clear();
         }
-        Map<String, MutableInt> commonMap = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
-        if (commonMap != null) {
-            commonMap.clear();
+        Map<String, MutableInt> alphaMap = map.get(field+ALPHA_IDEOGRAPH_SUFFIX);
+        if (alphaMap != null) {
+            alphaMap.clear();
         }
 
         tokenStatistics.put(field+ALPHA_IDEOGRAPH_SUFFIX, NULL_TOKEN_STAT);

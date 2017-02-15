@@ -21,13 +21,15 @@
         },
         {
           "factory": "oala.cjk.CJKBigramFilterFactory",
-          "params": {}
+          "params": {
+            "outputUnigrams" : "false"
+          }
         }
       ]
 
     },
 
-    "common" :
+    "alpha" :
     {
       "charfilters": [
         {
@@ -64,7 +66,9 @@
         },
         {
           "factory": "oala.cjk.CJKBigramFilterFactory",
-          "params": {}
+          "params": {
+            "outputUnigrams" : "false"
+          }
         },
         {
           "factory": "org.apache.tika.eval.tokens.AlphaIdeographFilterFactory",
@@ -72,6 +76,32 @@
         }
       ]
 
+    },
+    "common_tokens" :
+    {
+      "tokenizer": {
+        "factory": "oala.standard.UAX29URLEmailTokenizerFactory",
+        "params": {}
+      },
+
+      "tokenfilters": [
+        {
+          "factory": "oala.cjk.CJKBigramFilterFactory",
+          "params": {
+            "outputUnigrams" : "false"
+          }
+        },
+        {
+          "factory": "org.apache.tika.eval.tokens.CJKBigramAwareLengthFilterFactory",
+          "params": {
+            "min" : 4,
+            "max" : 20
+          }
+        }
+
+      ]
+
     }
+
   }
 }

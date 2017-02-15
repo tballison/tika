@@ -140,7 +140,7 @@ class AnalyzerDeserializer implements JsonDeserializer<Map<String, Analyzer>> {
             }
         }
         if (spiName.equals("")) {
-            throw new IllegalArgumentException("A API class of type org.apache.lucene.analysis.util.TokenizerFactory with name"+
+            throw new IllegalArgumentException("A SPI class of type org.apache.lucene.analysis.util.TokenizerFactory with name"+
             "'"+factoryName+"' does not exist.");
         }
         try {
@@ -188,6 +188,11 @@ class AnalyzerDeserializer implements JsonDeserializer<Map<String, Analyzer>> {
                     break;
                 }
             }
+            if (spiName.equals("")) {
+                throw new IllegalArgumentException("A SPI class of type org.apache.lucene.analysis.util.CharFilterFactory with name"+
+                        "'"+factoryName+"' does not exist.");
+            }
+
             try {
                 CharFilterFactory charFilterFactory = CharFilterFactory.forName(spiName, params);
                 if (charFilterFactory instanceof ResourceLoaderAware) {
@@ -239,6 +244,10 @@ class AnalyzerDeserializer implements JsonDeserializer<Map<String, Analyzer>> {
                     spiName = s;
                     break;
                 }
+            }
+            if (spiName.equals("")) {
+                throw new IllegalArgumentException("A SPI class of type org.apache.lucene.analysis.util.TokenFilterFactory with name"+
+                        "'"+factoryName+"' does not exist.");
             }
 
             try {

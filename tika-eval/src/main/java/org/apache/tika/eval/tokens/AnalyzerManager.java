@@ -30,14 +30,19 @@ import org.apache.lucene.analysis.Analyzer;
 public class AnalyzerManager {
 
     private final static String GENERAL = "general";
-    private static final String COMMON = "common";
+    private static final String ALPHA_IDEOGRAPH = "alpha";
+    private static final String COMMON_TOKENS = "common_tokens";
 
     private final Analyzer generalAnalyzer;
-    private final Analyzer alphaAnalyzer;
+    private final Analyzer alphaIdeoAnalyzer;
+    private final Analyzer commonTokensAnalyzer;
 
-    private AnalyzerManager(Analyzer generalAnalyzer, Analyzer commonAnalyzer) {
+    private AnalyzerManager(Analyzer generalAnalyzer,
+                            Analyzer alphaIdeoAnalyzer,
+                            Analyzer commonTokensAnalyzer) {
         this.generalAnalyzer = generalAnalyzer;
-        this.alphaAnalyzer = commonAnalyzer;
+        this.alphaIdeoAnalyzer = alphaIdeoAnalyzer;
+        this.commonTokensAnalyzer = commonTokensAnalyzer;
     }
 
     public static AnalyzerManager newInstance() throws IOException {
@@ -48,22 +53,43 @@ public class AnalyzerManager {
         Gson gson = builder.create();
         Map<String, Analyzer> map = gson.fromJson(reader, Map.class);
         Analyzer general = map.get(GENERAL);
-        Analyzer common = map.get(COMMON);
+        Analyzer alphaIdeo = map.get(ALPHA_IDEOGRAPH);
+        Analyzer common = map.get(COMMON_TOKENS);
         if (general == null) {
             throw new JsonParseException("Must specify "+GENERAL + " analyzer");
         }
+        if (alphaIdeo == null) {
+            throw new JsonParseException("Must specify "+ ALPHA_IDEOGRAPH + " analyzer");
+        }
         if (common == null) {
-            throw new JsonParseException("Must specify "+COMMON + " analyzer");
+            throw new JsonParseException("Must specify "+ COMMON_TOKENS + " analyzer");
         }
 
-        return new AnalyzerManager(general, common);
+        return new AnalyzerManager(general, alphaIdeo, common);
     }
 
+    /**
+     * This analyzer should be used to extract all tokens.
+     * @return
+     */
     public Analyzer getGeneralAnalyzer() {
         return generalAnalyzer;
     }
 
-    public Analyzer getCommonWordAnalyzer() {
-        return alphaAnalyzer;
+    /**
+     * This analyzer is used to extract "alphabetic" tokens.
+     * @return
+     */
+    public Analyzer getAlphaIdeoAnalyzer() {
+        return alphaIdeoAnalyzer;
+    }
+
+    /**
+     * This analyzer should be used to generate common words lists from
+     * large corpora.  It is not used by tika-eval in profiling or comparing.
+     * @return
+     */
+    public Analyzer getCommonTokensAnalyzer() {
+        return commonTokensAnalyzer;
     }
 }

@@ -5,29 +5,23 @@ import java.util.Map;
 
 import org.apache.lucene.analysis.FilteringTokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.standard.StandardTokenizer;
+import org.apache.lucene.analysis.cjk.CJKBigramFilter;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.analysis.util.TokenFilterFactory;
 
 /**
- * Filters tokens by length _unless_ the token
- * is in a Chinese/Japanese/Korean codepoint range.  This allows
- * one to limit the length of whitespace language tokens while
- * letting CJK bigrams pass through.
+ * Creates a very narrowly focused TokenFilter that limits tokens based on length
+ * _unless_ they've been identified as &lt;DOUBLE&gt; or &lt;SINGE&gt;
+ * by the CJKBigramFilter.
  */
-public class CJKAwareLengthFilterFactory extends TokenFilterFactory {
-
-    private static final String HAN_TYPE = StandardTokenizer.TOKEN_TYPES[StandardTokenizer.IDEOGRAPHIC];
-    private static final String HIRAGANA_TYPE = StandardTokenizer.TOKEN_TYPES[StandardTokenizer.HIRAGANA];
-    private static final String KATAKANA_TYPE = StandardTokenizer.TOKEN_TYPES[StandardTokenizer.KATAKANA];
-    private static final String HANGUL_TYPE = StandardTokenizer.TOKEN_TYPES[StandardTokenizer.HANGUL];
+public class CJKBigramAwareLengthFilterFactory extends TokenFilterFactory {
 
 
 
     private final int min;
     private final int max;
-    public CJKAwareLengthFilterFactory(Map<String, String> args) {
+    public CJKBigramAwareLengthFilterFactory(Map<String, String> args) {
         super(args);
         min = Integer.parseInt(args.get("min"));
         max = Integer.parseInt(args.get("max"));
@@ -50,9 +44,8 @@ public class CJKAwareLengthFilterFactory extends TokenFilterFactory {
         protected boolean accept() throws IOException {
             if ( termAtt.length() < min) {
                 String type = typeAtt.type();
-                if (type == HAN_TYPE || type == HIRAGANA_TYPE || type == KATAKANA_TYPE
-                        || type == HANGUL_TYPE) {
-                    return termAtt.length() >= max;
+                if (type == CJKBigramFilter.DOUBLE_TYPE || type == CJKBigramFilter.SINGLE_TYPE) {
+                    return true;
                 }
             }
             return termAtt.length() >= min && termAtt.length() <= max;

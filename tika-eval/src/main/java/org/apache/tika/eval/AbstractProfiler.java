@@ -170,7 +170,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         try {
             analyzerManager = AnalyzerManager.newInstance();
             tokenCounter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
-                    analyzerManager.getCommonWordAnalyzer());
+                    analyzerManager.getAlphaIdeoAnalyzer());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

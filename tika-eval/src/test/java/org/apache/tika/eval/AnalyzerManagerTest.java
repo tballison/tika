@@ -55,7 +55,7 @@ public class AnalyzerManagerTest {
     @Test
     public void testCommon() throws Exception {
         AnalyzerManager analyzerManager = AnalyzerManager.newInstance();
-        Analyzer common = analyzerManager.getCommonWordAnalyzer();
+        Analyzer common = analyzerManager.getAlphaIdeoAnalyzer();
         TokenStream ts = common.tokenStream("f", "the 5,000.12 and dirty dog");
         ts.reset();
         CharTermAttribute termAtt = ts.getAttribute(CharTermAttribute.class);
