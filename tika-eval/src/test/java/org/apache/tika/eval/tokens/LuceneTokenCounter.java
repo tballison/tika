@@ -113,7 +113,9 @@ public class LuceneTokenCounter {
             uniqueTokenCount++;
             bytesRef = termsEnum.next();
         }
-
+        if (tokenCountInt > 0) {
+            ent = (-1.0d / (double)tokenCountInt) * ent;
+        }
 
         fieldStats.put(field, new TokenStatistics(uniqueTokenCount, tokenCountInt,
                 queue.getArray(), ent, summStats));

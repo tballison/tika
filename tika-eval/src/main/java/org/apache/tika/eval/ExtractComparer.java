@@ -51,7 +51,7 @@ public class ExtractComparer extends AbstractProfiler {
         Option extractsA = new Option("extractsA", true, "directory for extractsA files");
         extractsA.setRequired(true);
 
-        Option extractsB = new Option("extractsB", true, "directory for extractB files");
+        Option extractsB = new Option("extractsB", true, "directory for extractsB files");
         extractsB.setRequired(true);
 
         Option db = new Option("db", true, "db file to which to write results");
