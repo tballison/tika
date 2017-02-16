@@ -48,24 +48,24 @@ public class ExtractComparer extends AbstractProfiler {
 
     static Options OPTIONS;
     static {
-        Option extractDirA = new Option("extractDirA", true, "directory for extractA files");
-        extractDirA.setRequired(true);
+        Option extractsA = new Option("extractsA", true, "directory for extractsA files");
+        extractsA.setRequired(true);
 
-        Option extractDirB = new Option("extractDirB", true, "directory for extractB files");
-        extractDirB.setRequired(true);
+        Option extractsB = new Option("extractsB", true, "directory for extractB files");
+        extractsB.setRequired(true);
 
         Option db = new Option("db", true, "db file to which to write results");
         db.setRequired(true);
 
         Option inputDir = new Option("inputDir", true,
                 "optional: directory of original binary input files if it exists " +
-                        "or can be the same as -extractDirA or -extractDirB. If not specified, -inputDir=-extractDirA");
+                        "or can be the same as -extractsA or -extractsB. If not specified, -inputDir=-extractsA");
         inputDir.setRequired(true);
 
 
         OPTIONS = new Options()
-                .addOption(extractDirA)
-                .addOption(extractDirB)
+                .addOption(extractsA)
+                .addOption(extractsB)
                 .addOption(db)
                 .addOption(inputDir)
                 .addOption("bc", "optional: tika-batch config file")
@@ -82,7 +82,7 @@ public class ExtractComparer extends AbstractProfiler {
         HelpFormatter helpFormatter = new HelpFormatter();
         helpFormatter.printHelp(
                 80,
-                "java -jar tika-eval-x.y.jar Compare -extractDirA extractsA -extractDirB extractsB -db mydb",
+                "java -jar tika-eval-x.y.jar Compare -extractsA extractsA -extractsB extractsB -db mydb",
                 "Tool: Compare",
                 ExtractComparer.OPTIONS,
                 "Note: for h2 db, do not include the .mv.db at the end of the db name.");
@@ -150,8 +150,8 @@ public class ExtractComparer extends AbstractProfiler {
     private final TikaConfig config = TikaConfig.getDefaultConfig();
 
     private final Path inputDir;
-    private final Path extractDirA;
-    private final Path extractDirB;
+    private final Path extractsA;
+    private final Path extractsB;
 
     private final long minJsonLength;
     private final long maxJsonLength;
@@ -161,15 +161,15 @@ public class ExtractComparer extends AbstractProfiler {
     private final ExtractReader extractReader = new ExtractReader();
 
     public ExtractComparer(ArrayBlockingQueue<FileResource> queue,
-                           Path inputDir, Path extractDirA, Path extractDirB,
+                           Path inputDir, Path extractsA, Path extractsB,
                            IDBWriter writer, long minJsonLength,
                            long maxJsonLength, ExtractReader.ALTER_METADATA_LIST alterExtractList) {
         super(queue, writer);
         this.minJsonLength = minJsonLength;
         this.maxJsonLength = maxJsonLength;
         this.inputDir = inputDir;
-        this.extractDirA = extractDirA;
-        this.extractDirB = extractDirB;
+        this.extractsA = extractsA;
+        this.extractsB = extractsB;
         this.alterExtractList = alterExtractList;
     }
 
@@ -179,15 +179,15 @@ public class ExtractComparer extends AbstractProfiler {
         EvalFilePaths fpsA = null;
         EvalFilePaths fpsB = null;
 
-        if (inputDir != null && (inputDir.equals(extractDirA) ||
-                inputDir.equals(extractDirB))) {
+        if (inputDir != null && (inputDir.equals(extractsA) ||
+                inputDir.equals(extractsB))) {
             //crawling an extract dir
-            fpsA = getPathsFromExtractCrawl(metadata, extractDirA);
-            fpsB = getPathsFromExtractCrawl(metadata, extractDirB);
+            fpsA = getPathsFromExtractCrawl(metadata, extractsA);
+            fpsB = getPathsFromExtractCrawl(metadata, extractsB);
 
         } else {
-            fpsA = getPathsFromSrcCrawl(metadata, inputDir, extractDirA);
-            fpsB = getPathsFromSrcCrawl(metadata, inputDir, extractDirB);
+            fpsA = getPathsFromSrcCrawl(metadata, inputDir, extractsA);
+            fpsB = getPathsFromSrcCrawl(metadata, inputDir, extractsB);
         }
 
             if (minJsonLength > -1) {

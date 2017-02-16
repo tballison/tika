@@ -56,7 +56,7 @@ public class SimpleComparerTest extends TikaTest {
     public void setUp() throws Exception {
         writer = new MockDBWriter();
         comparer = new ExtractComparer(null, null,
-                Paths.get("extractA"), Paths.get("extractB"),
+                Paths.get("extractsA"), Paths.get("extractB"),
                 writer, -1, -1,
                 ExtractReader.ALTER_METADATA_LIST.AS_IS);
         AbstractProfiler.loadCommonTokens(this.getResourceAsFile("/commontokens").toPath());
@@ -67,7 +67,7 @@ public class SimpleComparerTest extends TikaTest {
     public void testBasic() throws Exception {
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
-                getResourceAsFile("/test-dirs/extractA/file1.pdf.json").toPath()
+                getResourceAsFile("/test-dirs/extractsA/file1.pdf.json").toPath()
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
@@ -113,7 +113,7 @@ public class SimpleComparerTest extends TikaTest {
     public void testBasicSpanish() throws Exception {
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
-                getResourceAsFile("/test-dirs/extractA/file12_es.txt.json").toPath()
+                getResourceAsFile("/test-dirs/extractsA/file12_es.txt.json").toPath()
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
@@ -139,7 +139,7 @@ public class SimpleComparerTest extends TikaTest {
     public void testEmpty() throws Exception {
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file1.pdf"),
-                getResourceAsFile("/test-dirs/extractA/file1.pdf.json").toPath()
+                getResourceAsFile("/test-dirs/extractsA/file1.pdf.json").toPath()
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file1.pdf"),
@@ -178,7 +178,7 @@ public class SimpleComparerTest extends TikaTest {
     public void testAccessException() throws Exception {
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file6_accessEx.pdf.json"),
-                getResourceAsFile("/test-dirs/extractA/file6_accessEx.pdf.json").toPath()
+                getResourceAsFile("/test-dirs/extractsA/file6_accessEx.pdf.json").toPath()
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file6_accessEx.pdf.json"),
@@ -241,7 +241,7 @@ public class SimpleComparerTest extends TikaTest {
         AbstractProfiler.loadCommonTokens(commonTokens);
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
-                getResourceAsFile("/test-dirs/extractA/file1.pdf.json").toPath()
+                getResourceAsFile("/test-dirs/extractsA/file1.pdf.json").toPath()
         );
         EvalFilePaths fpsB = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),

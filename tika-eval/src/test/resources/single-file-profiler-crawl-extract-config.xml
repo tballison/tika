@@ -48,7 +48,7 @@
         child directory of the inputDir directory.
     -->
     <crawler builderClass="org.apache.tika.batch.fs.builders.FSCrawlerBuilder"
-             inputDir="src/test/resources/test-dirs/extractA"
+             inputDir="src/test/resources/test-dirs/extractsA"
              crawlOrder="sorted"
              maxConsecWaitMillis="5000"
              maxFilesToAdd="-1"
@@ -61,7 +61,7 @@
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
                errorLogFile="src/test/resources/test-dirs/batch-logs/batch-process-fatal.xml"
-               extractDir="src/test/resources/test-dirs/extractA"
+               extractDir="src/test/resources/test-dirs/extractsA"
                langModelDir="src/test/resources/langmodels"
                commonTokens="src/test/resources/common_tokens_short.txt"/>
 

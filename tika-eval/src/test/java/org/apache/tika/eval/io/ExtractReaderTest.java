@@ -36,7 +36,7 @@ public class ExtractReaderTest extends TikaTest {
 
     @Before
     public void setUp() throws Exception {
-        testJsonFile = getResourceAsFile("/test-dirs/extractA/file2_attachANotB.doc.json").toPath();
+        testJsonFile = getResourceAsFile("/test-dirs/extractsA/file2_attachANotB.doc.json").toPath();
         testTxtFile = getResourceAsFile("/test-dirs/extractB/file13_attachANotB.doc.txt").toPath();
     }
 

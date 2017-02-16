@@ -57,7 +57,7 @@ public class ProfilerBatchTest {
     @BeforeClass
     public static void setUp() throws Exception {
 
-        Path inputRoot = Paths.get(new ComparerBatchTest().getClass().getResource("/test-dirs/extractA").toURI());
+        Path inputRoot = Paths.get(new ComparerBatchTest().getClass().getResource("/test-dirs/extractsA").toURI());
         dbDir = Files.createTempDirectory(inputRoot, "tika-test-db-dir-");
         Map<String, String> args = new HashMap<>();
         Path db = dbDir.resolve("profiler_test");

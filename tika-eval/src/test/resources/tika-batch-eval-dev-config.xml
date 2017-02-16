@@ -41,7 +41,7 @@
 		maxFileSizeBytes="-1"
         />
 
-<!--    inputDir="src/test/resources/test-dirs/extractA"-->
+<!--    inputDir="src/test/resources/test-dirs/extractsA"-->
 
 	<consumersManager class="BasicFileComparerManager"
                       builderClass="org.apache.tika.batch.GeneralConsumersManagerBuilder">

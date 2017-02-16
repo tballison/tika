@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.tika.batch.FileResourceConsumer;
 import org.apache.tika.config.TikaConfig;
@@ -40,13 +39,13 @@ public class FileComparerBuilder extends EvalConsumerBuilder {
 
     @Override
     public FileResourceConsumer build() throws IOException, SQLException {
-        Path thisRootDir = PropsUtil.getPath(localAttrs.get("extractDirA"), null);
+        Path thisRootDir = PropsUtil.getPath(localAttrs.get("extractsA"), null);
         if (thisRootDir == null) {
-            throw new RuntimeException("Must specify \"extractDirA\" -- directory for 'A' extracts");
+            throw new RuntimeException("Must specify \"extractsA\" -- directory for 'A' extracts");
         }
-        Path thatRootDir = PropsUtil.getPath(localAttrs.get("extractDirB"), null);
+        Path thatRootDir = PropsUtil.getPath(localAttrs.get("extractsB"), null);
         if (thatRootDir == null) {
-            throw new RuntimeException("Must specify \"extractDirB\" -- directory for 'B' extracts");
+            throw new RuntimeException("Must specify \"extractsB\" -- directory for 'B' extracts");
         }
 
         Path inputRootDir = PropsUtil.getPath(localAttrs.get("inputDir"), null);

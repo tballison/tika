@@ -177,20 +177,20 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     }
 
     protected void writeError(TableInfo extractErrorTable, String containerId,
-                              String filePath, Path extractA) throws IOException {
+                              String filePath, Path extractsA) throws IOException {
         Map<Cols, String> data = new HashMap<>();
         data.put(Cols.CONTAINER_ID, containerId);
         data.put(Cols.FILE_PATH, filePath);
         int errorCode = -1;
         long len = -1;
-        if (extractA != null) {
+        if (extractsA != null) {
             try {
-                len = Files.size(extractA);
+                len = Files.size(extractsA);
             } catch (IOException e) {
                 //swallow
             }
         }
-        if (extractA == null) {
+        if (extractsA == null) {
             errorCode = EXTRACT_ERROR_TYPE.NO_EXTRACT_FILE.ordinal();
         } else if (len == 0) {
             errorCode = EXTRACT_ERROR_TYPE.ZERO_BYTE_EXTRACT_FILE.ordinal();
@@ -548,8 +548,8 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         Path extractFile = extractDir.resolve(relExtractFilePath);
         if (! Files.isRegularFile(extractFile)) {
             //if that doesn't work, try to find the right extract file.
-            //This is necessary if crawling extractDirA and trying to find a file in
-            //extractDirB that is not in the same format: json vs txt or compressed
+            //This is necessary if crawling extractsA and trying to find a file in
+            //extractsB that is not in the same format: json vs txt or compressed
             extractFile = findFile(extractDir, relativeSourceFilePath);
         }
         return new EvalFilePaths(relativeSourceFilePath, extractFile);
