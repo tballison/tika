@@ -34,27 +34,27 @@ import org.slf4j.LoggerFactory;
 
 public class CommonTokenCountManager {
 
-    private final static Charset COMMON_WORDS_CHARSET = StandardCharsets.UTF_8;
+    private final static Charset COMMON_TOKENS_CHARSET = StandardCharsets.UTF_8;
     private final static Logger LOGGER = LoggerFactory.getLogger(CommonTokenCountManager.class);
 
-    private final Path commonWordsDir;
+    private final Path commonTokensDir;
 
-    Map<String, Set<String>> commonWordMap = new ConcurrentHashMap<>();
+    Map<String, Set<String>> commonTokenMap = new ConcurrentHashMap<>();
     Set<String> alreadyTriedToLoad = new HashSet<>();
 
     //if we have no model or if no langid is passed in
     //make this configurable
     String defaultLangCode = "en";
 
-    public CommonTokenCountManager(Path commonWordsDir) throws IOException {
-        this.commonWordsDir = commonWordsDir;
+    public CommonTokenCountManager(Path commonTokensDir) throws IOException {
+        this.commonTokensDir = commonTokensDir;
         tryToLoad(defaultLangCode);
         //if you couldn't load it, make sure to add an empty
         //set to prevent npes later
-        Set<String> set = commonWordMap.get(defaultLangCode);
+        Set<String> set = commonTokenMap.get(defaultLangCode);
         if (set == null) {
-            LOGGER.warn("No common words for default language: '"+defaultLangCode+"'");
-            commonWordMap.put(defaultLangCode, new HashSet<String>());
+            LOGGER.warn("No common tokens for default language: '"+defaultLangCode+"'");
+            commonTokenMap.put(defaultLangCode, new HashSet<String>());
         }
     }
 
@@ -62,9 +62,9 @@ public class CommonTokenCountManager {
                                                 Map<String, MutableInt> tokens) throws IOException {
         String actualLangCode = getActualLangCode(langCode);
         int overlap = 0;
-        Set<String> commonWords = commonWordMap.get(actualLangCode);
+        Set<String> commonTokens = commonTokenMap.get(actualLangCode);
         for (Map.Entry<String, MutableInt> e : tokens.entrySet()) {
-            if (commonWords.contains(e.getKey())) {
+            if (commonTokens.contains(e.getKey())) {
                 overlap += e.getValue().intValue();
             }
         }
@@ -77,11 +77,11 @@ public class CommonTokenCountManager {
         if (langCode == null || "".equals(langCode)) {
             return defaultLangCode;
         }
-        if (commonWordMap.containsKey(langCode)) {
+        if (commonTokenMap.containsKey(langCode)) {
             return langCode;
         }
         tryToLoad(langCode);
-        Set<String> set = commonWordMap.get(langCode);
+        Set<String> set = commonTokenMap.get(langCode);
         if (set == null) {
             return defaultLangCode;
         }
@@ -90,7 +90,7 @@ public class CommonTokenCountManager {
     }
 
     public void close() throws IOException {
-        commonWordMap.clear();
+        commonTokenMap.clear();
     }
 
     private synchronized void tryToLoad(String langCode) {
@@ -99,23 +99,23 @@ public class CommonTokenCountManager {
         }
         //check once more now that we're in a
         //synchronized block
-        if (commonWordMap.get(langCode) != null) {
+        if (commonTokenMap.get(langCode) != null) {
             return;
         }
-        Path p = commonWordsDir.resolve(langCode);
+        Path p = commonTokensDir.resolve(langCode);
         if (!Files.isRegularFile(p)) {
-            LOGGER.warn("Couldn't find common words file for: '"+langCode+"': "+
+            LOGGER.warn("Couldn't find common tokens file for: '"+langCode+"': "+
             p.toAbsolutePath());
             alreadyTriedToLoad.add(langCode);
             return;
         }
 
-        Set<String> set = commonWordMap.get(langCode);
+        Set<String> set = commonTokenMap.get(langCode);
         if (set == null) {
             set = new HashSet<>();
-            commonWordMap.put(langCode, set);
+            commonTokenMap.put(langCode, set);
         }
-        try (BufferedReader reader = Files.newBufferedReader(p, COMMON_WORDS_CHARSET)) {
+        try (BufferedReader reader = Files.newBufferedReader(p, COMMON_TOKENS_CHARSET)) {
             alreadyTriedToLoad.add(langCode);
             String line = reader.readLine();
             while (line != null) {

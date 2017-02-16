@@ -64,7 +64,7 @@
                extractDir="src/test/resources/test-dirs/extractA"
                inputDir="src/test/resources/test-dirs/raw_input"
                langModelDir="src/test/resources/langmodels"
-               commonWords="src/test/resources/common_words_short.txt"/>
+               commonTokens="src/test/resources/common_tokens_short.txt"/>
 
 
     <!-- reporter and interrupter are optional -->

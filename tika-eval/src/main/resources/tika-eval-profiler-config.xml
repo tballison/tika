@@ -67,7 +67,7 @@
     <consumers builderClass="org.apache.tika.eval.batch.EvalConsumersBuilder"
                consumerBuilderClass="org.apache.tika.eval.batch.SingleFileConsumerBuilder"
                langModelDir="resources/langmodels"
-               commonWords="resources/commonwords"/>
+               commonTokens="resources/commontokens"/>
 
 
     <!-- reporter and interrupter are optional -->

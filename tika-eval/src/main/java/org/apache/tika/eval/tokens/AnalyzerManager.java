@@ -85,7 +85,7 @@ public class AnalyzerManager {
     }
 
     /**
-     * This analyzer should be used to generate common words lists from
+     * This analyzer should be used to generate common tokens lists from
      * large corpora.  It is not used by tika-eval in profiling or comparing.
      * @return
      */

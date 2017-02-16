@@ -59,7 +59,7 @@ public class SimpleComparerTest extends TikaTest {
                 Paths.get("extractA"), Paths.get("extractB"),
                 writer, -1, -1,
                 ExtractReader.ALTER_METADATA_LIST.AS_IS);
-        AbstractProfiler.loadCommonWords(this.getResourceAsFile("/commonwords").toPath());
+        AbstractProfiler.loadCommonTokens(this.getResourceAsFile("/commontokens").toPath());
         LanguageIDWrapper.loadBuiltInModels();
     }
 
@@ -237,8 +237,8 @@ public class SimpleComparerTest extends TikaTest {
     @Test
     @Ignore
     public void testDebug() throws Exception {
-        Path commonWords = Paths.get(getResourceAsFile("/common_words_short.txt").toURI());
-        AbstractProfiler.loadCommonWords(commonWords);
+        Path commonTokens = Paths.get(getResourceAsFile("/common_tokens_short.txt").toURI());
+        AbstractProfiler.loadCommonTokens(commonTokens);
         EvalFilePaths fpsA = new EvalFilePaths(
                 Paths.get("file1.pdf.json"),
                 getResourceAsFile("/test-dirs/extractA/file1.pdf.json").toPath()

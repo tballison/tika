@@ -104,6 +104,9 @@ public class TokenCounter {
             }
 
         }
+        if (totalTokens > 0) {
+            ent = (-1.0d / (double)totalTokens) * ent;
+        }
 
 /*            Collections.sort(allTokens);
             List<TokenIntPair> topNList = new ArrayList<>(topN);

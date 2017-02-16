@@ -72,7 +72,7 @@
                crawlingInputDir="false"
                minJsonFileSizeBytes="-1"
                maxJsonFileSizeBytes="2000000"
-               commonWords="resources/commonwords"
+               commonTokens="resources/commontokens"
             />
 
 <!--               langModelDir="resources/langmodels" -->

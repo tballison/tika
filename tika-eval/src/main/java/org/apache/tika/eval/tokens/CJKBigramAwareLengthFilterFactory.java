@@ -12,8 +12,10 @@ import org.apache.lucene.analysis.util.TokenFilterFactory;
 
 /**
  * Creates a very narrowly focused TokenFilter that limits tokens based on length
- * _unless_ they've been identified as &lt;DOUBLE&gt; or &lt;SINGE&gt;
+ * _unless_ they've been identified as &lt;DOUBLE&gt; or &lt;SINGLE&gt;
  * by the CJKBigramFilter.
+ *
+ * This class is intended to be used when generating "common tokens" files.
  */
 public class CJKBigramAwareLengthFilterFactory extends TokenFilterFactory {
 

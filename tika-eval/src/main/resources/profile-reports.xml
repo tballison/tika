@@ -71,7 +71,7 @@
     </report>
 
     <!-- content -->
-    <report reportName="Common Words by Lang"
+    <report reportName="Common Tokens by Lang"
             reportFilename="content/common_tokens_by_lang.xlsx"
             format="xlsx"
             includeSql="true">

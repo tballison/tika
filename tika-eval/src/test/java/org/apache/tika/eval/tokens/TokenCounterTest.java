@@ -85,7 +85,7 @@ public class TokenCounterTest {
     }
 
     @Test
-    public void testCommonWords() throws Exception {
+    public void testCommonTokens() throws Exception {
         TokenCounter tokenCounter = new TokenCounter(analyzerManager.getGeneralAnalyzer(),
                 analyzerManager.getAlphaIdeoAnalyzer());
         String s = "the http://www.cnn.com and blahdeblah@apache.org are in valuable www.sites.org 普林斯顿大学";

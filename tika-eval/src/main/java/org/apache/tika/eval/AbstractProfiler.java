@@ -158,7 +158,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
     final LanguageIDWrapper langIder;
     protected IDBWriter writer;
 
-    public static void loadCommonWords(Path p) throws IOException {
+    public static void loadCommonTokens(Path p) throws IOException {
         commonTokenCountManager = new CommonTokenCountManager(p);
     }
 
@@ -304,7 +304,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         String langid = data.get(Cols.LANG_ID_1);
         langid = (langid == null) ? "" : langid;
 
-        writeWordCounts(data, fieldName, tokenCounter);
+        writeTokenCounts(data, fieldName, tokenCounter);
         CommonTokenResult commonTokenResult = null;
         try {
             commonTokenResult = commonTokenCountManager.countTokenOverlaps(langid,
@@ -509,7 +509,7 @@ public abstract class AbstractProfiler extends FileResourceConsumer {
         output.put(Cols.MIME_TYPE_ID, Integer.toString(mimeId));
     }
 
-    void writeWordCounts(Map<Cols, String> data, String field,
+    void writeTokenCounts(Map<Cols, String> data, String field,
                           TokenCounter tokenCounter) {
 
 

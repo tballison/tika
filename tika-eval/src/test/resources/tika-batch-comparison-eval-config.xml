@@ -73,7 +73,7 @@
                langModelDir="src/test/resources/langmodels"
                minJsonFileSizeBytes="-1"
                maxJsonFileSizeBytes="2000000"
-               commonWords="src/test/resources/common_words_short.txt"
+               commonTokens="src/test/resources/common_tokens_short.txt"
             />
 
 
