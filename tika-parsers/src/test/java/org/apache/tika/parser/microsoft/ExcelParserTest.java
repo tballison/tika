@@ -301,7 +301,7 @@ public class ExcelParserTest extends TikaTest {
             parser.parse(input, handler, m, context);
 
             String content = handler.toString();
-            assertEquals("", content);
+            assertContains("Excel 2007 Beta 2", content);
         }
     }
 
