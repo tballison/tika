@@ -81,6 +81,10 @@ public class ListManager extends AbstractListManager {
 
         if (lc == null) {
             ListData listData = listTables.getListData(paragraph.getList().getLsid());
+            if (listData == null) {
+                //silently skip
+                return "";
+            }
             LevelTuple[] levelTuples = new LevelTuple[listData.getLevels().length];
             for (int i = 0; i < listData.getLevels().length; i++) {
                 levelTuples[i] = buildTuple(i, listData.getLevels()[i]);
@@ -143,6 +147,11 @@ public class ListManager extends AbstractListManager {
             int offset = (int) numberOffsets[i];
 
             if (offset == 0) {
+                break;
+            }
+            if (offset-1 < last || offset > numberText.length()) {
+                //something went wrong.
+                //silently stop
                 break;
             }
             sb.append(numberText.substring(last, offset - 1));

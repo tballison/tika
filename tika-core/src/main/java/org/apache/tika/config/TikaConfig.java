@@ -37,12 +37,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.tika.concurrent.ConfigurableThreadPoolExecutor;
 import org.apache.tika.concurrent.SimpleThreadPoolExecutor;
 import org.apache.tika.detect.CompositeDetector;
+import org.apache.tika.detect.CompositeEncodingDetector;
 import org.apache.tika.detect.DefaultDetector;
+import org.apache.tika.detect.DefaultEncodingDetector;
 import org.apache.tika.detect.Detector;
+import org.apache.tika.detect.EncodingDetector;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.language.translate.DefaultTranslator;
 import org.apache.tika.language.translate.Translator;
@@ -51,6 +55,7 @@ import org.apache.tika.mime.MediaTypeRegistry;
 import org.apache.tika.mime.MimeTypeException;
 import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.mime.MimeTypesFactory;
+import org.apache.tika.parser.AbstractEncodingDetectorParser;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.CompositeParser;
 import org.apache.tika.parser.DefaultParser;
@@ -78,9 +83,15 @@ public class TikaConfig {
         return new DefaultDetector(types, loader);
     }
 
+    protected static CompositeEncodingDetector getDefaultEncodingDetector(
+            ServiceLoader loader) {
+        return new DefaultEncodingDetector(loader);
+    }
+
+
     private static CompositeParser getDefaultParser(
-            MimeTypes types, ServiceLoader loader) {
-        return new DefaultParser(types.getMediaTypeRegistry(), loader);
+            MimeTypes types, ServiceLoader loader, EncodingDetector encodingDetector) {
+        return new DefaultParser(types.getMediaTypeRegistry(), loader, encodingDetector);
     }
 
     private static Translator getDefaultTranslator(ServiceLoader loader) {
@@ -91,6 +102,9 @@ public class TikaConfig {
         return new SimpleThreadPoolExecutor();
     }
 
+    //use this to look for unneeded instantiations of TikaConfig
+    protected static AtomicInteger TIMES_INSTANTIATED = new AtomicInteger();
+
     private final ServiceLoader serviceLoader;
     private final CompositeParser parser;
     private final CompositeDetector detector;
@@ -98,6 +112,7 @@ public class TikaConfig {
 
     private final MimeTypes mimeTypes;
     private final ExecutorService executorService;
+    private final EncodingDetector encodingDetector;
 
     public TikaConfig(String file)
             throws TikaException, IOException, SAXException {
@@ -158,17 +173,20 @@ public class TikaConfig {
 
     private TikaConfig(Element element, ServiceLoader loader)
             throws TikaException, IOException {
-        ParserXmlLoader parserLoader = new ParserXmlLoader();
         DetectorXmlLoader detectorLoader = new DetectorXmlLoader();
         TranslatorXmlLoader translatorLoader = new TranslatorXmlLoader();
         ExecutorServiceXmlLoader executorLoader = new ExecutorServiceXmlLoader();
-        
+        EncodingDetectorXmlLoader encodingDetectorXmlLoader = new EncodingDetectorXmlLoader();
         this.mimeTypes = typesFromDomElement(element);
         this.detector = detectorLoader.loadOverall(element, mimeTypes, loader);
+        this.encodingDetector = encodingDetectorXmlLoader.loadOverall(element, mimeTypes, loader);
+
+        ParserXmlLoader parserLoader = new ParserXmlLoader(encodingDetector);
         this.parser = parserLoader.loadOverall(element, mimeTypes, loader);
         this.translator = translatorLoader.loadOverall(element, mimeTypes, loader);
         this.executorService = executorLoader.loadOverall(element, mimeTypes, loader);
         this.serviceLoader = loader;
+        TIMES_INSTANTIATED.incrementAndGet();
     }
 
     /**
@@ -188,9 +206,11 @@ public class TikaConfig {
         this.serviceLoader = new ServiceLoader(loader);
         this.mimeTypes = getDefaultMimeTypes(loader);
         this.detector = getDefaultDetector(mimeTypes, serviceLoader);
-        this.parser = getDefaultParser(mimeTypes, serviceLoader);
+        this.encodingDetector = getDefaultEncodingDetector(serviceLoader);
+        this.parser = getDefaultParser(mimeTypes, serviceLoader, encodingDetector);
         this.translator = getDefaultTranslator(serviceLoader);
         this.executorService = getDefaultExecutorService();
+        TIMES_INSTANTIATED.incrementAndGet();
     }
 
     /**
@@ -220,19 +240,24 @@ public class TikaConfig {
 
         if (config == null) {
             this.mimeTypes = getDefaultMimeTypes(ServiceLoader.getContextClassLoader());
-            this.parser = getDefaultParser(mimeTypes, serviceLoader);
+            this.encodingDetector = getDefaultEncodingDetector(serviceLoader);
+            this.parser = getDefaultParser(mimeTypes, serviceLoader, encodingDetector);
             this.detector = getDefaultDetector(mimeTypes, serviceLoader);
             this.translator = getDefaultTranslator(serviceLoader);
             this.executorService = getDefaultExecutorService();
         } else {
             try (InputStream stream = getConfigInputStream(config, serviceLoader)) {
                 Element element = getBuilder().parse(stream).getDocumentElement();
-                ParserXmlLoader parserLoader = new ParserXmlLoader();
                 DetectorXmlLoader detectorLoader = new DetectorXmlLoader();
+                EncodingDetectorXmlLoader encodingDetectorLoader = new EncodingDetectorXmlLoader();
                 TranslatorXmlLoader translatorLoader = new TranslatorXmlLoader();
                 ExecutorServiceXmlLoader executorLoader = new ExecutorServiceXmlLoader();
                 
                 this.mimeTypes = typesFromDomElement(element);
+                this.encodingDetector = encodingDetectorLoader.loadOverall(element, mimeTypes, serviceLoader);
+
+
+                ParserXmlLoader parserLoader = new ParserXmlLoader(encodingDetector);
                 this.parser = parserLoader.loadOverall(element, mimeTypes, serviceLoader);
                 this.detector = detectorLoader.loadOverall(element, mimeTypes, serviceLoader);
                 this.translator = translatorLoader.loadOverall(element, mimeTypes, serviceLoader);
@@ -243,6 +268,7 @@ public class TikaConfig {
                                 + config, e);
             }
         }
+        TIMES_INSTANTIATED.incrementAndGet();
     }
 
     private static InputStream getConfigInputStream(String config, ServiceLoader serviceLoader)
@@ -306,6 +332,14 @@ public class TikaConfig {
      */
     public Detector getDetector() {
         return detector;
+    }
+
+    /**
+     * Returns the configured encoding detector instance
+     * @return configured encoding detector
+     */
+    public EncodingDetector getEncodingDetector() {
+        return encodingDetector;
     }
 
     /**
@@ -461,7 +495,7 @@ public class TikaConfig {
         }
         return serviceLoader;
     }
-    
+
     private static abstract class XmlLoader<CT,T> {
         protected static final String PARAMS_TAG_NAME = "params";
         abstract boolean supportsComposite();
@@ -553,11 +587,11 @@ public class TikaConfig {
 
                     // Default constructor fallback
                     if (loaded == null) {
-                        loaded = loadedClass.newInstance();
+                        loaded = newInstance(loadedClass);
                     }
                 } else {
                     // Regular class, create as-is
-                    loaded = loadedClass.newInstance();
+                    loaded = newInstance(loadedClass);
                     // TODO Support arguments, needed for Translators etc
                     // See the thread "Configuring parsers and translators" for details 
                 }
@@ -590,7 +624,16 @@ public class TikaConfig {
             } catch (InstantiationException e) {
                 throw new TikaException(
                         "Unable to instantiate a "+getLoaderTagName()+" class: " + name, e);
+            } catch (NoSuchMethodException e) {
+                throw new TikaException(
+                        "Unable to find the right constructor for "+getLoaderTagName()+" class: " + name, e);
             }
+        }
+
+        T newInstance(Class<? extends T> loadedClass) throws
+                IllegalAccessException, InstantiationException,
+                NoSuchMethodException, InvocationTargetException {
+            return loadedClass.newInstance();
         }
 
         /**
@@ -625,10 +668,16 @@ public class TikaConfig {
 
     }
     private static class ParserXmlLoader extends XmlLoader<CompositeParser,Parser> {
+
+        private final EncodingDetector encodingDetector;
+
         boolean supportsComposite() { return true; }
         String getParentTagName() { return "parsers"; }
         String getLoaderTagName() { return "parser"; }
-        
+
+        private ParserXmlLoader(EncodingDetector encodingDetector) {
+            this.encodingDetector = encodingDetector;
+        }
         @Override
         Class<? extends Parser> getLoaderClass() {
             return Parser.class;
@@ -660,7 +709,7 @@ public class TikaConfig {
         }
         @Override
         CompositeParser createDefault(MimeTypes mimeTypes, ServiceLoader loader) {
-            return getDefaultParser(mimeTypes, loader);
+            return getDefaultParser(mimeTypes, loader, encodingDetector);
         }
         @Override
         CompositeParser createComposite(List<Parser> parsers, MimeTypes mimeTypes, ServiceLoader loader) {
@@ -677,6 +726,14 @@ public class TikaConfig {
             MediaTypeRegistry registry = mimeTypes.getMediaTypeRegistry();
             
             // Try the possible default and composite parser constructors
+            if (parser == null) {
+                try {
+                    c = parserClass.getConstructor(MediaTypeRegistry.class,
+                            ServiceLoader.class, Collection.class, EncodingDetector.class);
+                    parser = c.newInstance(registry, loader, excludeParsers, encodingDetector);
+                }
+                catch (NoSuchMethodException me) {}
+            }
             if (parser == null) {
                 try {
                     c = parserClass.getConstructor(MediaTypeRegistry.class, ServiceLoader.class, Collection.class);
@@ -713,6 +770,17 @@ public class TikaConfig {
             }
             return parser;
         }
+
+        @Override
+        Parser newInstance(Class<? extends Parser> loadedClass) throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+            if (AbstractEncodingDetectorParser.class.isAssignableFrom(loadedClass)) {
+                Constructor ctor = loadedClass.getConstructor(EncodingDetector.class);
+                return (Parser) ctor.newInstance(encodingDetector);
+            } else {
+                return loadedClass.newInstance();
+            }
+        }
+
         @Override
         Parser decorate(Parser created, Element element) throws IOException, TikaException {
             Parser parser = created;
@@ -731,6 +799,7 @@ public class TikaConfig {
             // All done with decoration
             return parser;
         }
+
     }
     private static class DetectorXmlLoader extends XmlLoader<CompositeDetector,Detector> {
         boolean supportsComposite() { return true; }
@@ -931,4 +1000,91 @@ public class TikaConfig {
             return null;
         }
     }
+
+    private static class EncodingDetectorXmlLoader extends
+            XmlLoader<EncodingDetector, EncodingDetector> {
+
+        boolean supportsComposite() {
+            return true;
+        }
+
+        String getParentTagName() {
+            return "encodingDetectors";
+        }
+
+        String getLoaderTagName() {
+            return "encodingDetector";
+        }
+
+        @Override
+        Class<? extends EncodingDetector> getLoaderClass() {
+            return EncodingDetector.class;
+        }
+
+
+        @Override
+        boolean isComposite(EncodingDetector loaded) {
+            return loaded instanceof CompositeEncodingDetector;
+        }
+
+        @Override
+        boolean isComposite(Class<? extends EncodingDetector> loadedClass) {
+            return CompositeEncodingDetector.class.isAssignableFrom(loadedClass);
+        }
+
+        @Override
+        EncodingDetector preLoadOne(Class<? extends EncodingDetector> loadedClass,
+                                    String classname, MimeTypes mimeTypes) throws TikaException {
+            // Check for classes which can't be set in config
+            // Continue with normal loading
+            return null;
+        }
+
+        @Override
+        EncodingDetector createDefault(MimeTypes mimeTypes, ServiceLoader loader) {
+            return getDefaultEncodingDetector(loader);
+        }
+
+        @Override
+        CompositeEncodingDetector createComposite(List<EncodingDetector> encodingDetectors, MimeTypes mimeTypes, ServiceLoader loader) {
+            return new CompositeEncodingDetector(encodingDetectors);
+        }
+
+        @Override
+        EncodingDetector createComposite(Class<? extends EncodingDetector> encodingDetectorClass,
+                                         List<EncodingDetector> childEncodingDetectors,
+                                         Set<Class<? extends EncodingDetector>> excludeDetectors,
+                                         MimeTypes mimeTypes, ServiceLoader loader)
+                throws InvocationTargetException, IllegalAccessException,
+                InstantiationException {
+            EncodingDetector encodingDetector = null;
+            Constructor<? extends EncodingDetector> c;
+
+            // Try the possible default and composite detector constructors
+            if (encodingDetector == null) {
+                try {
+                    c = encodingDetectorClass.getConstructor(ServiceLoader.class, Collection.class);
+                    encodingDetector = c.newInstance(loader, excludeDetectors);
+                } catch (NoSuchMethodException me) {
+                    me.printStackTrace();
+                }
+            }
+            if (encodingDetector == null) {
+                try {
+                    c = encodingDetectorClass.getConstructor(List.class);
+                    encodingDetector = c.newInstance(childEncodingDetectors);
+                } catch (NoSuchMethodException me) {
+                    me.printStackTrace();
+                }
+            }
+
+            return encodingDetector;
+        }
+
+        @Override
+        EncodingDetector decorate(EncodingDetector created, Element element) {
+            return created; // No decoration of EncodingDetectors
+        }
+    }
+
 }

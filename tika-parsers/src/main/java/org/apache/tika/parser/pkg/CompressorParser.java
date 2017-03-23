@@ -38,7 +38,7 @@ import org.apache.commons.compress.compressors.z.ZCompressorInputStream;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
+import org.apache.tika.extractor.EmbeddedDocumentUtil;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
@@ -104,10 +104,12 @@ public class CompressorParser extends AbstractParser {
         // At the end we want to close the compression stream to release
         // any associated resources, but the underlying document stream
         // should not be closed
-        stream = new CloseShieldInputStream(stream);
-
-        // Ensure that the stream supports the mark feature
-        stream = new BufferedInputStream(stream);
+        if (stream.markSupported()) {
+            stream = new CloseShieldInputStream(stream);
+        } else {
+            // Ensure that the stream supports the mark feature
+            stream = new BufferedInputStream(new CloseShieldInputStream(stream));
+        }
 
         CompressorInputStream cis;
         try {
@@ -157,9 +159,8 @@ public class CompressorParser extends AbstractParser {
             }
 
             // Use the delegate parser to parse the compressed document
-            EmbeddedDocumentExtractor extractor = context.get(
-                    EmbeddedDocumentExtractor.class,
-                    new ParsingEmbeddedDocumentExtractor(context));
+            EmbeddedDocumentExtractor extractor =
+                    EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context);
             if (extractor.shouldParseEmbedded(entrydata)) {
                 extractor.parseEmbedded(cis, xhtml, entrydata, true);
             }

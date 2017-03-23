@@ -25,7 +25,7 @@ import org.apache.tika.language.detect.LanguageResult;
 
 public abstract class AbstractTranslator implements Translator {
 
-	protected LanguageResult detectLanguage(String text) throws IOException {
+    protected LanguageResult detectLanguage(String text) throws IOException {
         LanguageDetector detector = new OptimaizeLangDetector().loadModels();
         return detector.detect(text);
 	}

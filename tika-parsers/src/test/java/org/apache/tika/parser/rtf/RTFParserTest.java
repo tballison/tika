@@ -412,29 +412,29 @@ public class RTFParserTest extends TikaTest {
     public void testEmbeddedMonster() throws Exception {
 
         Map<Integer, Pair> expected = new HashMap<>();
-        expected.put(2, new Pair("Hw.txt","text/plain; charset=ISO-8859-1"));
-        expected.put(3, new Pair("file_0.doc", "application/msword"));
-        expected.put(6, new Pair("file_1.xlsx",
+        expected.put(3, new Pair("Hw.txt","text/plain; charset=ISO-8859-1"));
+        expected.put(4, new Pair("file_0.doc", "application/msword"));
+        expected.put(7, new Pair("file_1.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-        expected.put(9, new Pair("text.html", "text/html; charset=windows-1252"));
-        expected.put(10, new Pair("html-within-zip.zip", "application/zip"));
-        expected.put(11, new Pair("test-zip-of-zip_\u666E\u6797\u65AF\u987F.zip", "application/zip"));
-        expected.put(14, new Pair("testHTML_utf8_\u666E\u6797\u65AF\u987F.html", "text/html; charset=UTF-8"));
-        expected.put(17, new Pair("testJPEG_\u666E\u6797\u65AF\u987F.jpg", "image/jpeg"));
-        expected.put(20, new Pair("file_2.xls", "application/vnd.ms-excel"));
-        expected.put(23, new Pair("testMSG_\u666E\u6797\u65AF\u987F.msg", "application/vnd.ms-outlook"));
-        expected.put(26, new Pair("file_3.pdf", "application/pdf"));
-        expected.put(29, new Pair("file_4.ppt", "application/vnd.ms-powerpoint"));
-        expected.put(33, new Pair("file_5.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
-        expected.put(32, new Pair("thumbnail.jpeg", "image/jpeg"));
-        expected.put(36, new Pair("file_6.doc", "application/msword"));
-        expected.put(39, new Pair("file_7.doc", "application/msword"));
-        expected.put(42, new Pair("file_8.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-        expected.put(45, new Pair("testJPEG_\u666E\u6797\u65AF\u987F.jpg", "image/jpeg"));
+        expected.put(10, new Pair("text.html", "text/html; charset=windows-1252"));
+        expected.put(11, new Pair("html-within-zip.zip", "application/zip"));
+        expected.put(12, new Pair("test-zip-of-zip_\u666E\u6797\u65AF\u987F.zip", "application/zip"));
+        expected.put(15, new Pair("testHTML_utf8_\u666E\u6797\u65AF\u987F.html", "text/html; charset=UTF-8"));
+        expected.put(18, new Pair("testJPEG_\u666E\u6797\u65AF\u987F.jpg", "image/jpeg"));
+        expected.put(21, new Pair("file_2.xls", "application/vnd.ms-excel"));
+        expected.put(24, new Pair("testMSG_\u666E\u6797\u65AF\u987F.msg", "application/vnd.ms-outlook"));
+        expected.put(27, new Pair("file_3.pdf", "application/pdf"));
+        expected.put(30, new Pair("file_4.ppt", "application/vnd.ms-powerpoint"));
+        expected.put(34, new Pair("file_5.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
+        expected.put(33, new Pair("thumbnail.jpeg", "image/jpeg"));
+        expected.put(37, new Pair("file_6.doc", "application/msword"));
+        expected.put(40, new Pair("file_7.doc", "application/msword"));
+        expected.put(43, new Pair("file_8.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+        expected.put(46, new Pair("testJPEG_\u666E\u6797\u65AF\u987F.jpg", "image/jpeg"));
 
 
         List<Metadata> metadataList = getRecursiveMetadata("testRTFEmbeddedFiles.rtf");
-        assertEquals(48, metadataList.size());
+        assertEquals(49, metadataList.size());
         for (Map.Entry<Integer, Pair> e : expected.entrySet()) {
             Metadata metadata = metadataList.get(e.getKey());
             Pair p = e.getValue();
@@ -448,7 +448,7 @@ public class RTFParserTest extends TikaTest {
             assertEquals(p.mimeType, metadata.get(Metadata.CONTENT_TYPE));
         }
         assertEquals("C:\\Users\\tallison\\AppData\\Local\\Temp\\testJPEG_普林斯顿.jpg",
-                metadataList.get(45).get(TikaCoreProperties.ORIGINAL_RESOURCE_NAME));
+                metadataList.get(46).get(TikaCoreProperties.ORIGINAL_RESOURCE_NAME));
     }
     
     //TIKA-1010 test regular (not "embedded") images/picts
@@ -458,7 +458,6 @@ public class RTFParserTest extends TikaTest {
         ParseContext ctx = new ParseContext();
         RecursiveParserWrapper parser = new RecursiveParserWrapper(base,
                 new BasicContentHandlerFactory(BasicContentHandlerFactory.HANDLER_TYPE.IGNORE, -1));
-        ctx.set(org.apache.tika.parser.Parser.class, parser);
         ContentHandler handler = new BodyContentHandler();
         Metadata rootMetadata = new Metadata();
         rootMetadata.add(Metadata.RESOURCE_NAME_KEY, "testRTFRegularImages.rtf");
@@ -479,8 +478,8 @@ public class RTFParserTest extends TikaTest {
         assertEquals("false", meta_jpg.get(RTFMetadata.THUMBNAIL));
         assertEquals("false", meta_jpg_exif.get(RTFMetadata.THUMBNAIL));
 
-        assertEquals(46, meta_jpg.names().length);
-        assertEquals(110, meta_jpg_exif.names().length);
+        assertEquals(48, meta_jpg.names().length);
+        assertEquals(112, meta_jpg_exif.names().length);
     }
 
     @Test
@@ -503,8 +502,8 @@ public class RTFParserTest extends TikaTest {
     @Test
     public void testEmbeddedLinkedDocument() throws Exception {
         Set<MediaType> skipTypes = new HashSet<MediaType>();
-        skipTypes.add(MediaType.parse("application/x-emf"));
-        skipTypes.add(MediaType.parse("application/x-msmetafile"));
+        skipTypes.add(MediaType.parse("image/emf"));
+        skipTypes.add(MediaType.parse("image/wmf"));
 
         TrackingHandler tracker = new TrackingHandler(skipTypes);
         try (TikaInputStream tis = TikaInputStream.get(getResourceAsStream("/test-documents/testRTFEmbeddedLink.rtf"))) {

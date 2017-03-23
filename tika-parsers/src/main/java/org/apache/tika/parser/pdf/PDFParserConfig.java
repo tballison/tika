@@ -96,6 +96,9 @@ public class PDFParserConfig implements Serializable {
     //True if acroform content should be extracted
     private boolean extractAcroFormContent = true;
 
+	//True if bookmarks content should be extracted
+    private boolean extractBookmarksText = true;
+
     //True if inline PDXImage objects should be extracted
     private boolean extractInlineImages = false;
 
@@ -115,9 +118,10 @@ public class PDFParserConfig implements Serializable {
 
     private OCR_STRATEGY ocrStrategy = OCR_STRATEGY.NO_OCR;
 
-    private int ocrDPI = 200;
+    private int ocrDPI = 300;
     private ImageType ocrImageType = ImageType.GRAY;
     private String ocrImageFormatName = "png";
+    private float ocrImageQuality = 1.0f;
 
     private AccessChecker accessChecker;
 
@@ -125,7 +129,9 @@ public class PDFParserConfig implements Serializable {
     //with a streams.  If this is set to true, Tika's
     //parser catches these exceptions, reports them in the metadata
     //and then throws the first stored exception after the parse has completed.
-    private boolean isCatchIntermediateIOExceptions = true;
+    private boolean catchIntermediateIOExceptions = true;
+
+    private boolean extractActions = false;
 
     public PDFParserConfig() {
         init(this.getClass().getResourceAsStream("PDFParser.properties"));
@@ -175,6 +181,9 @@ public class PDFParserConfig implements Serializable {
         setExtractAcroFormContent(
                 getBooleanProp(props.getProperty("extractAcroFormContent"),
                         getExtractAcroFormContent()));
+		setExtractBookmarksText(
+				getBooleanProp(props.getProperty("extractBookmarksText"),
+						getExtractBookmarksText()));
         setExtractInlineImages(
                 getBooleanProp(props.getProperty("extractInlineImages"),
                         getExtractInlineImages()));
@@ -197,6 +206,8 @@ public class PDFParserConfig implements Serializable {
         setOcrImageFormatName(props.getProperty("ocrImageFormatName"));
 
         setOcrImageType(parseImageType(props.getProperty("ocrImageType")));
+
+        setExtractActions(getBooleanProp(props.getProperty("extractActions"), false));
 
 
         boolean checkExtractAccessPermission = getBooleanProp(props.getProperty("checkExtractAccessPermission"), false);
@@ -270,8 +281,24 @@ public class PDFParserConfig implements Serializable {
         this.ifXFAExtractOnlyXFA = ifXFAExtractOnlyXFA;
     }
 
+	/**
+	 * @see #setExtractBookmarksText(boolean)
+	 */
+	public boolean getExtractBookmarksText() {
+		return extractBookmarksText;
+	}
 
-    /**
+	/**
+	 * If true, extract bookmarks (document outline) text.
+	 * <p/>
+	 * Te default is <code>true</code>
+	 * @param extractBookmarksText
+	 */
+	public void setExtractBookmarksText(boolean extractBookmarksText) {
+		this.extractBookmarksText = extractBookmarksText;
+	}
+
+	/**
      * @see #setExtractInlineImages(boolean)
      */
     public boolean getExtractInlineImages() {
@@ -325,7 +352,6 @@ public class PDFParserConfig implements Serializable {
      */
     public void setExtractUniqueInlineImagesOnly(boolean extractUniqueInlineImagesOnly) {
         this.extractUniqueInlineImagesOnly = extractUniqueInlineImagesOnly;
-
     }
 
     /**
@@ -439,11 +465,19 @@ public class PDFParserConfig implements Serializable {
     /**
      * See {@link #setCatchIntermediateIOExceptions(boolean)}
      * @return whether or not to catch IOExceptions
+     * @deprecated use {@link #getCatchIntermediateIOExceptions()}
      */
     public boolean isCatchIntermediateIOExceptions() {
-        return isCatchIntermediateIOExceptions;
+        return catchIntermediateIOExceptions;
     }
 
+    /**
+     * See {@link #setCatchIntermediateIOExceptions(boolean)}
+     * @return whether or not to catch IOExceptions
+     */
+    public boolean getCatchIntermediateIOExceptions() {
+        return catchIntermediateIOExceptions;
+    }
     /**
      * The PDFBox parser will throw an IOException if there is
      * a problem with a stream.  If this is set to <code>true</code>,
@@ -453,7 +487,7 @@ public class PDFParserConfig implements Serializable {
      * @param catchIntermediateIOExceptions
      */
     public void setCatchIntermediateIOExceptions(boolean catchIntermediateIOExceptions) {
-        isCatchIntermediateIOExceptions = catchIntermediateIOExceptions;
+        this.catchIntermediateIOExceptions = catchIntermediateIOExceptions;
     }
 
     /**
@@ -554,11 +588,50 @@ public class PDFParserConfig implements Serializable {
     }
 
     /**
-     * Dots per inche used to render the page image for OCR
+     * Dots per inch used to render the page image for OCR.
+     * This does not apply to all image formats.
+     *
      * @param ocrDPI
      */
     public void setOcrDPI(int ocrDPI) {
         this.ocrDPI = ocrDPI;
+    }
+
+    /**
+     * Image quality used to render the page image for OCR.
+     * This does not apply to all image formats
+     * @return
+     */
+    public float getOcrImageQuality() {
+        return ocrImageQuality;
+    }
+
+    /**
+     * Image quality used to render the page image for OCR.
+     * This does not apply to all image formats
+     * @return
+     */
+    public void setOcrImageQuality(float ocrImageQuality) {
+        this.ocrImageQuality = ocrImageQuality;
+    }
+
+    /**
+     * Whether or not to extract PDActions from the file.
+     * Most Action types are handled inline; javascript macros
+     * are processed as embedded documents.
+     *
+     * @param v
+     */
+    public void setExtractActions(boolean v) {
+        extractActions = v;
+    }
+
+    /**
+     * @see #setExtractActions(boolean)
+     * @return whether or not to extract PDActions
+     */
+    public boolean getExtractActions() {
+        return extractActions;
     }
 
     private ImageType parseImageType(String ocrImageType) {
@@ -593,6 +666,7 @@ public class PDFParserConfig implements Serializable {
         if (getExtractAnnotationText() != config.getExtractAnnotationText()) return false;
         if (getSortByPosition() != config.getSortByPosition()) return false;
         if (getExtractAcroFormContent() != config.getExtractAcroFormContent()) return false;
+		if (getExtractBookmarksText() != config.getExtractBookmarksText()) return false;
         if (getExtractInlineImages() != config.getExtractInlineImages()) return false;
         if (getExtractUniqueInlineImagesOnly() != config.getExtractUniqueInlineImagesOnly()) return false;
         if (getIfXFAExtractOnlyXFA() != config.getIfXFAExtractOnlyXFA()) return false;
@@ -603,6 +677,7 @@ public class PDFParserConfig implements Serializable {
         if (!getOcrStrategy().equals(config.getOcrStrategy())) return false;
         if (getOcrImageType() != config.getOcrImageType()) return false;
         if (!getOcrImageFormatName().equals(config.getOcrImageFormatName())) return false;
+        if (getExtractActions() != config.getExtractActions()) return false;
         return getAccessChecker().equals(config.getAccessChecker());
 
     }
@@ -614,6 +689,7 @@ public class PDFParserConfig implements Serializable {
         result = 31 * result + (getExtractAnnotationText() ? 1 : 0);
         result = 31 * result + (getSortByPosition() ? 1 : 0);
         result = 31 * result + (getExtractAcroFormContent() ? 1 : 0);
+		result = 31 * result + (getExtractBookmarksText() ? 1 : 0);
         result = 31 * result + (getExtractInlineImages() ? 1 : 0);
         result = 31 * result + (getExtractUniqueInlineImagesOnly() ? 1 : 0);
         result = 31 * result + getAverageCharTolerance().hashCode();
@@ -625,6 +701,7 @@ public class PDFParserConfig implements Serializable {
         result = 31 * result + getOcrImageFormatName().hashCode();
         result = 31 * result + getAccessChecker().hashCode();
         result = 31 * result + (isCatchIntermediateIOExceptions() ? 1 : 0);
+        result = 31 * result + (getExtractActions() ? 1 : 0);
         return result;
     }
 
@@ -636,6 +713,7 @@ public class PDFParserConfig implements Serializable {
                 ", extractAnnotationText=" + extractAnnotationText +
                 ", sortByPosition=" + sortByPosition +
                 ", extractAcroFormContent=" + extractAcroFormContent +
+				", extractBookmarksText=" + extractBookmarksText +
                 ", extractInlineImages=" + extractInlineImages +
                 ", extractUniqueInlineImagesOnly=" + extractUniqueInlineImagesOnly +
                 ", averageCharTolerance=" + averageCharTolerance +
@@ -646,7 +724,8 @@ public class PDFParserConfig implements Serializable {
                 ", ocrImageType=" + ocrImageType +
                 ", ocrImageFormatName='" + ocrImageFormatName + '\'' +
                 ", accessChecker=" + accessChecker +
-                ", isCatchIntermediateIOExceptions=" + isCatchIntermediateIOExceptions +
+                ", extractActions=" + extractActions +
+                ", catchIntermediateIOExceptions=" + catchIntermediateIOExceptions +
                 '}';
     }
 }

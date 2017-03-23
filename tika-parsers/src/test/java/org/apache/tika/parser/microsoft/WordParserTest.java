@@ -19,6 +19,7 @@ package org.apache.tika.parser.microsoft;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.InputStream;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ import org.apache.tika.metadata.OfficeOpenXMLCore;
 import org.apache.tika.metadata.OfficeOpenXMLExtended;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.sax.BodyContentHandler;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -365,7 +367,7 @@ public class WordParserTest extends TikaTest {
 
     @Test
     public void testControlCharacter() throws Exception {
-        assertContains("1. Introduzione<b> </a></b> </p>", getXML("testControlCharacters.doc").xml.replaceAll("\\s+", " "));
+        assertContains("1. Introduzione<b> </b></a> </p>", getXML("testControlCharacters.doc").xml.replaceAll("\\s+", " "));
     }
 
     @Test
@@ -510,6 +512,58 @@ public class WordParserTest extends TikaTest {
                 Arrays.asList(embed1_zip_metadata.getValues(TikaCoreProperties.ORIGINAL_RESOURCE_NAME)));
         assertContains("C:\\Users\\tallison\\Desktop\\tmp\\New folder (2)\\embed1.zip",
                 Arrays.asList(embed1_zip_metadata.getValues(TikaCoreProperties.ORIGINAL_RESOURCE_NAME)));
+    }
+
+    @Test
+    public void testBoldHyperlink() throws Exception {
+        //TIKA-1255
+        String xml = getXML("testWORD_boldHyperlink.doc").xml;
+        xml = xml.replaceAll("\\s+", " ");
+        assertContains("<a href=\"http://tika.apache.org/\">hyper <b>link</b></a>", xml);
+        assertContains("<a href=\"http://tika.apache.org/\"><b>hyper</b> link</a>; bold" , xml);
+    }
+
+    @Test
+    public void testMacros() throws  Exception {
+        Metadata minExpected = new Metadata();
+        minExpected.add(RecursiveParserWrapper.TIKA_CONTENT.getName(), "Sub Embolden()");
+        minExpected.add(RecursiveParserWrapper.TIKA_CONTENT.getName(), "Sub Italicize()");
+        minExpected.add(Metadata.CONTENT_TYPE, "text/x-vbasic");
+        minExpected.add(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+                TikaCoreProperties.EmbeddedResourceType.MACRO.toString());
+
+        List<Metadata> metadataList = getRecursiveMetadata("testWORD_macros.doc");
+        assertContainsAtLeast(minExpected, metadataList);
+    }
+
+    @Test
+    public void testDeleted() throws Exception {
+        //test classic behavior
+        String xml = getXML("testWORD_2006ml.doc").xml;
+        assertNotContained("frog", xml);
+
+        //moveFrom is deleted in .doc files
+        assertContainsCount("Second paragraph", xml, 1);
+        //now test inclusion of deleted text
+        ParseContext context = new ParseContext();
+        OfficeParserConfig officeParserConfig = new OfficeParserConfig();
+        officeParserConfig.setIncludeDeletedContent(true);
+        context.set(OfficeParserConfig.class, officeParserConfig);
+        XMLResult r = getXML("testWORD_2006ml.doc", context);
+        assertContains("frog", r.xml);
+
+        //moveFrom is deleted in .doc files
+        assertContainsCount("Second paragraph", r.xml, 2);
+    }
+
+    @Test
+    public void testProtected() throws Exception {
+        try {
+            getXML("testWORD_protected_passtika.doc");
+            fail("should have thrown encrypted document exception");
+        } catch (org.apache.tika.exception.EncryptedDocumentException e) {
+
+        }
     }
 }
 

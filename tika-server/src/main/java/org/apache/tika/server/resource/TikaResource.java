@@ -45,6 +45,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -54,6 +55,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.jaxrs.ext.multipart.Attachment;
 import org.apache.poi.extractor.ExtractorFactory;
+import org.apache.tika.Tika;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.detect.Detector;
 import org.apache.tika.exception.EncryptedDocumentException;
@@ -73,13 +75,14 @@ import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.apache.tika.sax.ExpandedTitleContentHandler;
 import org.apache.tika.sax.RichTextContentHandler;
+import org.apache.tika.server.InputStreamFactory;
 import org.apache.tika.server.TikaServerParseException;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 @Path("/tika")
 public class TikaResource {
-    public static final String GREETING = "This is Tika Server. Please PUT\n";
+    public static final String GREETING = "This is Tika Server ("+new Tika().toString()+"). Please PUT\n";
     public static final String X_TIKA_OCR_HEADER_PREFIX = "X-Tika-OCR";
     public static final String X_TIKA_PDF_HEADER_PREFIX = "X-Tika-PDF";
 
@@ -88,10 +91,13 @@ public class TikaResource {
 
     private static TikaConfig tikaConfig;
     private static DigestingParser.Digester digester = null;
+    private static InputStreamFactory inputStreamFactory = null;
 
-    public static void init(TikaConfig config, DigestingParser.Digester digestr) {
+    public static void init(TikaConfig config, DigestingParser.Digester digestr,
+                            InputStreamFactory iSF) {
         tikaConfig = config;
         digester = digestr;
+        inputStreamFactory = iSF;
     }
 
     static {
@@ -172,6 +178,14 @@ public class TikaResource {
         }
     }
 
+    public static InputStream getInputStream(InputStream is, HttpHeaders headers) {
+        try {
+            return inputStreamFactory.getInputSteam(is, headers);
+        } catch (IOException e) {
+            throw new TikaServerParseException(e);
+        }
+    }
+
     /**
      * Utility method to set a property on a class via reflection.
      *
@@ -185,6 +199,7 @@ public class TikaResource {
         try {
             String property = StringUtils.removeStart(key, prefix);
             Field field = object.getClass().getDeclaredField(StringUtils.uncapitalize(property));
+
             field.setAccessible(true);
             if (field.getType() == String.class) {
                 field.set(object, httpHeaders.getFirst(key));
@@ -194,6 +209,20 @@ public class TikaResource {
                 field.setDouble(object, Double.parseDouble(httpHeaders.getFirst(key)));
             } else if (field.getType() == boolean.class) {
                 field.setBoolean(object, Boolean.parseBoolean(httpHeaders.getFirst(key)));
+            } else {
+                //couldn't find a directly accessible field
+                //try for setX(String s)
+                String setter = StringUtils.uncapitalize(property);
+                setter = "set"+setter.substring(0,1).toUpperCase(Locale.US)+setter.substring(1);
+                Method m = null;
+                try {
+                    m = object.getClass().getMethod(setter, String.class);
+                } catch (NoSuchMethodException e) {
+                    //swallow
+                }
+                if (m != null) {
+                    m.invoke(object, httpHeaders.getFirst(key));
+                }
             }
         } catch (Throwable ex) {
             throw new WebApplicationException(String.format(Locale.ROOT,
@@ -337,7 +366,7 @@ public class TikaResource {
     @Consumes("*/*")
     @Produces("text/plain")
     public StreamingOutput getText(final InputStream is, @Context HttpHeaders httpHeaders, @Context final UriInfo info) {
-        return produceText(is, httpHeaders.getRequestHeaders(), info);
+        return produceText(getInputStream(is, httpHeaders), httpHeaders.getRequestHeaders(), info);
     }
 
     public StreamingOutput produceText(final InputStream is, MultivaluedMap<String, String> httpHeaders, final UriInfo info) {
@@ -375,7 +404,7 @@ public class TikaResource {
     @Consumes("*/*")
     @Produces("text/html")
     public StreamingOutput getHTML(final InputStream is, @Context HttpHeaders httpHeaders, @Context final UriInfo info) {
-        return produceOutput(is, httpHeaders.getRequestHeaders(), info, "html");
+        return produceOutput(getInputStream(is, httpHeaders), httpHeaders.getRequestHeaders(), info, "html");
     }
 
     @POST
@@ -390,7 +419,7 @@ public class TikaResource {
     @Consumes("*/*")
     @Produces("text/xml")
     public StreamingOutput getXML(final InputStream is, @Context HttpHeaders httpHeaders, @Context final UriInfo info) {
-        return produceOutput(is, httpHeaders.getRequestHeaders(), info, "xml");
+        return produceOutput(getInputStream(is, httpHeaders), httpHeaders.getRequestHeaders(), info, "xml");
     }
 
     private StreamingOutput produceOutput(final InputStream is, final MultivaluedMap<String, String> httpHeaders,

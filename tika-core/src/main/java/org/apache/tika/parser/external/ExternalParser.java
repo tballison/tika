@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -56,7 +57,7 @@ public class ExternalParser extends AbstractParser {
      * Consumer contract
      * @since Apache Tika 1.14
      */
-    public interface LineConsumer {
+    public interface LineConsumer extends Serializable {
         /**
          * Consume a line
          * @param line a line of string
@@ -69,7 +70,7 @@ public class ExternalParser extends AbstractParser {
         LineConsumer NULL = new LineConsumer() {
             @Override
             public void consume(String line) {
-               //ignore
+                // ignores
             }
         };
     }

@@ -17,7 +17,6 @@
 package org.apache.tika.parser.pdf;
 
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,10 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.io.IOExceptionWithCause;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSStream;
+import org.apache.pdfbox.filter.MissingImageReaderException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
@@ -46,7 +45,8 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
 import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.apache.tika.exception.TikaException;
-import org.apache.tika.extractor.EmbeddedDocumentExtractor;
+import org.apache.tika.extractor.EmbeddedDocumentUtil;
+import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
@@ -66,6 +66,12 @@ class PDF2XHTML extends AbstractPDF2XHTML {
     private static final List<String> JPEG = Arrays.asList(
             COSName.DCT_DECODE.getName(),
             COSName.DCT_DECODE_ABBREVIATION.getName());
+
+    private static final List<String> JP2 =
+            Arrays.asList(COSName.JPX_DECODE.getName());
+
+    private static final List<String> JB2 = Arrays.asList(
+            COSName.JBIG2_DECODE.getName());
 
     /**
      * This keeps track of the pdf object ids for inline
@@ -121,7 +127,6 @@ class PDF2XHTML extends AbstractPDF2XHTML {
                 public void close() {
                 }
             });
-
         } catch (IOException e) {
             if (e.getCause() instanceof SAXException) {
                 throw (SAXException) e.getCause();
@@ -131,8 +136,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         }
         if (pdf2XHTML.exceptions.size() > 0) {
             //throw the first
-            throw new TikaException("Unable to extract all PDF content",
-                    pdf2XHTML.exceptions.get(0));
+            throw new TikaException("Unable to extract PDF content", pdf2XHTML.exceptions.get(0));
         }
     }
 
@@ -157,7 +161,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
             }
             super.endPage(page);
         } catch (SAXException e) {
-            throw new IOExceptionWithCause("Unable to end a page", e);
+            throw new IOException("Unable to end a page", e);
         } catch (IOException e) {
             exceptions.add(e);
         }
@@ -170,7 +174,17 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
         for (COSName name : resources.getXObjectNames()) {
 
-            PDXObject object = resources.getXObject(name);
+            PDXObject object = null;
+            try {
+                object = resources.getXObject(name);
+            } catch (MissingImageReaderException e) {
+                EmbeddedDocumentUtil.recordException(e, metadata);
+                continue;
+            } catch (IOException e) {
+                EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
+                continue;
+            }
+
             if (object == null) {
                 continue;
             }
@@ -187,27 +201,32 @@ class PDF2XHTML extends AbstractPDF2XHTML {
 
                 PDImageXObject image = (PDImageXObject) object;
 
-                Metadata metadata = new Metadata();
+                Metadata embeddedMetadata = new Metadata();
                 String extension = image.getSuffix();
-                if (extension == null) {
-                    metadata.set(Metadata.CONTENT_TYPE, "image/png");
+                
+                if (extension == null || extension.equals("png")) {
+                    embeddedMetadata.set(Metadata.CONTENT_TYPE, "image/png");
                     extension = "png";
                 } else if (extension.equals("jpg")) {
-                    metadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
+                    embeddedMetadata.set(Metadata.CONTENT_TYPE, "image/jpeg");
                 } else if (extension.equals("tiff")) {
-                    metadata.set(Metadata.CONTENT_TYPE, "image/tiff");
+                    embeddedMetadata.set(Metadata.CONTENT_TYPE, "image/tiff");
                     extension = "tif";
+                } else if (extension.equals("jpx")) {
+                    embeddedMetadata.set(Metadata.CONTENT_TYPE, "image/jp2");
+                } else if (extension.equals("jb2")) {
+                    embeddedMetadata.set(
+                            Metadata.CONTENT_TYPE, "image/x-jbig2");
                 } else {
                     //TODO: determine if we need to add more image types
-                    //throw new RuntimeException("EXTEN:" + extension);
+//                    throw new RuntimeException("EXTEN:" + extension);
                 }
-
                 Integer imageNumber = processedInlineImages.get(cosStream);
                 if (imageNumber == null) {
                     imageNumber = inlineImageCounter++;
                 }
                 String fileName = "image" + imageNumber + "."+extension;
-                metadata.set(Metadata.RESOURCE_NAME_KEY, fileName);
+                embeddedMetadata.set(Metadata.RESOURCE_NAME_KEY, fileName);
 
                 // Output the img tag
                 AttributesImpl attr = new AttributesImpl();
@@ -225,20 +244,25 @@ class PDF2XHTML extends AbstractPDF2XHTML {
                     processedInlineImages.put(cosStream, imageNumber);
                 }
 
-                metadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+                embeddedMetadata.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
                         TikaCoreProperties.EmbeddedResourceType.INLINE.toString());
 
-                EmbeddedDocumentExtractor extractor =
-                        getEmbeddedDocumentExtractor();
-                if (extractor.shouldParseEmbedded(metadata)) {
+                if (embeddedDocumentExtractor.shouldParseEmbedded(embeddedMetadata)) {
                     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                     try {
                         //TODO: handle image.getMetadata()?
-                        writeToBuffer(image, extension, buffer);
-                        extractor.parseEmbedded(
-                                new ByteArrayInputStream(buffer.toByteArray()),
-                                new EmbeddedContentHandler(xhtml),
-                                metadata, false);
+                        try {
+                            writeToBuffer(image, extension, buffer);
+                        } catch (IOException e) {
+                            EmbeddedDocumentUtil.recordEmbeddedStreamException(e, metadata);
+                            continue;
+                        }
+                        try (InputStream embeddedIs = TikaInputStream.get(buffer.toByteArray())) {
+                            embeddedDocumentExtractor.parseEmbedded(
+                                    embeddedIs,
+                                    new EmbeddedContentHandler(xhtml),
+                                    embeddedMetadata, false);
+                        }
                     } catch (IOException e) {
                         handleCatchableIOE(e);
                     }
@@ -267,7 +291,15 @@ class PDF2XHTML extends AbstractPDF2XHTML {
                     // for CMYK and other "unusual" colorspaces, the JPEG will be converted
                     ImageIOUtil.writeImage(image, suffix, out);
                 }
-            } else {
+            } else if ("jp2".equals(suffix) || "jpx".equals(suffix)) {
+                InputStream data = pdImage.createInputStream(JP2);
+                org.apache.pdfbox.io.IOUtils.copy(data, out);
+                org.apache.pdfbox.io.IOUtils.closeQuietly(data);
+            } else if ("jb2".equals(suffix)) {
+                InputStream data = pdImage.createInputStream(JB2);
+                org.apache.pdfbox.io.IOUtils.copy(data, out);
+                org.apache.pdfbox.io.IOUtils.closeQuietly(data);
+            } else{
                 ImageIOUtil.writeImage(image, suffix, out);
             }
         }
@@ -280,7 +312,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.startElement("p");
         } catch (SAXException e) {
-            throw new IOExceptionWithCause("Unable to start a paragraph", e);
+            throw new IOException("Unable to start a paragraph", e);
         }
     }
 
@@ -290,7 +322,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.endElement("p");
         } catch (SAXException e) {
-            throw new IOExceptionWithCause("Unable to end a paragraph", e);
+            throw new IOException("Unable to end a paragraph", e);
         }
     }
 
@@ -299,7 +331,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.characters(text);
         } catch (SAXException e) {
-            throw new IOExceptionWithCause(
+            throw new IOException(
                     "Unable to write a string: " + text, e);
         }
     }
@@ -309,7 +341,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.characters(text.getUnicode());
         } catch (SAXException e) {
-            throw new IOExceptionWithCause(
+            throw new IOException(
                     "Unable to write a character: " + text.getUnicode(), e);
         }
     }
@@ -319,7 +351,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.characters(getWordSeparator());
         } catch (SAXException e) {
-            throw new IOExceptionWithCause(
+            throw new IOException(
                     "Unable to write a space character", e);
         }
     }
@@ -329,7 +361,7 @@ class PDF2XHTML extends AbstractPDF2XHTML {
         try {
             xhtml.newline();
         } catch (SAXException e) {
-            throw new IOExceptionWithCause(
+            throw new IOException(
                     "Unable to write a newline character", e);
         }
     }

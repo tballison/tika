@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parent</artifactId>
-    <version>1.14-SNAPSHOT</version>
+    <version>1.15-SNAPSHOT</version>
     <relativePath>../tika-parent/pom.xml</relativePath>
   </parent>
 
@@ -126,7 +126,7 @@
             <Embed-Dependency>
               tika-parsers;inline=true,
               commons-compress, xz, commons-codec, commons-csv,
-              commons-io, commons-exec, junrar,
+              commons-io, commons-exec, commons-collections4, junrar,
               pdfbox,pdfbox-tools,pdfbox-debugger,fontbox,jempbox,bcmail-jdk15on,bcprov-jdk15on,bcpkix-jdk15on,
               poi,poi-scratchpad,poi-ooxml,poi-ooxml-schemas,
               curvesapi,
@@ -221,6 +221,7 @@
               org.apache.xml.resolver.tools;resolution:=optional,
               org.apache.xml.security;resolution:=optional,
               org.apache.xml.security.c14n;resolution:=optional,
+              org.apache.xml.security.signature;resolution:=optional,
               org.apache.xml.security.utils;resolution:=optional,
               org.apache.xmlbeans.impl.xpath.saxon;resolution:=optional,
               org.apache.xmlbeans.impl.xquery.saxon;resolution:=optional,

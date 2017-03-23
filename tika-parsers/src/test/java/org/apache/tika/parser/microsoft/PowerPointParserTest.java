@@ -30,6 +30,7 @@ import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.RecursiveParserWrapper;
 import org.apache.tika.sax.BodyContentHandler;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 
@@ -249,4 +250,38 @@ public class PowerPointParserTest extends TikaTest {
         assertContains("Hello World", metadataList.get(2).get(RecursiveParserWrapper.TIKA_CONTENT));
         assertEquals("4.pdf", metadataList.get(2).get(Metadata.RESOURCE_NAME_KEY));
     }
+
+    @Test
+    @Ignore("POI 3.15-final not finding any macros in this ppt")
+    public void testMacros() throws  Exception {
+        Metadata minExpected = new Metadata();
+        minExpected.add(RecursiveParserWrapper.TIKA_CONTENT.getName(), "Sub Embolden()");
+        minExpected.add(RecursiveParserWrapper.TIKA_CONTENT.getName(), "Sub Italicize()");
+        minExpected.add(Metadata.CONTENT_TYPE, "text/x-vbasic");
+        minExpected.add(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
+                TikaCoreProperties.EmbeddedResourceType.MACRO.toString());
+
+        List<Metadata> metadataList = getRecursiveMetadata("testPPT_macros.ppt");
+        assertContainsAtLeast(minExpected, metadataList);
+    }
+
+
+    @Test
+    public void testSkippingBadCompressedObj() throws Exception {
+        //test file is from govdocs1: 258642.ppt
+        //TIKA-2130
+        XMLResult r = getXML("testPPT_skipBadCompressedObject.ppt");
+        assertContains("NASA Human", r.xml);
+        assertEquals(2,
+                r.metadata.getValues(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM).length);
+        assertContains("incorrect data check",
+                r.metadata.get(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM));
+
+        List<Metadata> metadataList = getRecursiveMetadata("testPPT_skipBadCompressedObject.ppt");
+        assertEquals(2,
+                metadataList.get(0).getValues(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM).length);
+        assertContains("incorrect data check",
+                metadataList.get(0).get(TikaCoreProperties.TIKA_META_EXCEPTION_EMBEDDED_STREAM));
+    }
+
 }

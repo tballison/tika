@@ -38,12 +38,13 @@ import org.apache.commons.compress.archivers.sevenz.SevenZFile;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException;
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException.Feature;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.tika.exception.EncryptedDocumentException;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.extractor.EmbeddedDocumentExtractor;
-import org.apache.tika.extractor.ParsingEmbeddedDocumentExtractor;
+import org.apache.tika.extractor.EmbeddedDocumentUtil;
 import org.apache.tika.io.TemporaryResources;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.Metadata;
@@ -118,9 +119,9 @@ public class PackageParser extends AbstractParser {
             throws IOException, SAXException, TikaException {
        
         // Ensure that the stream supports the mark feature
-        if (! TikaInputStream.isTikaInputStream(stream))
+        if (! stream.markSupported()) {
             stream = new BufferedInputStream(stream);
-        
+        }
         
         TemporaryResources tmp = new TemporaryResources();
         ArchiveInputStream ais = null;
@@ -129,6 +130,7 @@ public class PackageParser extends AbstractParser {
             // At the end we want to close the archive stream to release
             // any associated resources, but the underlying document stream
             // should not be closed
+
             ais = factory.createArchiveInputStream(new CloseShieldInputStream(stream));
             
         } catch (StreamingNotSupportedException sne) {
@@ -168,9 +170,7 @@ public class PackageParser extends AbstractParser {
             metadata.set(CONTENT_TYPE, type.toString());
         }
         // Use the delegate parser to parse the contained document
-        EmbeddedDocumentExtractor extractor = context.get(
-                EmbeddedDocumentExtractor.class,
-                new ParsingEmbeddedDocumentExtractor(context));
+        EmbeddedDocumentExtractor extractor = EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context);
 
         XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
         xhtml.startDocument();
@@ -179,7 +179,7 @@ public class PackageParser extends AbstractParser {
             ArchiveEntry entry = ais.getNextEntry();
             while (entry != null) {
                 if (!entry.isDirectory()) {
-                    parseEntry(ais, entry, extractor, xhtml);
+                    parseEntry(ais, entry, extractor, metadata, xhtml);
                 }
                 entry = ais.getNextEntry();
             }
@@ -188,7 +188,8 @@ public class PackageParser extends AbstractParser {
             if (zfe.getFeature() == Feature.ENCRYPTION) {
                 throw new EncryptedDocumentException(zfe);
             }
-            // Otherwise fall through to raise the exception as normal
+            // Otherwise throw the exception
+            throw new TikaException("UnsupportedZipFeature", zfe);
         } catch (PasswordRequiredException pre) {
             throw new EncryptedDocumentException(pre);
         } finally {
@@ -201,7 +202,7 @@ public class PackageParser extends AbstractParser {
 
     private void parseEntry(
             ArchiveInputStream archive, ArchiveEntry entry,
-            EmbeddedDocumentExtractor extractor, XHTMLContentHandler xhtml)
+            EmbeddedDocumentExtractor extractor, Metadata parentMetadata, XHTMLContentHandler xhtml)
             throws SAXException, IOException, TikaException {
         String name = entry.getName();
         if (archive.canReadEntryData(entry)) {
@@ -221,8 +222,21 @@ public class PackageParser extends AbstractParser {
                     tmp.dispose();
                 }
             }
-        } else if (name != null && name.length() > 0) {
-            xhtml.element("p", name);
+        } else {
+            name = (name == null) ? "" : name;
+            if (entry instanceof ZipArchiveEntry) {
+                boolean usesEncryption = ((ZipArchiveEntry) entry).getGeneralPurposeBit().usesEncryption();
+                if (usesEncryption) {
+                    EmbeddedDocumentUtil.recordEmbeddedStreamException(
+                            new EncryptedDocumentException("stream ("+name+") is encrypted"), parentMetadata);
+                }
+            } else {
+                EmbeddedDocumentUtil.recordEmbeddedStreamException(
+                        new TikaException("Can't read archive stream ("+name+")"), parentMetadata);
+            }
+            if (name.length() > 0) {
+                xhtml.element("p", name);
+            }
         }
     }
     
