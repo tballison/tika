@@ -35,9 +35,11 @@ import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Attribute;
+import org.jsoup.nodes.DataNode;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
+import org.jsoup.select.NodeFilter;
 import org.jsoup.select.NodeTraversor;
 import org.jsoup.select.NodeVisitor;
 import org.xml.sax.ContentHandler;
@@ -106,10 +108,8 @@ public class HtmlParser extends AbstractParser {
         ContentHandler xhtml = new XHTMLDowngradeHandler(
                 new HtmlHandler(mapper, handler, metadata));
         xhtml.startDocument();
-        NodeTraversor nodeTraversor = new NodeTraversor(new TikaNodeVisitor(xhtml));
         try {
-            nodeTraversor.traverse(document.head());
-            nodeTraversor.traverse(document.body());
+            NodeTraversor.filter(new TikaNodeFilter(xhtml), document);
         } catch (RuntimeSAXException e) {
             throw e.getWrapped();
         } finally {
@@ -117,15 +117,16 @@ public class HtmlParser extends AbstractParser {
         }
     }
 
-    private class TikaNodeVisitor implements NodeVisitor {
+    private class TikaNodeFilter implements NodeFilter {
         ContentHandler handler;
 
-        private TikaNodeVisitor(ContentHandler handler) {
+        private TikaNodeFilter(ContentHandler handler) {
             this.handler = handler;
         }
 
         @Override
-        public void head(Node node, int i) {
+        public NodeFilter.FilterResult head(Node node, int i) {
+
             if (node instanceof TextNode) {
                 String txt = ((TextNode) node).getWholeText();
                 if (txt != null) {
@@ -138,7 +139,9 @@ public class HtmlParser extends AbstractParser {
                         throw new RuntimeSAXException(e);
                     }
                 }
-                return;
+                return FilterResult.CONTINUE;
+            } else if (node instanceof DataNode) {
+                //do something with this #getWholeData()
             }
             AttributesImpl attributes = new AttributesImpl();
             Iterator<Attribute> jsoupAttrs = node.attributes().iterator();
@@ -151,19 +154,20 @@ public class HtmlParser extends AbstractParser {
             } catch (SAXException e) {
                 throw new RuntimeException(e);
             }
+            return FilterResult.CONTINUE;
         }
 
         @Override
-        public void tail(Node node, int i) {
+        public NodeFilter.FilterResult tail(Node node, int i) {
             if (node instanceof TextNode) {
-                return;
+                return FilterResult.CONTINUE;
             }
             try {
                 handler.endElement(XMLConstants.NULL_NS_URI, node.nodeName(), node.nodeName());
             } catch (SAXException e) {
                 throw new RuntimeSAXException(e);
             }
-
+            return FilterResult.CONTINUE;
         }
     }
 

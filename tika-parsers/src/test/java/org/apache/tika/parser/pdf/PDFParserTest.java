@@ -57,6 +57,7 @@ import org.apache.tika.sax.ContentHandlerDecorator;
 import org.apache.tika.sax.ToXMLContentHandler;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xml.sax.ContentHandler;
 
@@ -616,6 +617,7 @@ public class PDFParserTest extends TikaTest {
      * TODO: more testing
      */
     @Test
+    @Ignore
     public void testSequentialParser() throws Exception {
 
         Parser sequentialParser = new AutoDetectParser();
