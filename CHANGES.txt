@@ -1,5 +1,10 @@
 Release 4.2.0 - unreleased
 
+   * JunkDetector scores at most 100k chars per text by default, sampled as four evenly
+     spaced windows so corruption confined to one part of a long document still lowers
+     the score; withMaxScoredChars(int) changes the cap. tika-eval and
+     TikaEvalMetadataFilter previously scored up to the full extract (TIKA-4961).
+
    * OutlookExtractor now falls back to the "Date:" transport header for
      dcterms:created/modified when a .msg has no MAPI date property; the
      fallback previously could never match (TIKA-4959).

@@ -142,6 +142,13 @@ public final class JunkDetector implements TextQualityDetector {
      *  scores low because the foreign script clumps together. */
     private final float[] z9Calibration;
 
+    /** Default for {@link #withMaxScoredChars(int)}: ~100k bigrams puts the 95% band on z1 near 0.02. */
+    public static final int DEFAULT_MAX_SCORED_CHARS = 100_000;
+    public static final int SAMPLE_WINDOWS = 4;
+    private static final int SNAP_TO_WHITESPACE = 64;
+
+    private final int maxScoredChars;
+
     private JunkDetector(Map<String, float[]> calibrations,
                          short[] blockTable,
                          float[] blockTableQuant,
@@ -157,6 +164,29 @@ public final class JunkDetector implements TextQualityDetector {
                          float[] z5Calibration,
                          float[] z6Calibration,
                          float[] z9Calibration) {
+        this(calibrations, blockTable, blockTableQuant, blockCalibration, controlCalibration, combinerWeights,
+                scriptTransitionTable, scriptTransitionTableQuant, scriptTransitionCalibration, scriptBucketIndex,
+                numScriptBuckets, f1TablesByScript, z5Calibration, z6Calibration, z9Calibration,
+                DEFAULT_MAX_SCORED_CHARS);
+    }
+
+    private JunkDetector(Map<String, float[]> calibrations,
+                         short[] blockTable,
+                         float[] blockTableQuant,
+                         float[] blockCalibration,
+                         float[] controlCalibration,
+                         float[] combinerWeights,
+                         short[] scriptTransitionTable,
+                         float[] scriptTransitionTableQuant,
+                         float[] scriptTransitionCalibration,
+                         Map<String, Integer> scriptBucketIndex,
+                         int numScriptBuckets,
+                         Map<String, BigramTables> f1TablesByScript,
+                         float[] z5Calibration,
+                         float[] z6Calibration,
+                         float[] z9Calibration,
+                         int maxScoredChars) {
+        this.maxScoredChars = maxScoredChars;
         this.calibrations = Collections.unmodifiableMap(calibrations);
         this.blockTable = blockTable;
         this.blockTableQuant = blockTableQuant;
@@ -425,7 +455,88 @@ public final class JunkDetector implements TextQualityDetector {
         if (text == null || text.isEmpty()) {
             return unknownScore("UNKNOWN");
         }
-        return scoreText(text);
+        String sampled = sample(text, maxScoredChars);
+        if (sampled.isEmpty()) {
+            return unknownScore("UNKNOWN");
+        }
+        return scoreText(sampled);
+    }
+
+    /**
+     * Returns a detector that scores at most {@code maxScoredChars} chars of each text
+     * (default {@link #DEFAULT_MAX_SCORED_CHARS}).  Longer text is sampled as
+     * {@value #SAMPLE_WINDOWS} evenly spaced windows from its start to its end, so
+     * corruption confined to one part of a document still moves the score.
+     * {@code Integer.MAX_VALUE} scores everything.  Model tables are shared.
+     */
+    public JunkDetector withMaxScoredChars(int maxScoredChars) {
+        if (maxScoredChars < 1) {
+            throw new IllegalArgumentException("maxScoredChars must be >= 1: " + maxScoredChars);
+        }
+        return new JunkDetector(calibrations, blockTable, blockTableQuant, blockCalibration, controlCalibration,
+                combinerWeights, scriptTransitionTable, scriptTransitionTableQuant, scriptTransitionCalibration,
+                scriptBucketIndex, numScriptBuckets, f1TablesByScript, z5Calibration, z6Calibration, z9Calibration,
+                maxScoredChars);
+    }
+
+    public int getMaxScoredChars() {
+        return maxScoredChars;
+    }
+
+    /**
+     * Text itself if it fits in {@code maxChars}, else {@value #SAMPLE_WINDOWS} windows of
+     * {@code maxChars / SAMPLE_WINDOWS} chars, the first at the start and the last at the
+     * end, joined by blank lines.  Edges never split a surrogate pair and snap to nearby
+     * whitespace when there is any, so the seams add almost no bigrams of their own.
+     */
+    static String sample(String text, int maxChars) {
+        int len = text.length();
+        if (len <= maxChars) {
+            return text;
+        }
+        int window = Math.max(1, maxChars / SAMPLE_WINDOWS);
+        long stride = (long) (len - window) / (SAMPLE_WINDOWS - 1);
+        StringBuilder sb = new StringBuilder(maxChars + 2 * SAMPLE_WINDOWS);
+        for (int i = 0; i < SAMPLE_WINDOWS; i++) {
+            int start = (i == SAMPLE_WINDOWS - 1) ? len - window : (int) (i * stride);
+            int end = Math.min(start + window, len);
+            if (i > 0) {
+                start = snapStart(text, start, end);
+            }
+            if (end < len) {
+                end = snapEnd(text, start, end);
+            }
+            if (end <= start) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append("\n\n");
+            }
+            sb.append(text, start, end);
+        }
+        return sb.toString();
+    }
+
+    /** Moves a window start past the next whitespace if one is close, else just off a low surrogate. */
+    private static int snapStart(String text, int start, int end) {
+        int limit = Math.min(end, start + SNAP_TO_WHITESPACE);
+        for (int i = start; i < limit; i++) {
+            if (Character.isWhitespace(text.charAt(i))) {
+                return i + 1;
+            }
+        }
+        return Character.isLowSurrogate(text.charAt(start)) ? start + 1 : start;
+    }
+
+    /** Moves a window end back to the last whitespace if one is close, else just off a high surrogate. */
+    private static int snapEnd(String text, int start, int end) {
+        int limit = Math.max(start, end - SNAP_TO_WHITESPACE);
+        for (int i = end - 1; i >= limit; i--) {
+            if (Character.isWhitespace(text.charAt(i))) {
+                return i;
+            }
+        }
+        return Character.isHighSurrogate(text.charAt(end - 1)) ? end - 1 : end;
     }
 
     /**
