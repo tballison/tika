@@ -1,5 +1,10 @@
 Release 3.4.0 - ???
 
+  * A RAR entry junrar fails to extract (truncated archive, bad CRC, missing password)
+    is now recorded as X-TIKA:EXCEPTION:embedded_stream_exception on the container; the
+    entry still yields what was extracted before the failure, and the rest of the
+    archive is still parsed (junrar 8.1.2, TIKA-4985).
+
   * ISArchiveParser no longer reads every ISA-Tab document's investigation and assay files
     from the directory of the first document it parsed; concurrent parses no longer share
     the study file name (TIKA-4986).
