@@ -81,6 +81,15 @@ public class SketchUpParserTest extends TikaTest {
         assertThumbnail(file);
     }
 
+    /** SketchUp 2017 also writes the preview as a JFIF JPEG, as in two files of a corpus. */
+    @Test
+    public void testCDibJpegPreview() throws Exception {
+        byte[] jpeg = image(0xff8000, "jpg");
+        byte[] file = cdib("17.0.18899", jpeg);
+        assertArrayEquals(jpeg, SketchUpParser.readThumbnail(new ByteArrayInputStream(file)));
+        assertThumbnail(file, "thumbnail.jpg", "image/jpeg");
+    }
+
     @Test
     public void testZipModelThumbnail() throws Exception {
         byte[] file = zipped("26.1.194", VIEW, MODEL);
@@ -121,9 +130,9 @@ public class SketchUpParserTest extends TikaTest {
         byte[] text = "SketchUp Model".getBytes(StandardCharsets.UTF_16);
         assertThrows(TikaException.class,
                 () -> SketchUpParser.readThumbnail(new ByteArrayInputStream(text)));
-        byte[] jpeg = cdib("17.0.18899", new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0});
+        byte[] gif = cdib("17.0.18899", "GIF89a".getBytes(StandardCharsets.US_ASCII));
         assertThrows(TikaException.class,
-                () -> SketchUpParser.readThumbnail(new ByteArrayInputStream(jpeg)));
+                () -> SketchUpParser.readThumbnail(new ByteArrayInputStream(gif)));
     }
 
     @Test
@@ -211,14 +220,18 @@ public class SketchUpParserTest extends TikaTest {
     }
 
     private void assertThumbnail(byte[] file) throws Exception {
+        assertThumbnail(file, "thumbnail.png", "image/png");
+    }
+
+    private void assertThumbnail(byte[] file, String name, String type) throws Exception {
         List<Metadata> list = parse(file);
         assertEquals(2, list.size());
         assertEquals("application/vnd.sketchup.skp", list.get(0).get(HttpHeaders.CONTENT_TYPE));
         Metadata thumbnail = list.get(1);
         assertEquals(TikaCoreProperties.EmbeddedResourceType.THUMBNAIL.toString(),
                 thumbnail.get(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE));
-        assertEquals("thumbnail.png", thumbnail.get(TikaCoreProperties.RESOURCE_NAME_KEY));
-        assertEquals("image/png", thumbnail.get(HttpHeaders.CONTENT_TYPE));
+        assertEquals(name, thumbnail.get(TikaCoreProperties.RESOURCE_NAME_KEY));
+        assertEquals(type, thumbnail.get(HttpHeaders.CONTENT_TYPE));
     }
 
     private List<Metadata> parse(byte[] file) throws Exception {
@@ -314,11 +327,15 @@ public class SketchUpParserTest extends TikaTest {
     }
 
     private static byte[] png(int rgb) {
+        return image(rgb, "png");
+    }
+
+    private static byte[] image(int rgb, String format) {
         BufferedImage image = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
         image.setRGB(1, 1, rgb);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
-            ImageIO.write(image, "png", out);
+            ImageIO.write(image, format, out);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

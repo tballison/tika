@@ -19,6 +19,7 @@ package org.apache.tika.parser;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -26,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -251,6 +253,33 @@ public class AutoDetectParserTest extends TikaTest {
         assertAutoDetect("testGIF.gif", GIF, null);
         assertAutoDetect("testJPEG.jpg", JPEG, null);
         assertAutoDetect("testPNG.png", PNG, null);
+    }
+
+    /**
+     * A UTF-8 BOM a server put in front of binary magic: the parser gets the bytes after it
+     * and extracts what it does from the file without the BOM.
+     */
+    @Test
+    public void testBomBeforeBinaryMagic() throws Exception {
+        for (String name : new String[]{"testJPEG.jpg", "testPNG.png", "test-documents.zip",
+                "test-documents.tgz", "testMP3id3v2.mp3"}) {
+            byte[] bytes;
+            try (TikaInputStream tis = getResourceAsStream("/test-documents/" + name)) {
+                bytes = tis.readAllBytes();
+            }
+            byte[] withBom = new byte[bytes.length + 3];
+            withBom[0] = (byte) 0xef;
+            withBom[1] = (byte) 0xbb;
+            withBom[2] = (byte) 0xbf;
+            System.arraycopy(bytes, 0, withBom, 3, bytes.length);
+            List<Metadata> plain = getRecursiveMetadata(TikaInputStream.get(bytes), true);
+            List<Metadata> bom = getRecursiveMetadata(TikaInputStream.get(withBom), true);
+            assertNull(bom.get(0).get(TikaCoreProperties.CONTAINER_EXCEPTION), name);
+            assertEquals(plain.get(0).get(HttpHeaders.CONTENT_TYPE),
+                    bom.get(0).get(HttpHeaders.CONTENT_TYPE), name);
+            assertEquals(plain.size(), bom.size(), name);
+            assertEquals(plain.get(0).size(), bom.get(0).size(), name);
+        }
     }
 
     /**

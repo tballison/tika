@@ -52,7 +52,8 @@ import org.apache.tika.sax.XHTMLContentHandler;
  * The file starts with "SketchUp Model" and the version, both as length-prefixed UTF-16
  * strings. Up to SketchUp 2020 the preview follows in a "CDib" record: the class tag
  * {@code ff ff}, a 16-bit schema (3 in every file seen), the 16-bit name length and "CDib",
- * then two 32-bit little-endian integers, the second the length of the PNG after them. From
+ * then two 32-bit little-endian integers, the second the length of the image after them, a
+ * PNG or (in some SketchUp 2017 files) a JPEG. From
  * SketchUp 2021,
  * a zip follows a few bytes after the version; its "meta/model_thumbnail.png" is the model
  * alone on a transparent background, "meta/preview_thumbnail.png" the view with its
@@ -77,6 +78,8 @@ public class SketchUpParser implements Parser {
     private static final byte[] ZIP = {'P', 'K', 3, 4};
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G'};
+
+    private static final byte[] JPEG = {(byte) 0xff, (byte) 0xd8, (byte) 0xff};
 
     private static final String MODEL_THUMBNAIL = "meta/model_thumbnail.png";
 
@@ -108,19 +111,19 @@ public class SketchUpParser implements Parser {
     public void parse(TikaInputStream tis, ContentHandler handler, Metadata metadata,
                       ParseContext context) throws IOException, SAXException, TikaException {
         metadata.set(HttpHeaders.CONTENT_TYPE, SKETCHUP.toString());
-        byte[] png = readThumbnail(tis);
+        byte[] image = readThumbnail(tis);
         XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata, context);
         xhtml.startDocument();
         try {
-            if (png != null) {
-                emitThumbnail(png, xhtml, context);
+            if (image != null) {
+                emitThumbnail(image, xhtml, context);
             }
         } finally {
             xhtml.endDocument();
         }
     }
 
-    /** The preview, a PNG, or {@code null} when the file has none. */
+    /** The preview, a PNG or a JPEG, or {@code null} when the file has none. */
     static byte[] readThumbnail(InputStream in) throws IOException, TikaException {
         byte[] head = in.readNBytes(MAX_HEAD_LENGTH);
         int afterVersion = afterHeader(head);
@@ -147,11 +150,12 @@ public class SketchUpParser implements Parser {
         if (length > MAX_THUMBNAIL_LENGTH) {
             throw new TikaMemoryLimitException(length, MAX_THUMBNAIL_LENGTH);
         }
-        byte[] png = record.readNBytes((int) length);
-        if (png.length < length) {
-            throw new TikaException("Preview of " + length + " bytes, " + png.length + " there");
+        byte[] image = record.readNBytes((int) length);
+        if (image.length < length) {
+            throw new TikaException("Preview of " + length + " bytes, " + image.length + " there");
         }
-        return png(png);
+        imageType(image);
+        return image;
     }
 
     /** The offset after "SketchUp Model" and the version string. */
@@ -178,7 +182,7 @@ public class SketchUpParser implements Parser {
         ZipEntry entry;
         for (int i = 0; i < MAX_ZIP_ENTRIES && (entry = zip.getNextEntry()) != null; i++) {
             if (MODEL_THUMBNAIL.equals(entry.getName())) {
-                return png(bounded(zip));
+                return checked(bounded(zip));
             }
             if (VIEW_THUMBNAIL.equals(entry.getName())) {
                 view = bounded(zip);
@@ -187,7 +191,7 @@ public class SketchUpParser implements Parser {
                 break;
             }
         }
-        return view == null ? null : png(view);
+        return view == null ? null : checked(view);
     }
 
     private static byte[] bounded(InputStream in) throws IOException, TikaException {
@@ -198,11 +202,25 @@ public class SketchUpParser implements Parser {
         return bytes;
     }
 
-    private static byte[] png(byte[] bytes) throws TikaException {
-        if (bytes.length < PNG.length || !Arrays.equals(bytes, 0, PNG.length, PNG, 0, PNG.length)) {
-            throw new TikaException("The preview is not a PNG");
+    private static byte[] checked(byte[] image) throws TikaException {
+        imageType(image);
+        return image;
+    }
+
+    /** "png" or "jpeg", by the image's magic. */
+    static String imageType(byte[] image) throws TikaException {
+        if (startsWith(image, PNG)) {
+            return "png";
         }
-        return bytes;
+        if (startsWith(image, JPEG)) {
+            return "jpeg";
+        }
+        throw new TikaException("The preview is neither a PNG nor a JPEG");
+    }
+
+    private static boolean startsWith(byte[] bytes, byte[] prefix) {
+        return bytes.length >= prefix.length
+                && Arrays.equals(bytes, 0, prefix.length, prefix, 0, prefix.length);
     }
 
     private static InputStream rest(byte[] head, int from, InputStream in) {
@@ -210,20 +228,23 @@ public class SketchUpParser implements Parser {
                 new ByteArrayInputStream(head, from, Math.max(0, head.length - from)), in);
     }
 
-    private static void emitThumbnail(byte[] png, XHTMLContentHandler xhtml,
-                                      ParseContext context) throws IOException, SAXException {
+    private static void emitThumbnail(byte[] image, XHTMLContentHandler xhtml,
+                                      ParseContext context)
+            throws IOException, SAXException, TikaException {
+        String type = imageType(image);
         EmbeddedDocumentExtractor extractor =
                 EmbeddedDocumentUtil.getEmbeddedDocumentExtractor(context);
         Metadata thumbnail = new Metadata();
-        thumbnail.set(TikaCoreProperties.RESOURCE_NAME_KEY, "thumbnail.png");
-        thumbnail.set(HttpHeaders.CONTENT_TYPE, "image/png");
+        thumbnail.set(TikaCoreProperties.RESOURCE_NAME_KEY,
+                "thumbnail." + ("jpeg".equals(type) ? "jpg" : type));
+        thumbnail.set(HttpHeaders.CONTENT_TYPE, "image/" + type);
         thumbnail.set(TikaCoreProperties.EMBEDDED_RESOURCE_TYPE,
                 TikaCoreProperties.EmbeddedResourceType.THUMBNAIL.toString());
         if (!extractor.shouldParseEmbedded(thumbnail, context)) {
             return;
         }
-        try (TikaInputStream image = TikaInputStream.get(png)) {
-            extractor.parseEmbedded(image, new EmbeddedContentHandler(xhtml), thumbnail, context,
+        try (TikaInputStream tis = TikaInputStream.get(image)) {
+            extractor.parseEmbedded(tis, new EmbeddedContentHandler(xhtml), thumbnail, context,
                     true);
         }
     }

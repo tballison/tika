@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_16BE;
 import static java.nio.charset.StandardCharsets.UTF_16LE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -538,6 +539,14 @@ public class MimeDetectionTest {
                 detect("﻿ID3 tags hold the title and artist.\n".getBytes(UTF_8), null));
         assertEquals(MediaType.TEXT_PLAIN,
                 detect("﻿GIF89a is the animated variant.\n".getBytes(UTF_8), "notes.txt"));
+
+        assertTrue(MIME_TYPES.isBinaryAfterUtf8Bom(
+                hex(bom + "ffd8ffe000104a46494600010101004800480000ffdb004300080606")));
+        assertFalse(MIME_TYPES.isBinaryAfterUtf8Bom(
+                hex("ffd8ffe000104a46494600010101004800480000ffdb004300080606")));
+        assertFalse(MIME_TYPES.isBinaryAfterUtf8Bom(
+                "﻿ID3 tags hold the title and artist.\n".getBytes(UTF_8)));
+        assertFalse(MIME_TYPES.isBinaryAfterUtf8Bom("﻿<?xml version=\"1.0\"?><a/>".getBytes(UTF_8)));
     }
 
     @Test

@@ -361,6 +361,27 @@ public class NicheFormatDetectionTest {
                         + "\u0000\u0000\u00fc%\u00ff\u00ff\u00ff\u00ff", "pVZ3Sj.localhost.meta");
     }
 
+    /** "\n(" starts Emacs 18 bytecode, and also script and Lisp text after a blank line. */
+    @Test
+    public void testEmacs18BytecodeNeedsByteCode() throws Exception {
+        MediaType elc = MediaType.application("x-elc");
+        String emacs18 = "\n(defun foo (x) \"Doc.\" (byte-code \"\u00c0\u0087\" [x] 1))\n";
+        assertEquals(elc, detectExactly(emacs18));
+        assertEquals(elc, detectExactly(
+                "\n(defvar foo-docs \"" + "x".repeat(2000) + "\")\n" + emacs18));
+        String script = "\n(function($){ $.fn.x = 1; })(jQuery);\n";
+        assertEquals(MediaType.TEXT_PLAIN, detectExactly(script));
+        assertEquals(MediaType.TEXT_PLAIN,
+                detectExactly("\n(gnc:module-load \"gnucash/report\" 0)\n"));
+    }
+
+    /** Detection of the bytes as given, without the zero padding of assertDetected. */
+    private static MediaType detectExactly(String latin1) throws IOException {
+        try (TikaInputStream tis = TikaInputStream.get(latin1.getBytes(ISO_8859_1))) {
+            return MIME_TYPES.detect(tis, new Metadata(), new ParseContext());
+        }
+    }
+
     @Test
     public void testFrameMakerBinaryIsNotMif() throws Exception {
         MediaType frame = MediaType.application("vnd.framemaker");

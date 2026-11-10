@@ -4498,8 +4498,11 @@
   <mime-type type="application/x-elc">
     <_comment>Emacs Lisp bytecode</_comment>
     <magic priority="50">
-      <!-- Emacs 18 -->
-      <match value="\012(" type="string" offset="0" />
+      <!-- Emacs 18: Lisp text whose compiled bodies are (byte-code "..."); "\n(" alone is
+           any text that starts with a blank line and a parenthesis -->
+      <match value="\012(" type="string" offset="0">
+        <match value="(byte-code &quot;" type="string" offset="2:8192" />
+      </match>
       <!-- Emacs 19 and later: the fifth byte is the bytecode version -->
       <match value=";ELC\000\000\000\000" mask="0xFFFFFFFFE0FFFFFF" type="string" offset="0" />
     </magic>
