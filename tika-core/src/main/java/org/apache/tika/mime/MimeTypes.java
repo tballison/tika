@@ -333,14 +333,6 @@ public final class MimeTypes implements Detector, Serializable {
         return result;
     }
 
-    /**
-     * True when {@link #getMimeType(byte[])} types these leading bytes by binary magic past a
-     * UTF-8 BOM: the BOM is noise in front of the real stream.
-     */
-    public boolean isBinaryAfterUtf8Bom(byte[] data) {
-        return startsWithUtf8Bom(data) && binaryMagicAfterBom(data) != null;
-    }
-
     private static boolean startsWithUtf8Bom(byte[] data) {
         return data.length > 3 && data[0] == (byte) 0xEF && data[1] == (byte) 0xBB
                 && data[2] == (byte) 0xBF;

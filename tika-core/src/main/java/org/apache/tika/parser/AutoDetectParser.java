@@ -18,9 +18,7 @@ package org.apache.tika.parser;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 
-import org.apache.commons.io.input.CloseShieldInputStream;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -34,7 +32,6 @@ import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.mime.MediaTypeRegistry;
-import org.apache.tika.mime.MimeTypes;
 import org.apache.tika.parser.hook.ParseHooks;
 import org.apache.tika.sax.SecureContentHandler;
 
@@ -160,49 +157,6 @@ public class AutoDetectParser extends CompositeParser {
 
         // Automatically detect the MIME type of the document
         MediaType type = detector.detect(tis, metadata, context);
-        TikaInputStream afterBom = afterBinaryBom(tis, type);
-        if (afterBom != null) {
-            try (TikaInputStream rest = afterBom) {
-                parseDetected(rest, detector.detect(rest, metadata, context), handler, metadata,
-                        context);
-            }
-            return;
-        }
-        parseDetected(tis, type, handler, metadata, context);
-    }
-
-    /**
-     * The stream past a UTF-8 BOM that a server put in front of binary magic, or null. The
-     * parsers of binary formats expect their magic at offset 0.
-     */
-    private TikaInputStream afterBinaryBom(TikaInputStream tis, MediaType type)
-            throws IOException {
-        MediaType base = type.getBaseType();
-        if ("text".equals(base.getType())
-                || getMediaTypeRegistry().isSpecializationOf(base, MediaType.TEXT_PLAIN)) {
-            return null;
-        }
-        byte[] bom = new byte[3];
-        if (tis.peek(bom) < 3 || (bom[0] & 0xff) != 0xef || (bom[1] & 0xff) != 0xbb
-                || (bom[2] & 0xff) != 0xbf) {
-            return null;
-        }
-        MimeTypes mimeTypes = MimeTypes.getDefaultMimeTypes();
-        byte[] head = new byte[mimeTypes.getMinLength()];
-        int n = tis.peek(head);
-        if (!mimeTypes.isBinaryAfterUtf8Bom(Arrays.copyOf(head, n))) {
-            return null;
-        }
-        if (tis.skip(3) != 3) {
-            return null;
-        }
-        // a new stream, so getPath() and getLength() describe the bytes after the BOM
-        return TikaInputStream.get(CloseShieldInputStream.wrap(tis));
-    }
-
-    private void parseDetected(TikaInputStream tis, MediaType type, ContentHandler handler,
-                               Metadata metadata, ParseContext context)
-            throws IOException, SAXException, TikaException {
         metadata.set(HttpHeaders.CONTENT_TYPE, type.toString());
 
         // Metadata-only pseudo-parse: register the entry, skip the content parse.
