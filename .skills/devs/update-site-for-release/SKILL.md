@@ -94,7 +94,7 @@ page and news links assume `CHANGES-<NEW>.txt`; 4.2.0 was promoted as plain
 
 | Step | 4.x track | 3.x maintenance track |
 |---|---|---|
-| `pom.xml` `<parent><version>` | leave at newest 3.x | → `<NEW>` (must stay a 3.x parent — Java 11 build) |
+| `pom.xml` `<parent><version>` | leave at newest 3.x | → `<NEW>` (must stay a 3.x parent) |
 | `pom.xml` `tika.stable.version` | → `<NEW>` | leave |
 | `pom.xml` `tika.maintenance.version` | leave | → `<NEW>` |
 | `src/site/apt/<NEW>/` | **only `index.apt`** (Changes) | full 8-file set (scaffold from prev 3.x) |
@@ -117,8 +117,12 @@ javadocs are exact-version artifacts.
 - **4.x:** bump `<tika.stable.version>` to `<NEW>`.
 - **3.x:** bump `<tika.maintenance.version>` **and** `<parent><version>` to `<NEW>`.
 - `<parent>` supplies build config only (no site content references it since
-  4.0.0). It must stay on the newest **3.x** parent: the 4.x parent enforces
-  Java 17, but maven-site-plugin 3.4 needs the Java 11 build (step 8).
+  4.0.0). Keep it on the newest **3.x** parent (4.x parents untested with the
+  site's maven-site-plugin 3.4). Since 3.4.0 the 3.x parent also enforces
+  **JDK 17** to build, so the site builds on Java 17 (step 8).
+- **3.x:** a Java-requirement change on the 3.x line (3.4.0: tika-server → Java
+  17) also needs the hand-written prose in `download.apt.vm` (3.x section) and
+  `<NEW>/gettingstarted.apt` updated — neither is version-templated.
 
 Download page auto-reads these — no manual edit. (`download.apt.vm` also derives
 `$docsLine` = `4.1.x` from `tika.stable.version` for its Antora links; check the
@@ -272,8 +276,9 @@ mv target/reports/apidocs $SITE/publish/3.3.2/api
 ```
 Both steps matter: without `install` javadoc dies on `package org.slf4j does not
 exist`; the forking `aggregate` (@aggregator) runs once on the root, `-no-fork`
-breaks per-`pom`-module. 3.x: any modern JDK (11 and 25 verified); 4.x: Java 17+
-(21 verified on 4.1.0, ~3,900 html / 67 MB). A `-Pfast` install that prints a
+breaks per-`pom`-module. Java 17+ for both tracks (3.x ≤ 3.3.x built on 11;
+3.4.0 enforces 17, 21 verified, ~3,100 html / 52 MB; 4.x: 21 verified on 4.1.0,
+~3,900 html / 67 MB). A `-Pfast` install that prints a
 Felix/OSGi stack trace still succeeds — check the `<NEW>` artifacts landed in the
 local repo, not the tail of the log. (`tika-server`
 miredot docs discontinued — skip.)
@@ -317,9 +322,11 @@ Full procedure: docs/modules/ROOT/pages/maintainers/site.adoc.
 
 ## 8. Build + verify  [AGENT]
 
-`tika-site` has no `./mvnw` → system `mvn`. **Build with Java 11** — it pins
-maven-site-plugin 3.4 (2014), unreliable on newer JDKs; a Doxia error here means
-wrong JDK, not a content problem (separate from step 7's JDK-agnostic javadoc).
+`tika-site` has no `./mvnw` → system `mvn`. **Build with Java 17** — the 3.x
+parent's enforcer requires it since 3.4.0 (`Building Tika requires JDK 17+`).
+maven-site-plugin 3.4 (2014) is pinned; Java 17 output was verified identical to
+Java 11 apart from random syntaxhighlighter ids (3.4.0). A Doxia error here
+means try another JDK, not a content problem.
 ```bash
 cd "$SITE"
 mvn clean install
@@ -421,7 +428,8 @@ commit outside `publish/` won't trigger. Still stuck ~30 min → ping `#asfinfra
 | javadoc → `package org.slf4j does not exist` etc. | aggregate without a prior build → empty classpath | `mvn clean install -Pfast` first |
 | site build: `Error parsing '.../index.apt': line [N] missing '>'` | unescaped `<`/`>` (e.g. `<= 0`, `->`) in apt prose | backslash-escape (`\<`); bundled script does this |
 | pages unstyled (no CSS/sidebar) | incremental `install` left `publish/css/` stale | `mvn clean install` (never bare `install`) |
-| site-plugin / Doxia error on `mvn install` | maven-site-plugin 3.4 on too-new a JDK | build with **Java 11** |
+| site-plugin / Doxia error on `mvn install` | maven-site-plugin 3.4 on too-new a JDK | build with **Java 17** (the parent enforces ≥17) |
+| site build: `RequireJavaVersion ... Building Tika requires JDK 17+` | 3.x parent ≥ 3.4.0 on Java 11 | build with Java 17 |
 | notable-changes bullet split on a version number | old numeric heuristic (removed) | use the bundled script; re-run |
 | contributors have bots/AI, or surname order | old behavior (fixed): filter + `str.casefold` sort | use bundled `extract-tika-contribs.py`; RM curates |
 | commit `E175012 timed out` / `E000104 Connection reset` | ~55 MB api tree too big for one transaction | `http-timeout=1800`; chunk the `api/` (step 9). Size, not auth. |
